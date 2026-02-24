@@ -105,6 +105,11 @@ body {
   width: 1.75rem;
   height: 1.75rem;
 }
+@media (orientation: portrait) and (max-width: 899px) {
+  .social-sticky {
+    top: calc(0.4rem + var(--safe-top));
+  }
+}
 
 /* ——— Hero homepage ——— */
 .hero-home {
@@ -273,6 +278,15 @@ body {
     padding-top: max(2.5rem, calc(4vh + var(--safe-top)));
   }
 }
+/* Mobile portrait: dedicated portrait hero bg image */
+@media (orientation: portrait) and (max-width: 899px) {
+  .hero-home__bg {
+    background:
+      url("../assets/hero-bg-portrait.png") center / cover no-repeat,
+      radial-gradient(ellipse 80% 60% at 50% 100%, rgba(34, 85, 51, 0.2) 0%, transparent 50%),
+      linear-gradient(180deg, rgba(13, 14, 18, 0.72) 0%, rgba(13, 14, 18, 0.92) 100%);
+  }
+}
 @media (orientation: portrait) and (max-width: 899px) {
   .btn--hero-verify {
     padding: 1.1rem 2.5rem;
@@ -281,6 +295,18 @@ body {
   }
 }
 @media (max-width: 899px) {
+  /* Hero full-bleed on mobile portrait: bg aligns to viewport left/right */
+  #home.hero-home.section {
+    max-width: none;
+    width: 100%;
+    margin: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+  #home .hero-home__content-inner {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
   .hero-home__slotto {
     bottom: 1.5rem;
     right: 1rem;
@@ -1351,6 +1377,13 @@ body {
 .card--lunarverse .card__bg {
   position: absolute;
   inset: 0;
+  background: linear-gradient(135deg, #1a1c24 0%, #252830 50%, #1e2028 100%);
+  z-index: 0;
+}
+.card--lunarverse .card__bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
   background: url("../assets/lunarverse-bg.png") center / cover no-repeat;
   z-index: 0;
 }
@@ -1397,6 +1430,13 @@ body {
 .card--gotm .card__bg {
   position: absolute;
   inset: 0;
+  background: linear-gradient(135deg, #1e2028 0%, #252830 50%, #1a1c24 100%);
+  z-index: 0;
+}
+.card--gotm .card__bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
   background: url("../assets/gotm-labz-bg.png") center / cover no-repeat;
   z-index: 0;
 }
@@ -1407,6 +1447,17 @@ body {
   background: linear-gradient(90deg, rgba(13, 14, 18, 0.88) 0%, rgba(13, 14, 18, 0.6) 50%, rgba(13, 14, 18, 0.4) 100%);
   z-index: 1;
 }
+
+/* Mobile portrait: use dedicated utility card backgrounds */
+@media (orientation: portrait) and (max-width: 899px) {
+  .card--lunarverse .card__bg::before {
+    background-image: url("../assets/lunarverse-bg-mobile.png");
+  }
+  .card--gotm .card__bg::before {
+    background-image: url("../assets/gotm-labz-bg-mobile.png");
+  }
+}
+
 .card--gotm .card__gotm-content {
   position: relative;
   z-index: 2;
@@ -1845,6 +1896,9 @@ body {
 }
 .grid--2 {
   grid-template-columns: 1fr 1fr;
+}
+#utilities-grid {
+  grid-template-columns: 1fr;
 }
 .grid--3 {
   grid-template-columns: 1fr;

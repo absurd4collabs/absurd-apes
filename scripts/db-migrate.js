@@ -1,6 +1,7 @@
 /**
  * Create database tables if they don't exist.
  * Run: npm run db:migrate
+ * Only users + wallets (no Pairs tables).
  */
 require('dotenv').config();
 const { Client } = require('pg');
@@ -17,36 +18,21 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS wallets (
   wallet_address TEXT PRIMARY KEY,
   discord_id TEXT NOT NULL REFERENCES users(discord_id) ON DELETE CASCADE,
-  connected_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(wallet_address, discord_id)
+  connected_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_wallets_discord ON wallets(discord_id);
-
-CREATE TABLE IF NOT EXISTS pairs_state (
-  discord_id TEXT PRIMARY KEY REFERENCES users(discord_id) ON DELETE CASCADE,
-  turns_remaining INTEGER DEFAULT 0,
-  deck_json JSONB DEFAULT '[]',
-  flipped_json JSONB DEFAULT '[]',
-  matched_json JSONB DEFAULT '{}',
-  prizes_won_json JSONB DEFAULT '[]',
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS pairs_buys (
-  id SERIAL PRIMARY KEY,
-  discord_id TEXT NOT NULL REFERENCES users(discord_id) ON DELETE CASCADE,
-  turns_bought INTEGER NOT NULL,
-  tx_signature TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
 `;
 
 async function run() {
-  const url = process.env.DATABASE_URL;
+  let url = process.env.DATABASE_URL;
   if (!url) {
     console.error('DATABASE_URL not set. Add it to .env');
     process.exit(1);
+  }
+  // Use verify-full to avoid pg SSL deprecation warning
+  if (url.includes('sslmode=require') || url.includes('sslmode=prefer') || url.includes('sslmode=verify-ca')) {
+    url = url.replace(/sslmode=(require|prefer|verify-ca)/i, 'sslmode=verify-full');
   }
   const client = new Client({ connectionString: url });
   try {

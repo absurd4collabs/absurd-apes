@@ -45,6 +45,26 @@ window.ABSURD_APES_CONFIG = {
   // ——— Footer ———
   footerCopy: 'Absurd Apes',
 
+  // ——— Utilities ———
+  utilitiesLead: 'Staking, partner utilities and external tools.',
+  utilities: [
+    {
+      id: 'lunarverse',
+      name: 'Lunarverse',
+      description: 'Absurd Excursions — experiences and utilities on Lunarverse.',
+      url: 'https://absurdexcursions.lunarverse.app/',
+    },
+    {
+      id: 'gotm',
+      name: 'GOTM Labz',
+      description: 'Stake your NFTs and upgrade traits for Absurd Art Apes.',
+      links: [
+        { label: 'NFT Stake', url: 'https://www.nftstake.app/absurdartapes' },
+        { label: 'Trait Store', url: 'https://www.traitstore.app/absurdartapes' },
+      ],
+    },
+  ],
+
   // ——— Partners ———
   partnersLead: 'Platforms and tools integrated with Absurd Apes.',
   partnersPlaceholder: 'Adding soon',

@@ -120,6 +120,37 @@
       }).join('');
     }
 
+    // Utilities (Lunarverse, GOTM Labz cards)
+    var utilitiesLead = document.getElementById('utilities-lead');
+    if (utilitiesLead && c.utilitiesLead) utilitiesLead.textContent = c.utilitiesLead;
+    var utilitiesGrid = document.getElementById('utilities-grid');
+    if (utilitiesGrid && c.utilities && c.utilities.length) {
+      utilitiesGrid.innerHTML = c.utilities.map(function (u) {
+        if (u.url) {
+          return '<a href="' + escapeHtml(u.url) + '" class="card card--lunarverse" target="_blank" rel="noopener">' +
+            '<div class="card__bg"></div>' +
+            '<div class="card__lunarverse-content">' +
+              '<h3 class="card__title">' + escapeHtml(u.name || '') + '</h3>' +
+              '<p class="card__text">' + escapeHtml(u.description || '') + '</p>' +
+              '<span class="btn btn--primary">Visit</span>' +
+            '</div></a>';
+        }
+        if (u.links && u.links.length) {
+          var buttonsHtml = u.links.map(function (l) {
+            return '<a href="' + escapeHtml(l.url || '#') + '" class="btn btn--outline" target="_blank" rel="noopener">' + escapeHtml(l.label || '') + '</a>';
+          }).join('');
+          return '<div class="card card--gotm">' +
+            '<div class="card__bg"></div>' +
+            '<div class="card__gotm-content">' +
+              '<h3 class="card__title">' + escapeHtml(u.name || '') + '</h3>' +
+              '<p class="card__text">' + escapeHtml(u.description || '') + '</p>' +
+              '<div class="card__gotm-buttons">' + buttonsHtml + '</div>' +
+            '</div></div>';
+        }
+        return '';
+      }).join('');
+    }
+
     // Holders labels (sidebar + mobile panel key labels)
     var labels = c.holdingsLabels || {};
     ['token', 'absurdApes', 'col2', 'totalNfts'].forEach(function (key) {
