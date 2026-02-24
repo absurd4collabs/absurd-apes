@@ -316,12 +316,12 @@ async function drawRaffleWinner(raffleId) {
     if (!row) return null;
     if (row.winner_wallet) {
       await client.query('COMMIT');
-      return row.winner_wallet;
+      return { winner: row.winner_wallet, justDrawn: false };
     }
     const endsAt = row.ends_at ? new Date(row.ends_at) : null;
     if (endsAt && endsAt > new Date()) {
       await client.query('COMMIT');
-      return null;
+      return { winner: null, justDrawn: false };
     }
     const entries = await client.query(
       'SELECT wallet_address, ticket_count FROM raffle_tickets WHERE raffle_id = $1',
@@ -332,7 +332,7 @@ async function drawRaffleWinner(raffleId) {
     for (const e of rows) total += parseInt(e.ticket_count, 10) || 0;
     if (total < 1) {
       await client.query('COMMIT');
-      return null;
+      return { winner: null, justDrawn: false };
     }
     const rand = Math.random() * total;
     let acc = 0;
@@ -349,7 +349,7 @@ async function drawRaffleWinner(raffleId) {
       await client.query('UPDATE raffles SET winner_wallet = $1 WHERE id = $2', [winner, raffleId]);
     }
     await client.query('COMMIT');
-    return winner;
+    return { winner, justDrawn: !!winner };
   } catch (e) {
     await client.query('ROLLBACK');
     throw e;

@@ -24,7 +24,8 @@ In Vercel: **Project** → **Settings** → **Environment Variables**. Add these
 | `RAFFLE_TREASURY_WALLET` | Optional | Where ticket payments go; defaults to `PRIZE_WALLET`. |
 | `ADMIN_DISCORD_IDS` | Yes (for Raffles admin) | Comma-separated Discord user IDs who can create raffles. |
 | `AAA_TOKEN_MINT` | Optional | Project token mint for prices/verify/holders. |
-| `DISCORD_BOT_TOKEN` | Optional | For Team section avatars. |
+| `DISCORD_BOT_TOKEN` | Optional | For Team section avatars and raffle announcements. |
+| `DISCORD_RAFFLE_CHANNEL_ID` | Optional | Channel ID where the bot posts new raffles and winners. See [docs/DISCORD-BOT-INVITE.md](docs/DISCORD-BOT-INVITE.md) for the bot invite link. |
 | `BIRDEYE_API_KEY` | Optional | For token chart. |
 
 ## 3. Discord callback URL

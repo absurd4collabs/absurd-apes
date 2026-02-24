@@ -23,6 +23,7 @@ Open `http://localhost:3000`.
 2. **OAuth2 → Redirects**: add `http://localhost:3000/api/discord/callback` (local) and `https://yourdomain.com/api/discord/callback` (production).
 3. Copy **Application ID** → `DISCORD_CLIENT_ID`, and **Client Secret** → `DISCORD_CLIENT_SECRET` in `.env`.
 4. For **Team** section avatars: same app → **Bot** → create/reset token → `DISCORD_BOT_TOKEN` in `.env`.
+5. For **raffle announcements** (bot posts new raffles and winners to a channel): see [docs/DISCORD-BOT-INVITE.md](docs/DISCORD-BOT-INVITE.md). Invite the bot with `https://discord.com/api/oauth2/authorize?client_id=YOUR_APPLICATION_ID&permissions=2048&scope=bot`, then set `DISCORD_RAFFLE_CHANNEL_ID` to the channel ID.
 
 ## Database (Neon PostgreSQL)
 

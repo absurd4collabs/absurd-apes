@@ -372,7 +372,13 @@ app.get('/api/raffles', async function (req, res) {
       let winnerWallet = r.winnerWallet;
       const endsAt = r.endsAt ? new Date(r.endsAt) : null;
       if (endsAt && endsAt <= new Date() && !winnerWallet && db.drawRaffleWinner) {
-        winnerWallet = await db.drawRaffleWinner(r.id);
+        const drawResult = await db.drawRaffleWinner(r.id);
+        const res = drawResult && typeof drawResult === 'object' ? drawResult : { winner: drawResult, justDrawn: false };
+        winnerWallet = res.winner || r.winnerWallet;
+        if (res.justDrawn && res.winner) {
+          const siteUrl = (process.env.SITE_URL || process.env.BASE_URL || BASE_URL).replace(/\/$/, '');
+          postRaffleToDiscord('🎉 **Raffle ended** — **' + (r.prizeNftName || 'Prize').replace(/\*/g, '') + '**\nWinner: `' + res.winner + '`\n' + siteUrl + '/raffles');
+        }
       }
       return { ...r, ticketsSold: sold, winnerWallet: winnerWallet || r.winnerWallet, treasury: RAFFLE_TREASURY_WALLET || null };
     })
@@ -588,6 +594,12 @@ app.post('/api/raffles', express.json(), async function (req, res) {
       status: row.status,
       createdAt: row.created_at,
     };
+    const siteUrl = (process.env.SITE_URL || process.env.BASE_URL || BASE_URL).replace(/\/$/, '');
+    postRaffleToDiscord(
+      '🎟️ **New raffle** — **' + (raffle.prizeNftName || 'Prize').replace(/\*/g, '') + '**\n' +
+      raffle.ticketCount + ' tickets · Ends ' + (raffle.endsAt ? new Date(raffle.endsAt).toLocaleString() : '') + '\n' +
+      siteUrl + '/raffles'
+    );
     res.status(201).json(raffle);
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -659,10 +671,23 @@ app.get('/api/token-info', async function (req, res) {
   }
 });
 
-// ——— Discord user by ID (for team section; requires bot token) ———
+// ——— Discord bot: team avatars + raffle channel announcements ———
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
+const DISCORD_RAFFLE_CHANNEL_ID = (process.env.DISCORD_RAFFLE_CHANNEL_ID || '').trim();
 if (!DISCORD_BOT_TOKEN) {
   console.warn('DISCORD_BOT_TOKEN not set — Team section will show placeholder avatars. Add a Bot token from Discord Developer Portal to fetch Discord usernames and avatars.');
+}
+
+/** Post a message to the raffle Discord channel. No-op if channel or token not set. */
+function postRaffleToDiscord(content) {
+  if (!DISCORD_BOT_TOKEN || !DISCORD_RAFFLE_CHANNEL_ID) return Promise.resolve();
+  return axios
+    .post(
+      'https://discord.com/api/v10/channels/' + encodeURIComponent(DISCORD_RAFFLE_CHANNEL_ID) + '/messages',
+      { content: String(content).slice(0, 2000) },
+      { headers: { Authorization: 'Bot ' + DISCORD_BOT_TOKEN, 'Content-Type': 'application/json' }, timeout: 5000, validateStatus: () => true }
+    )
+    .catch((e) => console.warn('[Raffles] Discord post failed:', e.message));
 }
 app.get('/api/discord/user/:id', async function (req, res) {
   const id = req.params.id;
