@@ -1,6 +1,7 @@
 {
   "version": 2,
   "buildCommand": "npm run vercel-build",
+  "outputDirectory": "public",
   "rewrites": [
     { "source": "/favicon.ico", "destination": "/api/favicon" },
     { "source": "/favicon.svg", "destination": "/api/favicon.svg" },

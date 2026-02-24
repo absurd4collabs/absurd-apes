@@ -18,7 +18,7 @@ In Vercel: **Project** → **Settings** → **Environment Variables**. Add these
 | `DISCORD_CLIENT_ID` | Yes (for Discord) | From Discord Developer Portal. |
 | `DISCORD_CLIENT_SECRET` | Yes (for Discord) | From Discord Developer Portal. |
 | `DATABASE_URL` | Yes (for Discord + Raffles) | PostgreSQL connection string (e.g. Neon). |
-| `SITE_URL` | Recommended | Your Vercel URL, e.g. `https://your-app.vercel.app` (for OG/link previews). |
+| `SITE_URL` | **Required for link embeds** | Your live URL, e.g. `https://your-app.vercel.app`. Used for `og:image` and `og:url` so shared links show the logo and description in Discord/Twitter/etc. |
 | `HELIUS_API_KEY` | Yes (for Raffles + NFT) | From [Helius](https://dashboard.helius.dev). |
 | `PRIZE_WALLET` | Yes (for Raffles) | Solana address for prize NFTs and (if unset) ticket payments. |
 | `RAFFLE_TREASURY_WALLET` | Optional | Where ticket payments go; defaults to `PRIZE_WALLET`. |
