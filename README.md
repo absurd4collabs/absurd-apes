@@ -37,11 +37,15 @@ After this, Discord logins are stored in `users`, and when a user **Verify**s (D
 
 ## Deploy to Vercel
 
-1. Push this repo to GitHub and import it in [Vercel](https://vercel.com) as a new project.
-2. **Framework**: Other. **Root Directory**: (leave default).
-3. **Environment Variables**: add the same as `.env` (`BASE_URL` = your Vercel URL, `SESSION_SECRET`, `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, and optionally `HELIUS_API_KEY`, `AAA_TOKEN_MINT`, `DISCORD_BOT_TOKEN`, `BIRDEYE_API_KEY`, collection mints, `DATABASE_URL` for Discord/holders and Pairs).
-4. In Discord, add redirect: `https://<your-vercel-domain>/api/discord/callback`.
-5. Deploy.
+1. **Push** this repo to GitHub and [import it in Vercel](https://vercel.com) as a new project.
+2. **Framework**: Other. **Root Directory**: leave default.
+3. **Environment Variables** (Vercel → Project → Settings → Environment Variables). Add the same as `.env`:
+   - **Required for Discord + raffles**: `SESSION_SECRET`, `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DATABASE_URL`
+   - **Optional**: `BASE_URL` or `SITE_URL` (e.g. `https://your-app.vercel.app` for OG meta), `HELIUS_API_KEY`, `AAA_TOKEN_MINT`, `DISCORD_BOT_TOKEN`, `BIRDEYE_API_KEY`, collection mints
+   - **Raffles**: `ADMIN_DISCORD_IDS` (comma-separated Discord user IDs for raffle admins), `PRIZE_WALLET` (Solana address for prize NFTs), `RAFFLE_TREASURY_WALLET` (where ticket payments go; defaults to `PRIZE_WALLET` if unset)
+4. **Discord redirect**: In [Discord Developer Portal](https://discord.com/developers/applications) → your app → OAuth2 → Redirects, add `https://<your-vercel-domain>/api/discord/callback`.
+5. **Database**: Run `npm run db:migrate` once against your production `DATABASE_URL` (from your machine: `DATABASE_URL=postgresql://... npm run db:migrate`) so raffles and payment-signatures tables exist.
+6. **Deploy**: push to your main branch or trigger a deploy from the Vercel dashboard.
 
 ## Project config
 

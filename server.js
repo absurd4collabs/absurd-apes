@@ -43,6 +43,13 @@ const AAA_TOKEN_MINT = process.env.AAA_TOKEN_MINT || process.env.TOKEN_MINT || '
 const TOKEN_PROGRAM_ID = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
 const TOKEN_DECIMALS = parseInt(process.env.TOKEN_DECIMALS || process.env.AAA_DECIMALS || '6', 10);
 
+const ADMIN_DISCORD_IDS = (process.env.ADMIN_DISCORD_IDS || '')
+  .split(',')
+  .map((id) => id.trim())
+  .filter(Boolean);
+const PRIZE_WALLET = (process.env.PRIZE_WALLET || '').trim();
+const RAFFLE_TREASURY_WALLET = (process.env.RAFFLE_TREASURY_WALLET || process.env.PRIZE_WALLET || '').trim();
+
 if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
   console.warn('Missing DISCORD_CLIENT_ID or DISCORD_CLIENT_SECRET. Set them in .env to enable Discord login.');
 }
@@ -67,9 +74,105 @@ app.get('/favicon.ico', function (req, res) {
   res.status(204).end();
 });
 
+// ——— Image proxy (same-origin NFT images to avoid cross-site cookies / CORS) ———
+const PROXY_IMAGE_HOSTS = [
+  'shdw-drive.genesysgo.net',
+  'ipfs.dweb.link',
+  'cloudflare-ipfs.com',
+  'dweb.link',
+  'ipfs.io',
+  'gateway.pinata.cloud',
+  'mypinata.cloud',
+  'pinata.cloud',
+  'arweave.net',
+  'www.arweave.net',
+  'cf-ipfs.com',
+  'nftstorage.link',
+  'ipfs.nftstorage.link',
+  'gateway.pinit.io',
+  'pinit.io',
+  'we-assets.pinit.io',
+  'atomicsnfts.com',
+  'storage.googleapis.com',
+  'ibb.co',
+  'img.hi-hi.vip',
+  '888jup.com',
+  'hi-hi.vip',
+  'mara1837891738.com',
+  'gateway.irys.xyz',
+  'irys.xyz',
+];
+const PROXY_IMAGE_MAX_SIZE = 10 * 1024 * 1024; // 10MB
+const PROXY_IMAGE_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+app.get('/api/proxy-image', async function (req, res) {
+  const raw = (req.query.url && String(req.query.url).trim()) || '';
+  if (!raw) return res.status(400).send('Missing url');
+  let parsed;
+  try {
+    parsed = new URL(raw);
+  } catch (e) {
+    return res.status(400).send('Invalid url');
+  }
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return res.status(400).send('Invalid protocol');
+  const host = parsed.hostname.toLowerCase();
+  const allowed = PROXY_IMAGE_HOSTS.some(function (h) {
+    return host === h || host.endsWith('.' + h);
+  });
+  if (!allowed) return res.status(403).send('Host not allowed');
+  try {
+    const imgRes = await axios.get(raw, {
+      responseType: 'arraybuffer',
+      maxContentLength: PROXY_IMAGE_MAX_SIZE,
+      timeout: 15000,
+      validateStatus: function (s) { return s === 200; },
+      headers: {
+        Accept: 'image/*,*/*',
+        'User-Agent': PROXY_IMAGE_USER_AGENT,
+      },
+    });
+    let type = (imgRes.headers['content-type'] || '').split(';')[0].trim();
+    if (!/^image\//i.test(type)) {
+      const pathLower = parsed.pathname.toLowerCase();
+      if (/\.(png|jpe?g|gif|webp|svg|ico)(\?|$)/i.test(pathLower)) type = 'image/png';
+      else return res.status(415).send('Not an image');
+    }
+    if (!type) type = 'image/png';
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Content-Type', type);
+    res.send(imgRes.data);
+  } catch (e) {
+    if (e.response?.status) return res.status(e.response.status).send('Upstream error');
+    res.status(502).send('Proxy error');
+  }
+});
+
 // Pairs game: standalone page
 app.get('/pairs', function (req, res) {
   res.sendFile(path.join(__dirname, 'pairs.html'));
+});
+
+// Raffles: SPA route — serve index so client can show raffles view without reload
+app.get('/raffles', function (req, res) {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// ——— Solana RPC proxy (for NFT transfer in browser; public RPC returns 403 from browser) ———
+app.post('/api/solana-rpc', express.json(), async function (req, res) {
+  if (!HELIUS_API_KEY) return res.status(503).json({ jsonrpc: '2.0', error: { code: -32603, message: 'RPC not configured' }, id: req.body?.id ?? null });
+  const body = req.body;
+  if (!body || typeof body !== 'object') return res.status(400).json({ jsonrpc: '2.0', error: { code: -32600, message: 'Invalid request' }, id: null });
+  try {
+    const rpcRes = await axios.post(
+      `${HELIUS_RPC}/?api-key=${HELIUS_API_KEY}`,
+      body,
+      { headers: { 'Content-Type': 'application/json' }, timeout: 15000, validateStatus: () => true }
+    );
+    res.setHeader('Content-Type', 'application/json');
+    res.status(rpcRes.status).send(rpcRes.data);
+  } catch (e) {
+    res.status(502).json({ jsonrpc: '2.0', error: { code: -32603, message: e.message || 'RPC proxy error' }, id: body.id ?? null });
+  }
 });
 
 // ——— Discord OAuth: start ———
@@ -245,6 +348,314 @@ app.post('/api/pairs/play', express.json(), async function (req, res) {
     res.json({ ok: true });
   } catch (e) {
     return res.status(500).json({ error: e.message });
+  }
+});
+
+// ——— Raffles: admin check (only admins can create raffles) ———
+function isRaffleAdmin(discordId) {
+  return discordId && ADMIN_DISCORD_IDS.includes(String(discordId));
+}
+
+app.get('/api/raffles/admin-check', function (req, res) {
+  if (!req.session?.discord) return res.json({ admin: false });
+  res.json({ admin: isRaffleAdmin(req.session.discord.id) });
+});
+
+// ——— Raffles: list active ———
+app.get('/api/raffles', async function (req, res) {
+  res.setHeader('Cache-Control', 'no-store');
+  if (!db.getActiveRaffles) return res.json({ raffles: [] });
+  const raffles = await db.getActiveRaffles();
+  const withSold = await Promise.all(
+    raffles.map(async (r) => {
+      const sold = await db.getRaffleSoldCount(r.id);
+      let winnerWallet = r.winnerWallet;
+      const endsAt = r.endsAt ? new Date(r.endsAt) : null;
+      if (endsAt && endsAt <= new Date() && !winnerWallet && db.drawRaffleWinner) {
+        winnerWallet = await db.drawRaffleWinner(r.id);
+      }
+      return { ...r, ticketsSold: sold, winnerWallet: winnerWallet || r.winnerWallet, treasury: RAFFLE_TREASURY_WALLET || null };
+    })
+  );
+  res.json({ raffles: withSold });
+});
+
+// ——— Raffles: single + entries ———
+app.get('/api/raffles/:id', async function (req, res) {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).json({ error: 'Invalid raffle id' });
+  let raffle = await db.getRaffleById(id);
+  if (!raffle) return res.status(404).json({ error: 'Raffle not found' });
+  const endsAt = raffle.endsAt ? new Date(raffle.endsAt) : null;
+  if (endsAt && endsAt <= new Date() && !raffle.winnerWallet && db.drawRaffleWinner) {
+    const winner = await db.drawRaffleWinner(id);
+    raffle = await db.getRaffleById(id) || raffle;
+    if (winner) raffle.winnerWallet = winner;
+  }
+  const ticketsSold = await db.getRaffleSoldCount(id);
+  res.json({ ...raffle, ticketsSold, treasury: RAFFLE_TREASURY_WALLET || null });
+});
+
+app.get('/api/raffles/:id/entries', async function (req, res) {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).json({ error: 'Invalid raffle id' });
+  const raffle = await db.getRaffleById(id);
+  if (!raffle) return res.status(404).json({ error: 'Raffle not found' });
+  const entries = await db.getRaffleEntries(id);
+  res.json({ entries });
+});
+
+app.get('/api/raffles/:id/my-tickets', async function (req, res) {
+  const id = parseInt(req.params.id, 10);
+  const wallet = (req.query.wallet && String(req.query.wallet).trim()) || '';
+  if (isNaN(id)) return res.status(400).json({ error: 'Invalid raffle id' });
+  if (!wallet) return res.status(400).json({ error: 'wallet query required' });
+  const raffle = await db.getRaffleById(id);
+  if (!raffle) return res.status(404).json({ error: 'Raffle not found' });
+  const ticketCount = await db.getRaffleTicketCountByWallet(id, wallet);
+  const total = raffle.ticketCount || raffle.ticket_count || 0;
+  const maxPerWallet = Math.floor(total * 0.2);
+  res.json({ ticketCount, maxPerWallet, total });
+});
+
+/** Verify a Solana payment tx: transfer to paymentDestination of expectedAmount (lamports for SOL, raw token amount for SPL). Returns { ok, error }. */
+async function verifyRafflePaymentTx(signature, paymentDestination, expectedAmountLamportsOrRaw, isSol) {
+  if (!HELIUS_API_KEY) return { ok: false, error: 'RPC not configured' };
+  const sig = String(signature).trim();
+  if (!sig) return { ok: false, error: 'Invalid signature' };
+  const dest = String(paymentDestination || '').trim();
+  if (!dest) return { ok: false, error: 'Invalid payment destination' };
+  try {
+    const rpcRes = await axios.post(
+      `${HELIUS_RPC}/?api-key=${HELIUS_API_KEY}`,
+      {
+        jsonrpc: '2.0',
+        id: '1',
+        method: 'getTransaction',
+        params: [sig, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 }],
+      },
+      { timeout: 15000, validateStatus: () => true }
+    );
+    const result = rpcRes.data?.result;
+    if (!result || result.meta?.err) return { ok: false, error: 'Transaction not found or failed' };
+    const msg = result.transaction?.message;
+    if (!msg) return { ok: false, error: 'Invalid transaction' };
+    const instructions = msg.instructions || [];
+    const inner = (result.meta?.innerInstructions || []).flatMap((ii) => ii.instructions || []);
+    const all = [...instructions, ...inner];
+    const expected = String(expectedAmountLamportsOrRaw);
+    for (const ix of all) {
+      const p = ix.parsed;
+      if (!p || !p.info) continue;
+      if (isSol && p.type === 'transfer') {
+        const info = p.info;
+        if (info.destination === dest && String(info.lamports) === expected) return { ok: true };
+      }
+      if (!isSol && (p.type === 'transferChecked' || p.type === 'transfer')) {
+        const info = p.info;
+        const amount = info.tokenAmount?.amount ?? info.amount;
+        if (info.destination === dest && (amount === expected || String(amount) === expected)) return { ok: true };
+      }
+    }
+    return { ok: false, error: 'Payment transfer to treasury not found or amount mismatch' };
+  } catch (e) {
+    return { ok: false, error: e.message || 'Verification failed' };
+  }
+}
+
+app.post('/api/raffles/:id/buy', express.json(), async function (req, res) {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).json({ error: 'Invalid raffle id' });
+  if (!db.getRaffleById) return res.status(503).json({ error: 'Database not configured' });
+  const raffle = await db.getRaffleById(id);
+  if (!raffle) return res.status(404).json({ error: 'Raffle not found. Refresh the page and try again.' });
+  const endsAt = (raffle.endsAt || raffle.ends_at) ? new Date(raffle.endsAt || raffle.ends_at) : null;
+  if (endsAt && endsAt <= new Date()) return res.status(400).json({ error: 'Raffle has ended' });
+  const wallet = (req.body && req.body.wallet && String(req.body.wallet).trim()) || '';
+  const count = parseInt(req.body && req.body.count, 10);
+  const signature = (req.body && req.body.signature && String(req.body.signature).trim()) || '';
+  const paymentDestination = (req.body && req.body.paymentDestination && String(req.body.paymentDestination).trim()) || '';
+  if (!wallet) return res.status(400).json({ error: 'wallet required' });
+  if (!Number.isInteger(count) || count < 1) return res.status(400).json({ error: 'count must be a positive integer' });
+  if (!signature) return res.status(400).json({ error: 'Sign the payment transaction in your wallet first.' });
+  if (!paymentDestination) return res.status(400).json({ error: 'paymentDestination required' });
+  const treasury = RAFFLE_TREASURY_WALLET;
+  if (!treasury) return res.status(503).json({ error: 'Raffle treasury not configured. Set RAFFLE_TREASURY_WALLET or PRIZE_WALLET in .env' });
+  const total = raffle.ticketCount || raffle.ticket_count || 0;
+  const maxPerWallet = Math.floor(total * 0.2);
+  if (maxPerWallet < 1) return res.status(400).json({ error: 'Raffle has no tickets available per wallet' });
+  const current = await db.getRaffleTicketCountByWallet(id, wallet);
+  if (current + count > maxPerWallet) {
+    return res.status(400).json({ error: 'Maximum ' + maxPerWallet + ' tickets per wallet (you have ' + current + ').' });
+  }
+  const sold = await db.getRaffleSoldCount(id);
+  if (sold + count > total) return res.status(400).json({ error: 'Not enough tickets left' });
+  const raw = String(raffle.ticketPriceRaw || '0').trim();
+  const type = (raffle.ticketPriceTokenType || 'sol').toLowerCase();
+  const isSol = type === 'sol';
+  let expectedAmount;
+  if (isSol) {
+    expectedAmount = String(parseInt(raw, 10) * count);
+  } else {
+    const storedDecimals = raffle.ticketPriceDecimals != null ? raffle.ticketPriceDecimals : 6;
+    const mintForDecimals = type === 'aaa' && AAA_TOKEN_MINT ? AAA_TOKEN_MINT : (raffle.ticketPriceTokenMint || '');
+    let actualDecimals = 6;
+    if (HELIUS_API_KEY && mintForDecimals) {
+      try {
+        const rpcRes = await axios.post(
+          `${HELIUS_RPC}/?api-key=${HELIUS_API_KEY}`,
+          { jsonrpc: '2.0', id: '1', method: 'getAsset', params: { id: mintForDecimals } },
+          { timeout: 5000, validateStatus: () => true }
+        );
+        const item = rpcRes.data?.result;
+        if (item?.content?.metadata) {
+          const d = item.content.metadata.decimals;
+          if (typeof d === 'number' && d >= 0 && d <= 9) actualDecimals = d;
+        }
+      } catch (_) {}
+    }
+    const humanPrice = Number(raw) / Math.pow(10, storedDecimals);
+    expectedAmount = String(BigInt(Math.round(humanPrice * Math.pow(10, actualDecimals) * count)));
+  }
+  const verification = await verifyRafflePaymentTx(signature, paymentDestination, expectedAmount, isSol);
+  if (!verification.ok) {
+    return res.status(400).json({ error: verification.error || 'Payment verification failed' });
+  }
+  const used = await db.useRafflePaymentSignature(signature);
+  if (!used) return res.status(400).json({ error: 'This payment was already used. Each transaction can only buy tickets once.' });
+  try {
+    await db.addRaffleTickets(id, wallet, count);
+    res.json({ ok: true, ticketCount: current + count });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ——— Raffles: create (admin only) ———
+app.post('/api/raffles', express.json(), async function (req, res) {
+  if (!req.session?.discord) return res.status(401).json({ error: 'Not logged in' });
+  if (!isRaffleAdmin(req.session.discord.id)) return res.status(403).json({ error: 'Admin only' });
+  const prizeWalletAddr = (PRIZE_WALLET || '').trim();
+  if (!prizeWalletAddr || prizeWalletAddr.length < 32) {
+    return res.status(503).json({ error: 'PRIZE_WALLET not configured. Add a Solana address to PRIZE_WALLET in .env and restart the server.' });
+  }
+  const body = req.body || {};
+  const prizeNftMint = body.prizeNftMint && String(body.prizeNftMint).trim();
+  const ticketCount = parseInt(body.ticketCount, 10);
+  const ticketPriceTokenType = body.ticketPriceTokenType && String(body.ticketPriceTokenType).trim();
+  const ticketPriceRaw = body.ticketPriceRaw != null ? String(body.ticketPriceRaw) : null;
+  const endsAt = body.endsAt && String(body.endsAt).trim();
+  if (!prizeNftMint || ticketCount < 1 || !ticketPriceTokenType || ticketPriceRaw == null || !endsAt) {
+    return res.status(400).json({ error: 'Missing or invalid: prizeNftMint, ticketCount, ticketPriceTokenType, ticketPriceRaw, endsAt' });
+  }
+  const endsAtDate = new Date(endsAt);
+  if (isNaN(endsAtDate.getTime()) || endsAtDate <= new Date()) {
+    return res.status(400).json({ error: 'endsAt must be a future ISO date/time' });
+  }
+  const ticketPriceTokenMint = (body.ticketPriceTokenMint && String(body.ticketPriceTokenMint).trim()) || null;
+  const ticketPriceDecimals = body.ticketPriceDecimals != null ? parseInt(body.ticketPriceDecimals, 10) : 6;
+  const prizeNftName = (body.prizeNftName && String(body.prizeNftName)) || null;
+  const prizeNftImage = (body.prizeNftImage && String(body.prizeNftImage)) || null;
+  if (!db.createRaffle) return res.status(503).json({ error: 'Database not configured' });
+  try {
+    const row = await db.createRaffle({
+      prizeNftMint,
+      prizeNftName,
+      prizeNftImage,
+      prizeWallet: prizeWalletAddr,
+      ticketCount,
+      ticketPriceTokenType,
+      ticketPriceTokenMint,
+      ticketPriceRaw,
+      ticketPriceDecimals: Number.isInteger(ticketPriceDecimals) && ticketPriceDecimals >= 0 && ticketPriceDecimals <= 9 ? ticketPriceDecimals : 6,
+      endsAt: endsAtDate.toISOString(),
+      createdByDiscordId: req.session.discord.id,
+    });
+    if (!row || (row.id === undefined || row.id === null)) {
+      return res.status(500).json({ error: 'Create failed: no id returned from database' });
+    }
+    const raffle = {
+      id: row.id,
+      prizeNftMint: row.prize_nft_mint,
+      prizeNftName: row.prize_nft_name,
+      prizeNftImage: row.prize_nft_image,
+      prizeWallet: row.prize_wallet || prizeWalletAddr,
+      ticketCount: row.ticket_count,
+      ticketPriceTokenType: row.ticket_price_token_type,
+      ticketPriceTokenMint: row.ticket_price_token_mint,
+      ticketPriceRaw: row.ticket_price_raw,
+      endsAt: row.ends_at,
+      status: row.status,
+      createdAt: row.created_at,
+    };
+    res.status(201).json(raffle);
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// ——— NFTs by wallet (for raffle admin: pick prize NFT); session required ———
+app.get('/api/nfts', async function (req, res) {
+  if (!req.session?.discord) return res.status(401).json({ error: 'Not logged in' });
+  const wallet = (req.query.wallet && String(req.query.wallet).trim()) || '';
+  if (!wallet || wallet.length < 32) return res.status(400).json({ error: 'wallet query required' });
+  if (!HELIUS_API_KEY) return res.status(503).json({ error: 'NFT fetch not configured' });
+  const nfts = [];
+  let page = 1;
+  let hasMore = true;
+  while (hasMore) {
+    const rpcRes = await axios.post(
+      `${HELIUS_RPC}/?api-key=${HELIUS_API_KEY}`,
+      {
+        jsonrpc: '2.0',
+        id: '1',
+        method: 'getAssetsByOwner',
+        params: {
+          ownerAddress: wallet,
+          page,
+          limit: 100,
+          options: { showUnverifiedCollections: true },
+        },
+      },
+      { timeout: 15000, validateStatus: () => true }
+    );
+    const items = rpcRes.data?.result?.items || [];
+    for (const item of items) {
+      const interfaceType = item.interface || (item.content?.metadata?.symbol ? 'V1_NFT' : null);
+      const isFungible = item.interface === 'FungibleToken' || item.interface === 'FungibleAsset';
+      if (isFungible) continue;
+      const id = item.id || item.content?.metadata?.mint;
+      const name = item.content?.metadata?.name || item.id || 'Unknown';
+      const img = item.content?.links?.image || item.content?.metadata?.uri || null;
+      if (id) nfts.push({ id, name, image: img });
+    }
+    hasMore = items.length === 100;
+    page++;
+    if (page > 30) break;
+  }
+  res.json({ nfts });
+});
+
+// ——— Token info by mint (for raffle admin custom token display) ———
+app.get('/api/token-info', async function (req, res) {
+  const mint = (req.query.mint && String(req.query.mint).trim()) || '';
+  if (!mint || mint.length < 32) return res.status(400).json({ error: 'mint query required' });
+  if (!HELIUS_API_KEY) return res.status(503).json({ error: 'Not configured' });
+  try {
+    const rpcRes = await axios.post(
+      `${HELIUS_RPC}/?api-key=${HELIUS_API_KEY}`,
+      { jsonrpc: '2.0', id: '1', method: 'getAsset', params: { id: mint } },
+      { timeout: 8000, validateStatus: () => true }
+    );
+    const item = rpcRes.data?.result;
+    if (!item) return res.status(404).json({ error: 'Token not found' });
+    const meta = item.content?.metadata || {};
+    const name = meta.name || item.id || 'Unknown';
+    const symbol = meta.symbol || '—';
+    const decimals = meta.token_standard === 'Fungible' ? (meta.decimals ?? 6) : 0;
+    res.json({ name, symbol, decimals, mint: item.id });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 

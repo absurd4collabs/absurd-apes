@@ -173,7 +173,52 @@
   }
   applyProjectConfig();
 
-  // ----- Section highlighting -----
+  // ----- Client-side route: home vs raffles (no full reload, dashboard stays) -----
+  function getRoute() {
+    var path = window.location.pathname.replace(/\/$/, '') || '/';
+    return path === '/raffles' ? 'raffles' : 'home';
+  }
+  var mainHome = document.getElementById('main-home');
+  var mainRaffles = document.getElementById('main-raffles');
+  var routeLinks = document.querySelectorAll('[data-route="home"], [data-route="raffles"]');
+
+  function setRouteActive(route) {
+    routeLinks.forEach(function (link) {
+      var isActive = link.getAttribute('data-route') === route;
+      link.classList.toggle('dashboard__link--active', isActive);
+      link.classList.toggle('dashboard-bottom__item--active', isActive);
+      link.setAttribute('aria-current', isActive && route === 'raffles' ? 'page' : 'false');
+    });
+  }
+
+  function showView(route) {
+    if (mainHome) mainHome.hidden = route !== 'home';
+    if (mainRaffles) mainRaffles.hidden = route !== 'raffles';
+    setRouteActive(route);
+    if (route === 'raffles' && typeof window.initRafflesPage === 'function') window.initRafflesPage();
+    if (route === 'home') setActiveSection(getSectionIdFromHash());
+    else {
+      navLinks.forEach(function (link) {
+        link.classList.remove('dashboard__link--active', 'dashboard-bottom__item--active');
+      });
+    }
+  }
+
+  routeLinks.forEach(function (link) {
+    link.addEventListener('click', function (e) {
+      var href = link.getAttribute('href');
+      if (!href || href === '#' || link.target === '_blank') return;
+      var path = href.split('?')[0].split('#')[0].replace(/\/$/, '') || '/';
+      if (path === '/raffles' || path === '/') {
+        e.preventDefault();
+        history.pushState(null, '', href);
+        showView(getRoute());
+      }
+    });
+  });
+  window.addEventListener('popstate', function () { showView(getRoute()); });
+
+  // ----- Section highlighting (home view only) -----
   const navLinks = document.querySelectorAll('[data-section]');
   const sections = document.querySelectorAll('.section');
   var navScrollInProgress = false;
@@ -197,7 +242,8 @@
     if (!el) return;
     navScrollInProgress = true;
     navScrollTargetId = id;
-    window.history.replaceState(null, '', '#' + id);
+    var base = (window.location.pathname || '/').replace(/\/$/, '') || '/';
+    window.history.replaceState(null, '', base + '#' + id);
     setActiveSection(id);
     el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     setTimeout(function () {
@@ -211,25 +257,30 @@
       const sectionId = link.getAttribute('data-section');
       if (sectionId && link.getAttribute('href')?.startsWith('#')) {
         e.preventDefault();
+        if (getRoute() === 'raffles') {
+          history.pushState(null, '', '/#' + sectionId);
+          showView('home');
+        }
         scrollToSection(sectionId);
       }
     });
   });
 
   window.addEventListener('hashchange', function () {
+    if (getRoute() !== 'home') return;
     if (!navScrollInProgress) setActiveSection(getSectionIdFromHash());
   });
 
   const observer = new IntersectionObserver(
     function (entries) {
-      if (navScrollInProgress) return;
+      if (getRoute() !== 'home' || navScrollInProgress) return;
       entries.forEach(function (entry) {
         if (!entry.isIntersecting) return;
         const id = entry.target.id;
         if (id) {
           setActiveSection(id);
           if (window.location.hash !== '#' + id) {
-            window.history.replaceState(null, '', '#' + id);
+            window.history.replaceState(null, '', (window.location.pathname || '/') + '#' + id);
           }
         }
       });
@@ -239,12 +290,17 @@
   sections.forEach(function (section) {
     if (section.id) observer.observe(section);
   });
-  setActiveSection(getSectionIdFromHash());
+
+  showView(getRoute());
 
   // ----- Wallet (Solana) -----
   function getDetectedWallets() {
     var list = [];
-    if (window.phantom?.solana?.isPhantom) {
+    // Phantom: check window.solana first (Firefox sometimes only has this), then window.phantom.solana
+    if (window.solana?.isPhantom) {
+      list.push({ name: 'Phantom', provider: window.solana });
+    }
+    if (window.phantom?.solana?.isPhantom && !list.some(function (w) { return w.provider === window.phantom.solana; })) {
       list.push({ name: 'Phantom', provider: window.phantom.solana });
     }
     if (window.solflare?.isSolflare) {
@@ -269,6 +325,8 @@
     var provider = getSolanaProvider();
     return provider && provider.publicKey ? provider.publicKey.toString() : null;
   }
+  window.getWalletPublicKey = getWalletPublicKey;
+  window.getSolanaProvider = getSolanaProvider;
 
   function isWalletConnected() {
     return !!getWalletPublicKey();
@@ -281,6 +339,7 @@
       if (btn) btn.textContent = label;
     });
     if (typeof syncVerifyModalState === 'function') syncVerifyModalState();
+    if (connected && document.getElementById('main-raffles') && !document.getElementById('main-raffles').hidden && typeof window.initRafflesPage === 'function') window.initRafflesPage();
   }
 
   function connectWithProvider(provider) {
@@ -307,12 +366,7 @@
   function openWalletPicker() {
     if (!walletPicker || !walletPickerList) return Promise.reject();
     return new Promise(function (resolve, reject) {
-      function showList(wallets) {
-        if (!wallets.length) {
-          alert('No Solana wallet extension detected. Install or enable Phantom, Solflare, or another Solana wallet in this browser.');
-          reject(new Error('No provider'));
-          return;
-        }
+      function renderWallets(wallets) {
         walletPickerList.innerHTML = '';
         wallets.forEach(function (w) {
           var btn = document.createElement('button');
@@ -333,10 +387,34 @@
         walletPicker.setAttribute('aria-hidden', 'false');
         walletPicker._resolve = resolve;
       }
-      setTimeout(function () {
+      function done(wallets) {
+        if (wallets.length) {
+          renderWallets(wallets);
+        } else {
+          walletPicker.setAttribute('aria-hidden', 'true');
+          alert('No Solana wallet extension detected. Install or enable Phantom, Solflare, or another Solana wallet in this browser.');
+          reject(new Error('No provider'));
+        }
+      }
+      walletPicker.setAttribute('aria-hidden', 'false');
+      walletPickerList.innerHTML = '<p class="wallet-picker__detecting">Detecting wallets…</p>';
+      walletPicker._resolve = resolve;
+      var delays = [100, 400, 900, 1600];
+      var idx = 0;
+      function check() {
         var wallets = getDetectedWallets();
-        showList(wallets);
-      }, 120);
+        if (wallets.length) {
+          renderWallets(wallets);
+          return;
+        }
+        idx++;
+        if (idx < delays.length) {
+          setTimeout(check, delays[idx] - delays[idx - 1]);
+        } else {
+          done(wallets);
+        }
+      }
+      setTimeout(check, delays[0]);
     });
   }
 

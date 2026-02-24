@@ -134,6 +134,230 @@ async function savePairsState(discordId, state) {
   return state;
 }
 
+// ——— Raffles ———
+async function createRaffle(data) {
+  const p = getPool();
+  if (!p) return null;
+  const decimals = data.ticketPriceDecimals != null ? parseInt(data.ticketPriceDecimals, 10) : 6;
+  const decimalsVal = Number.isInteger(decimals) && decimals >= 0 && decimals <= 9 ? decimals : 6;
+  const res = await p.query(
+    `INSERT INTO raffles (
+      prize_nft_mint, prize_nft_name, prize_nft_image, prize_wallet,
+      ticket_count, ticket_price_token_type, ticket_price_token_mint, ticket_price_raw, ticket_price_decimals,
+      ends_at, status, created_by_discord_id
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active', $11)
+    RETURNING id, prize_nft_mint, prize_nft_name, prize_nft_image, prize_wallet,
+      ticket_count, ticket_price_token_type, ticket_price_token_mint, ticket_price_raw, ticket_price_decimals,
+      ends_at, status, created_at`,
+    [
+      data.prizeNftMint,
+      data.prizeNftName || null,
+      data.prizeNftImage || null,
+      data.prizeWallet,
+      data.ticketCount,
+      data.ticketPriceTokenType,
+      data.ticketPriceTokenMint || null,
+      String(data.ticketPriceRaw),
+      decimalsVal,
+      data.endsAt,
+      data.createdByDiscordId || null,
+    ]
+  );
+  return res.rows?.[0] || null;
+}
+
+async function getActiveRaffles() {
+  const p = getPool();
+  if (!p) return [];
+  let res;
+  try {
+    res = await p.query(
+      `SELECT * FROM raffles WHERE status = 'active' ORDER BY created_at DESC`
+    );
+  } catch (e) {
+    if (e.message && /winner_wallet|column.*does not exist/i.test(e.message)) {
+      res = await p.query(
+        `SELECT id, prize_nft_mint, prize_nft_name, prize_nft_image, prize_wallet,
+                ticket_count, ticket_price_token_type, ticket_price_token_mint, ticket_price_raw,
+                ends_at, status, created_at
+         FROM raffles WHERE status = 'active' ORDER BY created_at DESC`
+      );
+    } else throw e;
+  }
+  return (res.rows || []).map((r) => ({
+    id: r.id,
+    prizeNftMint: r.prize_nft_mint,
+    prizeNftName: r.prize_nft_name,
+    prizeNftImage: r.prize_nft_image,
+    prizeWallet: r.prize_wallet,
+    ticketCount: r.ticket_count,
+    ticketPriceTokenType: r.ticket_price_token_type,
+    ticketPriceTokenMint: r.ticket_price_token_mint,
+    ticketPriceRaw: r.ticket_price_raw,
+    ticketPriceDecimals: r.ticket_price_decimals != null ? r.ticket_price_decimals : 6,
+    endsAt: r.ends_at,
+    status: r.status,
+    createdAt: r.created_at,
+    winnerWallet: r.winner_wallet,
+  }));
+}
+
+async function getRaffleById(id) {
+  const p = getPool();
+  if (!p) return null;
+  let res;
+  try {
+    res = await p.query(
+      `SELECT id, prize_nft_mint, prize_nft_name, prize_nft_image, prize_wallet,
+              ticket_count, ticket_price_token_type, ticket_price_token_mint, ticket_price_raw, ticket_price_decimals,
+              ends_at, status, created_at, winner_wallet
+       FROM raffles WHERE id = $1`,
+      [id]
+    );
+  } catch (e) {
+    if (e.message && /ticket_price_decimals|column.*does not exist/i.test(e.message)) {
+      res = await p.query(
+        `SELECT id, prize_nft_mint, prize_nft_name, prize_nft_image, prize_wallet,
+                ticket_count, ticket_price_token_type, ticket_price_token_mint, ticket_price_raw,
+                ends_at, status, created_at, winner_wallet
+         FROM raffles WHERE id = $1`,
+        [id]
+      );
+    } else throw e;
+  }
+  const r = res.rows?.[0];
+  if (!r) return null;
+  return {
+    id: r.id,
+    prizeNftMint: r.prize_nft_mint,
+    prizeNftName: r.prize_nft_name,
+    prizeNftImage: r.prize_nft_image,
+    prizeWallet: r.prize_wallet,
+    ticketCount: r.ticket_count,
+    ticketPriceTokenType: r.ticket_price_token_type,
+    ticketPriceTokenMint: r.ticket_price_token_mint,
+    ticketPriceRaw: r.ticket_price_raw,
+    ticketPriceDecimals: r.ticket_price_decimals != null ? r.ticket_price_decimals : 6,
+    endsAt: r.ends_at,
+    status: r.status,
+    createdAt: r.created_at,
+    winnerWallet: r.winner_wallet,
+  };
+}
+
+async function getRaffleEntries(raffleId) {
+  const p = getPool();
+  if (!p) return [];
+  const res = await p.query(
+    `SELECT wallet_address, ticket_count FROM raffle_tickets
+     WHERE raffle_id = $1 ORDER BY ticket_count ASC, wallet_address ASC`,
+    [raffleId]
+  );
+  return (res.rows || []).map((r) => ({ walletAddress: r.wallet_address, ticketCount: r.ticket_count }));
+}
+
+async function getRaffleSoldCount(raffleId) {
+  const p = getPool();
+  if (!p) return 0;
+  const res = await p.query(
+    'SELECT COALESCE(SUM(ticket_count), 0)::int AS total FROM raffle_tickets WHERE raffle_id = $1',
+    [raffleId]
+  );
+  return parseInt(res.rows?.[0]?.total, 10) || 0;
+}
+
+async function addRaffleTickets(raffleId, walletAddress, ticketCount) {
+  const p = getPool();
+  if (!p) return null;
+  await p.query(
+    `INSERT INTO raffle_tickets (raffle_id, wallet_address, ticket_count)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (raffle_id, wallet_address) DO UPDATE SET
+       ticket_count = raffle_tickets.ticket_count + EXCLUDED.ticket_count`,
+    [raffleId, walletAddress.toLowerCase(), ticketCount]
+  );
+  return { raffleId, walletAddress, ticketCount };
+}
+
+async function getRaffleTicketCountByWallet(raffleId, walletAddress) {
+  const p = getPool();
+  if (!p) return 0;
+  const res = await p.query(
+    'SELECT ticket_count FROM raffle_tickets WHERE raffle_id = $1 AND wallet_address = $2',
+    [raffleId, (walletAddress || '').toLowerCase()]
+  );
+  return parseInt(res.rows?.[0]?.ticket_count, 10) || 0;
+}
+
+/** Record a payment signature to prevent replay. Returns true if inserted, false if already used. */
+async function useRafflePaymentSignature(signature) {
+  const p = getPool();
+  if (!p) return false;
+  try {
+    await p.query('INSERT INTO raffle_payment_signatures (signature) VALUES ($1)', [String(signature).trim()]);
+    return true;
+  } catch (e) {
+    if (e.code === '23505') return false; // unique violation
+    throw e;
+  }
+}
+
+async function drawRaffleWinner(raffleId) {
+  const p = getPool();
+  if (!p) return null;
+  const client = await p.connect();
+  try {
+    await client.query('BEGIN');
+    const r = await client.query(
+      'SELECT winner_wallet, ends_at FROM raffles WHERE id = $1 FOR UPDATE',
+      [raffleId]
+    );
+    const row = r.rows?.[0];
+    if (!row) return null;
+    if (row.winner_wallet) {
+      await client.query('COMMIT');
+      return row.winner_wallet;
+    }
+    const endsAt = row.ends_at ? new Date(row.ends_at) : null;
+    if (endsAt && endsAt > new Date()) {
+      await client.query('COMMIT');
+      return null;
+    }
+    const entries = await client.query(
+      'SELECT wallet_address, ticket_count FROM raffle_tickets WHERE raffle_id = $1',
+      [raffleId]
+    );
+    const rows = entries.rows || [];
+    let total = 0;
+    for (const e of rows) total += parseInt(e.ticket_count, 10) || 0;
+    if (total < 1) {
+      await client.query('COMMIT');
+      return null;
+    }
+    const rand = Math.random() * total;
+    let acc = 0;
+    let winner = null;
+    for (const e of rows) {
+      acc += parseInt(e.ticket_count, 10) || 0;
+      if (rand < acc) {
+        winner = e.wallet_address;
+        break;
+      }
+    }
+    if (!winner) winner = rows[rows.length - 1]?.wallet_address || null;
+    if (winner) {
+      await client.query('UPDATE raffles SET winner_wallet = $1 WHERE id = $2', [winner, raffleId]);
+    }
+    await client.query('COMMIT');
+    return winner;
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   getPool,
   upsertUser,
@@ -144,4 +368,13 @@ module.exports = {
   getDiscordUsernames,
   getPairsState,
   savePairsState,
+  createRaffle,
+  getActiveRaffles,
+  getRaffleById,
+  getRaffleEntries,
+  getRaffleSoldCount,
+  addRaffleTickets,
+  getRaffleTicketCountByWallet,
+  drawRaffleWinner,
+  useRafflePaymentSignature,
 };
