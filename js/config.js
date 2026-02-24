@@ -1,110 +1,109 @@
 /**
- * Project config — template for any NFT/token project.
- * Replace values below (or load a preset from presets/) for your project.
- * Mnk3ys preset is in presets/mnk3ys/ for reference/restore.
+ * Project config — Absurd Apes NFT & AAA token.
+ * Edit values below for your deployment.
  */
-window.MNK3YS_CONFIG = {
+window.ABSURD_APES_CONFIG = {
   // ——— Brand ———
-  projectName: 'MNK3YLABS',
+  projectName: 'Absurd Apes',
   // ——— Embed (Open Graph / Twitter Cards) ———
-  siteUrl: 'https://mnk3ys.vercel.app',
-  siteTitle: 'MNK3YLABS - NFT & Token',
-  siteDescription: 'Make NFTs Ape Again. NFT collections & project token built on Solana.',
+  siteUrl: 'https://absurd-apes.vercel.app',
+  siteTitle: 'Absurd Apes - NFT & Token',
+  siteDescription: 'Absurd Apes NFT collection and AAA token on Solana.',
   ogImageUrl: 'assets/logo.png',
-  tagline: 'STRONGER TOGETHER',
+  tagline: 'ABSURD TOGETHER',
   logoUrl: 'assets/logo.png',
 
   // ——— Social ———
   social: {
-    x: 'https://x.com/mnk3ylabs',
-    discord: 'https://discord.gg/sKeVmR3',
+    x: 'https://x.com/absurdartapes',
+    discord: 'https://discord.gg/yFyErCkAyG',
   },
   // Optional: shop URL (if set, Shop link is shown in sidebar)
-  shopUrl: 'https://mnk3ylabs.printify.me/',
+  shopUrl: '',
 
   // ——— Token ———
   token: {
-    name: 'Blunana',
-    symbol: 'BLUNANA',
-    logoUrl: 'https://ipfs.io/ipfs/QmTKRAZEcTfDeVDt8hebrCv27DctYghtdfXRMc9FRA6NU3',
-    priceLabel: 'Blunana (BLUNANA / USD)',
-    chartLabel: 'BLUNANA / USD — 15m',
-    summaryText: 'MNK3YLABS project token. Verify holdings in the dashboard.',
+    name: 'AAA',
+    symbol: 'AAA',
+    navLabel: 'AAA token',
+    logoUrl: 'assets/logo.png',
+    menuIconUrl: 'assets/coin-icon.svg',
+    priceLabel: 'AAA (AAA / USD)',
+    chartLabel: 'AAA / USD — 15m',
+    summaryText: 'Absurd Apes project token. Verify holdings in the dashboard.',
   },
 
   // ——— Hero ———
   hero: {
-    title: 'MNK3YLABS',
-    tagline: 'STRONGER TOGETHER',
-    subtitle: 'Make NFTs Ape Again. NFT collections & project token built on Solana.',
+    title: 'Absurd Apes',
+    tagline: '',
+    subtitle: 'Absurd Art Apes is a unique NFT project, built on Solana, that was created to address a very real issue facing artists today. It\'s an effort to raise awareness in web3 around the challenges artists face in trusting people to pay for their services.',
     solanaLogoUrl: 'https://cryptologos.cc/logos/solana-sol-logo.svg?v=040',
     backgroundImage: 'assets/hero-bg.png',
   },
 
   // ——— Footer ———
-  footerCopy: 'MNK3YLABS · Make NFTs Ape Again.',
+  footerCopy: 'Absurd Apes',
 
   // ——— Partners ———
-  partnersLead: 'Platforms and tools integrated with MNK3YLABS.',
+  partnersLead: 'Platforms and tools integrated with Absurd Apes.',
   partnersPlaceholder: 'Adding soon',
-  partners: [
-    { name: 'Enchanted Miners', logo: 'assets/partners/enchanted-miners.png' },
-    { name: 'Flux Inc', logo: 'assets/partners/flux-inc.png' },
-    { name: 'GOTM Labz', logo: 'assets/partners/gotm-labz.png' },
-    { name: 'Lunarverse', logo: 'assets/partners/lunarverse.png' },
-    { name: 'Metamate', logo: 'assets/partners/metamate.png' },
-    { name: 'Mob Collective', logo: 'assets/partners/mob-collective.png' },
-    { name: 'UniFy', logo: 'assets/partners/unify.png' },
-  ],
+  partners: [],
 
-  // ——— Holders (labels; keys match server collection slugs / token) ———
+  // ——— Holders (labels; keys match server countKey: token, absurdApes, col2, totalNfts) ———
   holdingsLabels: {
-    token: 'Blunana',
-    mnk3ys: 'MNK3YS',
-    zmb3ys: 'ZMB3YS',
+    token: 'AAA',
+    absurdApes: 'Absurd Art Apes',
+    col2: 'Absurd Horizons',
     totalNfts: 'Total NFTs',
   },
-  holdersLead: 'Top holders by Blunana token and NFT collections.',
+  holdersLead: 'Top holders by AAA token and NFT collections.',
   holdersSortOptions: {
-    token: 'Blunana token',
-    mnk3ys: 'MNK3YS NFTs',
-    zmb3ys: 'ZMB3YS NFTs',
+    token: 'AAA token',
+    absurdApes: 'Absurd Art Apes NFTs',
+    col2: 'Absurd Horizons NFTs',
   },
 
   // ——— Holder portal & API ———
   holderPortalUrl: '',
   endpoints: { holdings: '/api/holdings', discordAuth: '/api/discord/auth' },
   discordConnectUrl: '',
-  tokenMint: 'C9vfeaCLhJy7sykgKnfzi6RikawQNoGtRKwsaupKavmV',
-  tokenDextoolsPairUrl: 'https://www.dextools.io/app/solana/pair-explorer/xf1K6QsfF7YWKo4hvMVQwn3t8U9yafnsFP3yByw7UJc',
-  tokenBirdeyeUrl: 'https://birdeye.so/solana/token/C9vfeaCLhJy7sykgKnfzi6RikawQNoGtRKwsaupKavmV',
+  tokenMint: 'D6p61cpMVByNQyt6cwHQe5CLW6CTixRucp7cFUnD7BWz',
+  tokenDextoolsPairUrl: '',
+  tokenBirdeyeUrl: 'https://birdeye.so/solana/token/D6p61cpMVByNQyt6cwHQe5CLW6CTixRucp7cFUnD7BWz',
   collections: {
-    mnk3ys: 'https://magiceden.io/marketplace/mnk3ys',
-    zmb3ys: 'https://magiceden.io/marketplace/zmb3ys',
+    absurd_art_apes: 'https://magiceden.io/marketplace/absurd_art_apes',
+    absurd_horizons: '#',
+  },
+
+  // ——— Absurd Horizons (coming soon) ———
+  absurdHorizons: {
+    imageUrl: 'assets/absurd-horizons.png',
+    mintDate: '2026-03-01',
+    mintLabel: 'Minting Sunday 1st March',
   },
 
   // ——— X spaces ———
-  xSpacesBannerUrl: 'assets/jungle-juice-banner.png',
+  xSpacesImageUrl: 'assets/spaces.png',
   xSpacesLead: 'Tune in to our weekly X space...',
-  xSpacesTime: 'Tuesdays @ 2pm est',
+  xSpacesTime: 'Mondays @ 4pm est',
   xSpacesHosts: [
-    { label: '@lunarpro', url: 'https://x.com/lunarpro' },
-    { label: '@deano_sol', url: 'https://x.com/deano_sol' },
+    { label: '@SkeetsANC', url: 'https://x.com/SkeetsANC' },
+    { label: '@Cap_N_Chronic', url: 'https://x.com/Cap_N_Chronic' },
   ],
-  xSpacesTagline: 'Special guests,<br>crypto chat<br>and banging tunes!!!',
+  xSpacesTagline: 'Community, alpha and vibes.',
 
   // ——— Pairs game (standalone page at /pairs) ———
   pairs: {
     turnsPerBuy: 5,
-    costBlunana: 100000,
+    costToken: 100000,
     gridCols: 6,
     gridRows: 4,
   },
 
   // ——— Team ———
   team: [
-    { xProfileUrl: 'https://x.com/deano_sol', discordId: '890995564949434468', description: 'Founder & artist' },
-    { xProfileUrl: 'https://x.com/GrandFracton', discordId: '978993938318897203', description: 'Community manager' },
-    { xProfileUrl: 'https://x.com/BUXDAO', discordId: '931160720261939230', description: 'Lead dev & web design' },
+    { xProfileUrl: 'https://x.com/SkeetsANC', discordId: '1074064709101305918', description: 'Founder, Artist & Creative' },
+    { xProfileUrl: 'https://x.com/Zippo1321', discordId: '971215759328030800', description: 'Head Mod & Game Coordinator' },
   ],
 };

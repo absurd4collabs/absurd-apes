@@ -1,6 +1,6 @@
-# MNK3YLABS — NFT & Token site
+# Absurd Apes — NFT & Token site
 
-Official site for MNK3YLABS: collections, BLUNANA token, holders, team, Discord login, and verify holdings.
+Official site for Absurd Apes: collections, AAA token, holders, team, Discord login, and verify holdings.
 
 ## Quick start
 
@@ -9,7 +9,7 @@ npm install
 cp .env.example .env
 ```
 
-Edit **`.env`**: set `BASE_URL`, `SESSION_SECRET`, `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`. Optionally add `DISCORD_BOT_TOKEN` (for Team section avatars), `HELIUS_API_KEY`, `BLUNANA_TOKEN_MINT`, collection mints, `BIRDEYE_API_KEY` (for token chart). For **Discord logins saved to DB** and **holders table showing Discord names** (with multiple wallets per user merged into one row), set `DATABASE_URL` and run the migration once (see **Database** below).
+Edit **`.env`**: set `BASE_URL`, `SESSION_SECRET`, `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`. Optionally add `DISCORD_BOT_TOKEN` (for Team section avatars), `HELIUS_API_KEY`, `AAA_TOKEN_MINT` (or `TOKEN_MINT`), collection mints, `BIRDEYE_API_KEY` (for token chart). For **Discord logins saved to DB** and **holders table showing Discord names** (with multiple wallets per user merged into one row), set `DATABASE_URL` and run the migration once (see **Database** below).
 
 ```bash
 npm start
@@ -39,7 +39,7 @@ After this, Discord logins are stored in `users`, and when a user **Verify**s (D
 
 1. Push this repo to GitHub and import it in [Vercel](https://vercel.com) as a new project.
 2. **Framework**: Other. **Root Directory**: (leave default).
-3. **Environment Variables**: add the same as `.env` (`BASE_URL` = your Vercel URL, `SESSION_SECRET`, `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, and optionally `HELIUS_API_KEY`, `BLUNANA_TOKEN_MINT`, `DISCORD_BOT_TOKEN`, `BIRDEYE_API_KEY`, collection mints, `DATABASE_URL` for Discord/holders and Pairs).
+3. **Environment Variables**: add the same as `.env` (`BASE_URL` = your Vercel URL, `SESSION_SECRET`, `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, and optionally `HELIUS_API_KEY`, `AAA_TOKEN_MINT`, `DISCORD_BOT_TOKEN`, `BIRDEYE_API_KEY`, collection mints, `DATABASE_URL` for Discord/holders and Pairs).
 4. In Discord, add redirect: `https://<your-vercel-domain>/api/discord/callback`.
 5. Deploy.
 

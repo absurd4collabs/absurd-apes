@@ -1,6 +1,6 @@
 /**
- * Pairs game: flip cards to match prizes. 24 cards (4x6), 5 turns for 100k BLUNANA.
- * Anyone can play. Connect wallet to pay BLUNANA for turns.
+ * Pairs game: flip cards to match prizes. 24 cards (4x6), 5 turns for 100k AAA.
+ * Anyone can play. Connect wallet to pay AAA for turns.
  */
 (function () {
   function getWalletPublicKey() {
@@ -29,7 +29,7 @@
         fetch(window.location.origin + '/api/verify?wallet=' + encodeURIComponent(pk), { credentials: 'include' })
           .then(function (r) { return r.ok ? r.json() : null; })
           .then(function (data) {
-            if (balanceEl) balanceEl.textContent = data && data.blunanaFormatted != null ? data.blunanaFormatted : '—';
+            if (balanceEl) balanceEl.textContent = data && data.tokenFormatted != null ? data.tokenFormatted : '—';
           })
           .catch(function () {
             if (balanceEl) balanceEl.textContent = '—';
@@ -44,25 +44,25 @@
   }
 
   function getConfig() {
-    var c = window.MNK3YS_CONFIG && window.MNK3YS_CONFIG.pairs;
+    var c = window.ABSURD_APES_CONFIG && window.ABSURD_APES_CONFIG.pairs;
     return {
       turnsPerBuy: (c && c.turnsPerBuy) || 5,
-      costBlunana: (c && c.costBlunana) || 100000,
+      costToken: (c && c.costToken) || 100000,
       gridCols: (c && c.gridCols) || 4,
       gridRows: (c && c.gridRows) || 6,
     };
   }
 
   const CARD_TYPES = [
-    { id: 'mnk3ys', label: 'Mnk3ys NFT', count: 2 },
-    { id: 'zmb3ys', label: 'Zmb3ys NFT', count: 2 },
-    { id: '100k', label: '100k $BLUNANA', count: 2 },
-    { id: '150k', label: '150k $BLUNANA', count: 2 },
-    { id: '200k', label: '200k $BLUNANA', count: 2 },
-    { id: '250k', label: '250k $BLUNANA', count: 2 },
-    { id: '300k', label: '300k $BLUNANA', count: 2 },
-    { id: '400k', label: '400k $BLUNANA', count: 2 },
-    { id: '500k', label: '500k $BLUNANA', count: 2 },
+    { id: 'absurdApes', label: 'Absurd Apes NFT', count: 2 },
+    { id: 'col2', label: 'Collection 2 NFT', count: 2 },
+    { id: '100k', label: '100k $AAA', count: 2 },
+    { id: '150k', label: '150k $AAA', count: 2 },
+    { id: '200k', label: '200k $AAA', count: 2 },
+    { id: '250k', label: '250k $AAA', count: 2 },
+    { id: '300k', label: '300k $AAA', count: 2 },
+    { id: '400k', label: '400k $AAA', count: 2 },
+    { id: '500k', label: '500k $AAA', count: 2 },
     { id: 'shuffle', label: 'SHUFFLE', count: 6 },
   ];
 
@@ -125,15 +125,16 @@
       localCollectionImages: {},
     };
 
-    var BLUNANA_LOGO_URL = 'https://ipfs.io/ipfs/QmTKRAZEcTfDeVDt8hebrCv27DctYghtdfXRMc9FRA6NU3';
+    var TOKEN_LOGO_URL = (window.ABSURD_APES_CONFIG && window.ABSURD_APES_CONFIG.token && window.ABSURD_APES_CONFIG.token.logoUrl) || '/assets/logo.png';
+    if (TOKEN_LOGO_URL && !TOKEN_LOGO_URL.startsWith('/') && !TOKEN_LOGO_URL.startsWith('http')) TOKEN_LOGO_URL = '/' + TOKEN_LOGO_URL;
     var UNDO_ICON_URL = '/assets/undo-icon.svg';
 
     function getCardImageUrl(cardId) {
       if (cardId === 'shuffle') return UNDO_ICON_URL;
-      if (cardId === 'mnk3ys' || cardId === 'zmb3ys') {
+      if (cardId === 'absurdApes' || cardId === 'col2') {
         return state.localCollectionImages[cardId] || state.collectionImages[cardId] || null;
       }
-      return BLUNANA_LOGO_URL;
+      return TOKEN_LOGO_URL;
     }
 
     function escapeHtml(s) {
@@ -147,15 +148,15 @@
       var cfg = getConfig();
       gridEl.style.gridTemplateColumns = 'repeat(' + cfg.gridCols + ', 1fr)';
       gridEl.style.gridTemplateRows = 'repeat(' + (cfg.gridRows || 4) + ', 1.4fr)';
-      var logoUrl = (window.MNK3YS_CONFIG && window.MNK3YS_CONFIG.logoUrl) || 'assets/logo.png';
+      var logoUrl = (window.ABSURD_APES_CONFIG && window.ABSURD_APES_CONFIG.logoUrl) || 'assets/logo.png';
       if (logoUrl && !logoUrl.startsWith('/') && !logoUrl.startsWith('http')) logoUrl = '/' + logoUrl;
       state.deck.forEach(function (card, idx) {
         var isFlipped = state.flipped.indexOf(idx) >= 0 || state.matched[idx];
         var div = document.createElement('div');
         div.className = 'pairs__card' + (isFlipped ? ' pairs__card--flipped' : '') + (state.matched[idx] ? ' pairs__card--matched' : '');
         div.setAttribute('data-index', idx);
-        var frontClass = card.id === 'shuffle' ? ' pairs__card-front--shuffle' : (card.id === 'mnk3ys' || card.id === 'zmb3ys' ? '' : ' pairs__card-front--blunana');
-        var displayLabel = card.id === 'shuffle' ? card.label : (card.id === 'mnk3ys' || card.id === 'zmb3ys' ? card.label : card.id);
+        var frontClass = card.id === 'shuffle' ? ' pairs__card-front--shuffle' : (card.id === 'absurdApes' || card.id === 'col2' ? '' : ' pairs__card-front--token');
+        var displayLabel = card.id === 'shuffle' ? card.label : (card.id === 'absurdApes' || card.id === 'col2' ? card.label : card.id);
         var imgUrl = getCardImageUrl(card.id);
         var frontMediaHtml;
         if (card.id === 'shuffle') {

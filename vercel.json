@@ -7,7 +7,7 @@
     { "source": "/pairs/", "destination": "/api/pairs" }
   ],
   "redirects": [
-    { "source": "/Mnk3ys", "destination": "/", "permanent": false },
-    { "source": "/Mnk3ys/", "destination": "/", "permanent": false }
+    { "source": "/absurd-apes", "destination": "/", "permanent": false },
+    { "source": "/absurd-apes/", "destination": "/", "permanent": false }
   ]
 }

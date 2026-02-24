@@ -49,12 +49,12 @@ module.exports = (req, res) => {
     if (normalized === 'pairs') raw = '/pairs';
     else raw = '/api/' + (rest ? rest.replace(/^\/+/, '') : '');
   }
-  if (/^\/(discord|verify|collections|holders|prices|blunana-ohlc|wallets)(\/|$|\?)/.test(raw)) {
+  if (/^\/(discord|verify|collections|holders|prices|token-ohlc|wallets)(\/|$|\?)/.test(raw)) {
     raw = '/api' + raw;
   }
   const q = (req.url || '').includes('?') ? '?' + (req.url || '').split('?').slice(1).join('?') : '';
 
-  const isApiRoute = /^\/api\/(discord|verify|collections|holders|prices|blunana-ohlc|wallets)(\/|$|\?)/.test(raw);
+  const isApiRoute = /^\/api\/(discord|verify|collections|holders|prices|token-ohlc|wallets)(\/|$|\?)/.test(raw);
   if (isApiRoute) {
     req.url = raw + q;
     return app(req, res);
@@ -63,8 +63,8 @@ module.exports = (req, res) => {
   let u = raw;
   if (u.startsWith('/api/')) u = u.slice(4) || '/';
   else if (u === '/api') u = '/';
-  if (u === '/Mnk3ys' || u === '/Mnk3ys/') u = '/';
-  else if (u.startsWith('/Mnk3ys/')) u = u.slice(8) || '/';
+  if (u === '/absurd-apes' || u === '/absurd-apes/') u = '/';
+  else if (u.startsWith('/absurd-apes/')) u = u.slice(13) || '/';
   u = (u || '/').trim().replace(/\/+/g, '/').replace(/\/$/, '') || '/';
 
   if (u === '/favicon.ico') return res.status(204).end();

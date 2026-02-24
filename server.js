@@ -1,5 +1,5 @@
 /**
- * Mnk3ys — Express server with Discord OAuth2 login
+ * Absurd Apes — Express server with Discord OAuth2 login
  * Serves static site and provides /api/discord/* routes.
  *
  * Required env: DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, SESSION_SECRET, BASE_URL
@@ -19,7 +19,7 @@ const PORT = process.env.PORT || 3000;
 
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
-const SESSION_SECRET = process.env.SESSION_SECRET || 'mnk3ys-session-secret-change-in-production';
+const SESSION_SECRET = process.env.SESSION_SECRET || 'absurd-apes-session-secret-change-in-production';
 const BASE_URL = (process.env.BASE_URL || 'http://localhost:' + PORT).replace(/\/$/, '');
 const REDIRECT_URI = BASE_URL + '/api/discord/callback';
 
@@ -32,16 +32,16 @@ const HELIUS_API_KEY = process.env.HELIUS_API_KEY;
 const HELIUS_RPC = 'https://mainnet.helius-rpc.com';
 const ME_BASE = 'https://api-mainnet.magiceden.dev/v2';
 
-// Collection slugs on Magic Eden; optional Helius collection mint for supply/metadata
+// Collection slugs on Magic Eden; countKey used in API responses (absurdApesCount, col2Count)
 const COLLECTIONS = [
-  { slug: 'mnk3ys', name: 'MNK3YS', collectionMint: process.env.MNK3YS_COLLECTION_MINT || '' },
-  { slug: 'zmb3ys', name: 'ZMB3YS', collectionMint: process.env.ZMB3YS_COLLECTION_MINT || '' },
+  { slug: 'absurd_art_apes', name: 'Absurd Art Apes', collectionMint: process.env.ABSURD_ART_APES_COLLECTION_MINT || '', countKey: 'absurdApesCount' },
+  { slug: 'absurd_horizons', name: 'Absurd Horizons', collectionMint: process.env.ABSURD_HORIZONS_COLLECTION_MINT || '', countKey: 'col2Count' },
 ];
 
 const LAMPORTS_PER_SOL = 1e9;
-const BLUNANA_TOKEN_MINT = process.env.BLUNANA_TOKEN_MINT || process.env.TOKEN_MINT || 'KMNo3nJsBXfcpJTVhZcXLW7RmTwTt4GVFE7suUBo9sS';
+const AAA_TOKEN_MINT = process.env.AAA_TOKEN_MINT || process.env.TOKEN_MINT || '';
 const TOKEN_PROGRAM_ID = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
-const BLUNANA_DECIMALS = parseInt(process.env.BLUNANA_DECIMALS || '6', 10);
+const TOKEN_DECIMALS = parseInt(process.env.TOKEN_DECIMALS || process.env.AAA_DECIMALS || '6', 10);
 
 if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
   console.warn('Missing DISCORD_CLIENT_ID or DISCORD_CLIENT_SECRET. Set them in .env to enable Discord login.');
@@ -50,7 +50,7 @@ if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
 app.use(cookieParser());
 app.use(
   cookieSession({
-    name: 'mnk3ys_session',
+    name: 'absurd_apes_session',
     keys: [SESSION_SECRET],
     maxAge: 7 * 24 * 60 * 60 * 1000,
     httpOnly: true,
@@ -288,23 +288,23 @@ app.get('/api/discord/user/:id', async function (req, res) {
   }
 });
 
-// ——— Live prices (Jupiter): SOL + Blunana USD; cache 60s ———
+// ——— Live prices (Jupiter): SOL + AAA token USD; cache 60s ———
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 let pricesCache = { data: null, ts: 0 };
 const PRICES_CACHE_MS = 60 * 1000;
 
 function parseJupiterPrices(data) {
-  const out = { solUsd: null, blunanaUsd: null, blunanaPerSol: null };
+  const out = { solUsd: null, tokenUsd: null, tokenPerSol: null };
   if (!data || typeof data !== 'object') return out;
   const d = typeof data.data === 'object' && data.data !== null ? data.data : data;
   const sol = d[SOL_MINT];
-  const blunana = d[BLUNANA_TOKEN_MINT];
+  const tokenData = d[AAA_TOKEN_MINT];
   const solP = sol?.price ?? sol?.usdPrice;
-  const bluP = blunana?.price ?? blunana?.usdPrice;
+  const tokenP = tokenData?.price ?? tokenData?.usdPrice;
   if (solP != null) out.solUsd = Number(solP);
-  if (bluP != null) {
-    out.blunanaUsd = Number(bluP);
-    if (out.solUsd && out.solUsd > 0) out.blunanaPerSol = out.blunanaUsd / out.solUsd;
+  if (tokenP != null) {
+    out.tokenUsd = Number(tokenP);
+    if (out.solUsd && out.solUsd > 0) out.tokenPerSol = out.tokenUsd / out.solUsd;
   }
   return out;
 }
@@ -314,8 +314,12 @@ app.get('/api/prices', async function (req, res) {
   if (pricesCache.data && now - pricesCache.ts < PRICES_CACHE_MS) {
     return res.json(pricesCache.data);
   }
-  const out = { solUsd: null, blunanaUsd: null, blunanaPerSol: null };
-  const ids = [SOL_MINT, BLUNANA_TOKEN_MINT].join(',');
+  const out = { solUsd: null, tokenUsd: null, tokenPerSol: null };
+  if (!AAA_TOKEN_MINT) {
+    pricesCache = { data: out, ts: now };
+    return res.json(out);
+  }
+  const ids = [SOL_MINT, AAA_TOKEN_MINT].join(',');
   const urls = [
     'https://api.jup.ag/price/v3?ids=' + encodeURIComponent(ids),
     'https://lite-api.jup.ag/price/v3?ids=' + encodeURIComponent(ids),
@@ -330,39 +334,40 @@ app.get('/api/prices', async function (req, res) {
       if (r.status === 200 && r.data) {
         const parsed = parseJupiterPrices(r.data);
         if (parsed.solUsd != null) out.solUsd = parsed.solUsd;
-        if (parsed.blunanaUsd != null) out.blunanaUsd = parsed.blunanaUsd;
-        if (parsed.blunanaPerSol != null) out.blunanaPerSol = parsed.blunanaPerSol;
-        if (out.blunanaUsd != null) break;
+        if (parsed.tokenUsd != null) out.tokenUsd = parsed.tokenUsd;
+        if (parsed.tokenPerSol != null) out.tokenPerSol = parsed.tokenPerSol;
+        if (out.tokenUsd != null) break;
       }
     } catch (e) {
       console.warn('Prices fetch failed', url, e.message);
     }
   }
-  // Fallback: DexScreener token-pairs if Jupiter didn't return Blunana price
-  if (out.blunanaUsd == null) {
+  // Fallback: DexScreener token-pairs if Jupiter didn't return token price
+  if (AAA_TOKEN_MINT && out.tokenUsd == null) {
     try {
       const dsRes = await axios.get(
-        'https://api.dexscreener.com/token-pairs/v1/solana/' + encodeURIComponent(BLUNANA_TOKEN_MINT),
+        'https://api.dexscreener.com/token-pairs/v1/solana/' + encodeURIComponent(AAA_TOKEN_MINT),
         { timeout: 6000, validateStatus: () => true, headers: { Accept: 'application/json' } }
       );
       if (dsRes.status === 200 && Array.isArray(dsRes.data) && dsRes.data.length > 0) {
         const priceUsd = dsRes.data[0].priceUsd;
         if (priceUsd != null && priceUsd !== '') {
-          out.blunanaUsd = Number(priceUsd);
-          if (out.solUsd != null && out.solUsd > 0) out.blunanaPerSol = out.blunanaUsd / out.solUsd;
+          out.tokenUsd = Number(priceUsd);
+          if (out.solUsd != null && out.solUsd > 0) out.tokenPerSol = out.tokenUsd / out.solUsd;
         }
       }
     } catch (e) {
       console.warn('DexScreener fallback failed', e.message);
     }
   }
-  if (out.solUsd != null && out.blunanaUsd != null && out.blunanaPerSol == null && out.solUsd > 0) {
-    out.blunanaPerSol = out.blunanaUsd / out.solUsd;
+  if (out.solUsd != null && out.tokenUsd != null && out.tokenPerSol == null && out.solUsd > 0) {
+    out.tokenPerSol = out.tokenUsd / out.solUsd;
   }
   // Enrich with DexScreener: 24h change, liquidity, volume, market cap (DEXTools-style)
+  if (AAA_TOKEN_MINT) {
   try {
     const dsRes = await axios.get(
-      'https://api.dexscreener.com/token-pairs/v1/solana/' + encodeURIComponent(BLUNANA_TOKEN_MINT),
+      'https://api.dexscreener.com/token-pairs/v1/solana/' + encodeURIComponent(AAA_TOKEN_MINT),
       { timeout: 6000, validateStatus: () => true, headers: { Accept: 'application/json' } }
     );
     if (dsRes.status === 200 && Array.isArray(dsRes.data) && dsRes.data.length > 0) {
@@ -371,9 +376,9 @@ app.get('/api/prices', async function (req, res) {
       });
       const best = pairs.sort(function (a, b) { return (b.liquidity?.usd ?? 0) - (a.liquidity?.usd ?? 0); })[0];
       if (best) {
-        if (out.blunanaUsd == null && best.priceUsd != null) {
-          out.blunanaUsd = Number(best.priceUsd);
-          if (out.solUsd != null && out.solUsd > 0) out.blunanaPerSol = out.blunanaUsd / out.solUsd;
+        if (out.tokenUsd == null && best.priceUsd != null) {
+          out.tokenUsd = Number(best.priceUsd);
+          if (out.solUsd != null && out.solUsd > 0) out.tokenPerSol = out.tokenUsd / out.solUsd;
         }
         const pc = best.priceChange;
         if (pc != null && typeof pc.h24 === 'number') out.priceChange24h = pc.h24;
@@ -386,20 +391,21 @@ app.get('/api/prices', async function (req, res) {
   } catch (e) {
     console.warn('DexScreener enrichment failed', e.message);
   }
+  }
   pricesCache = { data: out, ts: now };
   res.json(out);
 });
 
-// ——— 15m OHLC for Blunana (Birdeye); optional BIRDEYE_API_KEY ———
+// ——— 15m OHLC for AAA token (Birdeye); optional BIRDEYE_API_KEY ———
 const BIRDEYE_API_KEY = process.env.BIRDEYE_API_KEY;
 const OHLC_CACHE_MS = 2 * 60 * 1000;
 let ohlcCache = { data: null, ts: 0 };
 
-app.get('/api/blunana-ohlc', async function (req, res) {
+app.get('/api/token-ohlc', async function (req, res) {
   const type = (req.query.type || '15m').toLowerCase().replace(/\s/g, '');
   const validType = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d'].includes(type) ? type : '15m';
-  if (!BIRDEYE_API_KEY) {
-    return res.json({ success: false, data: { items: [] }, message: 'Chart requires BIRDEYE_API_KEY in server .env' });
+  if (!BIRDEYE_API_KEY || !AAA_TOKEN_MINT) {
+    return res.json({ success: false, data: { items: [] }, message: 'Chart requires BIRDEYE_API_KEY and AAA_TOKEN_MINT in server .env' });
   }
   const now = Math.floor(Date.now() / 1000);
   const cacheKey = validType;
@@ -413,7 +419,7 @@ app.get('/api/blunana-ohlc', async function (req, res) {
       'https://public-api.birdeye.so/defi/v3/ohlcv',
       {
         params: {
-          address: BLUNANA_TOKEN_MINT,
+          address: AAA_TOKEN_MINT,
           type: validType,
           time_from: timeFrom,
           time_to: timeTo,
@@ -440,7 +446,7 @@ app.get('/api/blunana-ohlc', async function (req, res) {
   }
 });
 
-// ——— Verify: wallet's Blunana balance + NFT count per collection ———
+// ——— Verify: wallet's AAA token balance + NFT count per collection ———
 app.get('/api/verify', async function (req, res) {
   const wallet = (req.query.wallet || '').trim();
   if (!wallet) {
@@ -448,10 +454,10 @@ app.get('/api/verify', async function (req, res) {
   }
 
   const out = {
-    blunana: 0,
-    blunanaFormatted: '0',
-    mnk3ysCount: 0,
-    zmb3ysCount: 0,
+    token: 0,
+    tokenFormatted: '0',
+    absurdApesCount: 0,
+    col2Count: 0,
     totalNfts: 0,
   };
 
@@ -460,33 +466,34 @@ app.get('/api/verify', async function (req, res) {
   }
 
   try {
-    // 1) Blunana token balance — Helius getTokenAccounts(owner, mint)
-    const tokenRes = await axios.post(
-      `${HELIUS_RPC}/?api-key=${HELIUS_API_KEY}`,
-      {
-        jsonrpc: '2.0',
-        id: '1',
-        method: 'getTokenAccounts',
-        params: {
-          owner: wallet,
-          mint: BLUNANA_TOKEN_MINT,
-          limit: 10,
+    // 1) AAA token balance — Helius getTokenAccounts(owner, mint)
+    if (AAA_TOKEN_MINT) {
+      const tokenRes = await axios.post(
+        `${HELIUS_RPC}/?api-key=${HELIUS_API_KEY}`,
+        {
+          jsonrpc: '2.0',
+          id: '1',
+          method: 'getTokenAccounts',
+          params: {
+            owner: wallet,
+            mint: AAA_TOKEN_MINT,
+            limit: 10,
+          },
         },
-      },
-      { timeout: 10000, validateStatus: () => true }
-    );
-    const tokenAccounts = tokenRes.data?.result?.token_accounts || [];
-    let totalRaw = 0;
-    for (const acc of tokenAccounts) {
-      totalRaw += Number(acc.amount || 0);
+        { timeout: 10000, validateStatus: () => true }
+      );
+      const tokenAccounts = tokenRes.data?.result?.token_accounts || [];
+      let totalRaw = 0;
+      for (const acc of tokenAccounts) {
+        totalRaw += Number(acc.amount || 0);
+      }
+      out.token = totalRaw / Math.pow(10, TOKEN_DECIMALS);
+      out.tokenFormatted = formatTokenAmount(out.token);
     }
-    out.blunana = totalRaw / Math.pow(10, BLUNANA_DECIMALS);
-    out.blunanaFormatted = formatTokenAmount(out.blunana);
 
     // 2) NFT counts per collection — getAssetsByOwner, filter by grouping.collection
-    const mnk3ysMint = COLLECTIONS.find((c) => c.slug === 'mnk3ys')?.collectionMint;
-    const zmb3ysMint = COLLECTIONS.find((c) => c.slug === 'zmb3ys')?.collectionMint;
-    if (mnk3ysMint || zmb3ysMint) {
+    const collectionMints = COLLECTIONS.filter((c) => c.collectionMint).map((c) => ({ mint: c.collectionMint, countKey: c.countKey }));
+    if (collectionMints.length) {
       let page = 1;
       let hasMore = true;
       while (hasMore) {
@@ -509,14 +516,15 @@ app.get('/api/verify', async function (req, res) {
         for (const item of items) {
           const group = item.grouping?.find((g) => g.group_key === 'collection');
           const colVal = group?.group_value;
-          if (colVal === mnk3ysMint) out.mnk3ysCount++;
-          if (colVal === zmb3ysMint) out.zmb3ysCount++;
+          for (const { mint, countKey } of collectionMints) {
+            if (colVal === mint) out[countKey]++;
+          }
         }
         hasMore = items.length === 1000;
         page++;
         if (page > 20) break;
       }
-      out.totalNfts = out.mnk3ysCount + out.zmb3ysCount;
+      out.totalNfts = COLLECTIONS.reduce((sum, c) => sum + (out[c.countKey] || 0), 0);
     }
   } catch (e) {
     console.warn('Verify failed', e.message);
@@ -639,7 +647,7 @@ app.get('/api/collections', async function (req, res) {
   res.json({ collections: results });
 });
 
-// ——— Holders table (token + NFT by collection), filter/sort by total | token | mnk3ys | zmb3ys | nfts ———
+// ——— Holders table (token + NFT by collection), filter/sort by total | token | absurdApes | col2 | nfts ———
 // Decode owner (32 bytes) + amount (8 bytes LE) from getProgramAccounts dataSlice(32, 40)
 function decodeTokenAccountOwnerAndAmount(dataBase64) {
   if (!dataBase64) return null;
@@ -656,25 +664,21 @@ function decodeTokenAccountOwnerAndAmount(dataBase64) {
 
 app.get('/api/holders', async function (req, res) {
   const sortBy = (req.query.sort || 'total').toLowerCase();
-  const validSort = ['total', 'token', 'mnk3ys', 'zmb3ys', 'nfts'].includes(sortBy) ? sortBy : 'total';
+  const validSort = ['total', 'token', 'absurdApes', 'col2', 'nfts'].includes(sortBy) ? sortBy : 'total';
 
-  const holderMap = new Map(); // wallet -> { tokenBalance, tokenBalanceFormatted, mnk3ysCount, zmb3ysCount }
+  const holderMap = new Map(); // wallet -> { tokenBalance, tokenBalanceFormatted, absurdApesCount, col2Count }
 
   function getOrCreate(wallet) {
     if (!holderMap.has(wallet)) {
-      holderMap.set(wallet, {
-        wallet,
-        tokenBalance: 0,
-        tokenBalanceFormatted: '0',
-        mnk3ysCount: 0,
-        zmb3ysCount: 0,
-      });
+      const base = { wallet, tokenBalance: 0, tokenBalanceFormatted: '0' };
+      COLLECTIONS.forEach((c) => { base[c.countKey] = 0; });
+      holderMap.set(wallet, base);
     }
     return holderMap.get(wallet);
   }
 
-  // 1) Token holders (Blunana) via getProgramAccounts — all SPL token accounts for this mint
-  if (HELIUS_API_KEY) {
+  // 1) Token holders (AAA) via getProgramAccounts — all SPL token accounts for this mint
+  if (HELIUS_API_KEY && AAA_TOKEN_MINT) {
     try {
       const gpaRes = await axios.post(
         `${HELIUS_RPC}/?api-key=${HELIUS_API_KEY}`,
@@ -689,7 +693,7 @@ app.get('/api/holders', async function (req, res) {
               commitment: 'confirmed',
               filters: [
                 { dataSize: 165 },
-                { memcmp: { offset: 0, bytes: BLUNANA_TOKEN_MINT } },
+                { memcmp: { offset: 0, bytes: AAA_TOKEN_MINT } },
               ],
               dataSlice: { offset: 32, length: 40 },
             },
@@ -698,7 +702,7 @@ app.get('/api/holders', async function (req, res) {
         { timeout: 30000, validateStatus: () => true }
       );
       const accounts = gpaRes.data?.result || [];
-      const decimals = BLUNANA_DECIMALS;
+      const decimals = TOKEN_DECIMALS;
       for (const item of accounts) {
         const data = item.account?.data;
         if (!data) continue;
@@ -716,7 +720,7 @@ app.get('/api/holders', async function (req, res) {
     // 2) NFT owner counts per collection (getAssetsByGroup paginate, aggregate by owner)
     for (let c = 0; c < COLLECTIONS.length; c++) {
       const col = COLLECTIONS[c];
-      const key = col.slug === 'mnk3ys' ? 'mnk3ysCount' : col.slug === 'zmb3ys' ? 'zmb3ysCount' : null;
+      const key = col.countKey;
       if (!key || !col.collectionMint) continue;
       let page = 1;
       let hasMore = true;
@@ -756,14 +760,17 @@ app.get('/api/holders', async function (req, res) {
     }
   }
 
+  function totalNftsFromHolder(h) {
+    return COLLECTIONS.reduce((sum, c) => sum + (h[c.countKey] || 0), 0);
+  }
+
   let list = Array.from(holderMap.values()).map(function (h) {
-    const totalNfts = (h.mnk3ysCount || 0) + (h.zmb3ysCount || 0);
+    const totalNfts = totalNftsFromHolder(h);
     return {
       wallet: h.wallet,
       tokenBalance: h.tokenBalance,
       tokenBalanceFormatted: h.tokenBalanceFormatted,
-      mnk3ysCount: h.mnk3ysCount || 0,
-      zmb3ysCount: h.zmb3ysCount || 0,
+      ...COLLECTIONS.reduce((o, c) => { o[c.countKey] = h[c.countKey] || 0; return o; }, {}),
       totalNfts,
       totalScore: (h.tokenBalance || 0) / 1e6 + totalNfts * 10,
     };
@@ -782,13 +789,12 @@ app.get('/api/holders', async function (req, res) {
       if (existing) {
         existing.tokenBalance += h.tokenBalance;
         existing.tokenBalanceFormatted = formatTokenAmount(existing.tokenBalance);
-        existing.mnk3ysCount += h.mnk3ysCount || 0;
-        existing.zmb3ysCount += h.zmb3ysCount || 0;
-        existing.totalNfts = existing.mnk3ysCount + existing.zmb3ysCount;
+        COLLECTIONS.forEach((c) => { existing[c.countKey] = (existing[c.countKey] || 0) + (h[c.countKey] || 0); });
+        existing.totalNfts = totalNftsFromHolder(existing);
         existing.totalScore = existing.tokenBalance / 1e6 + existing.totalNfts * 10;
         existing.walletCount = (existing.walletCount || 1) + 1;
       } else {
-        const totalNfts = (h.mnk3ysCount || 0) + (h.zmb3ysCount || 0);
+        const totalNfts = totalNftsFromHolder(h);
         byDiscord.set(key, {
           displayName: dId ? (discordNames.get(dId) || 'Discord user') : h.wallet.slice(0, 4) + '…' + h.wallet.slice(-4),
           wallet: dId ? null : h.wallet,
@@ -796,8 +802,7 @@ app.get('/api/holders', async function (req, res) {
           walletCount: 1,
           tokenBalance: h.tokenBalance,
           tokenBalanceFormatted: h.tokenBalanceFormatted,
-          mnk3ysCount: h.mnk3ysCount || 0,
-          zmb3ysCount: h.zmb3ysCount || 0,
+          ...COLLECTIONS.reduce((o, c) => { o[c.countKey] = h[c.countKey] || 0; return o; }, {}),
           totalNfts,
           totalScore: (h.tokenBalance || 0) / 1e6 + totalNfts * 10,
         });
@@ -809,7 +814,6 @@ app.get('/api/holders', async function (req, res) {
     });
   } else {
     list = list.map(function (h) {
-      const totalNfts = (h.mnk3ysCount || 0) + (h.zmb3ysCount || 0);
       return {
         displayName: h.wallet.slice(0, 4) + '…' + h.wallet.slice(-4),
         wallet: h.wallet,
@@ -821,8 +825,8 @@ app.get('/api/holders', async function (req, res) {
   }
 
   if (validSort === 'token') list.sort((a, b) => b.tokenBalance - a.tokenBalance);
-  else if (validSort === 'mnk3ys') list.sort((a, b) => b.mnk3ysCount - a.mnk3ysCount);
-  else if (validSort === 'zmb3ys') list.sort((a, b) => b.zmb3ysCount - a.zmb3ysCount);
+  else if (validSort === 'absurdApes') list.sort((a, b) => (b.absurdApesCount || 0) - (a.absurdApesCount || 0));
+  else if (validSort === 'col2') list.sort((a, b) => (b.col2Count || 0) - (a.col2Count || 0));
   else if (validSort === 'nfts') list.sort((a, b) => b.totalNfts - a.totalNfts);
   else list.sort((a, b) => b.totalScore - a.totalScore);
 
@@ -840,7 +844,7 @@ function formatTokenAmount(n) {
 // On Vercel, do not listen; the app is used by api/[[...path]].js
 if (process.env.VERCEL !== '1') {
   app.listen(PORT, function () {
-    console.log('Mnk3ys server at http://localhost:' + PORT);
+    console.log('Absurd Apes server at http://localhost:' + PORT);
     if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
       console.log('Discord login disabled: set DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET in .env');
     } else {

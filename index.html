@@ -6,22 +6,23 @@
   <title></title>
   <!-- Open Graph / Twitter Card embed meta -->
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="MNK3YLABS - NFT & Token" />
-  <meta property="og:description" content="Make NFTs Ape Again. NFT collections & project token built on Solana." />
+  <meta property="og:title" content="Absurd Apes - NFT & Token" />
+  <meta property="og:description" content="Absurd Apes NFT collection and AAA token on Solana." />
   <meta property="og:image" content="{{SITE_URL}}/assets/logo.png" />
   <meta property="og:image:width" content="512" />
   <meta property="og:image:height" content="512" />
   <meta property="og:image:type" content="image/png" />
   <meta property="og:url" content="{{SITE_URL}}" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="MNK3YLABS - NFT & Token" />
-  <meta name="twitter:description" content="Make NFTs Ape Again. NFT collections & project token built on Solana." />
+  <meta name="twitter:title" content="Absurd Apes - NFT & Token" />
+  <meta name="twitter:description" content="Absurd Apes NFT collection and AAA token on Solana." />
   <meta name="twitter:image" content="{{SITE_URL}}/assets/logo.png" />
   <link rel="icon" href="/assets/logo.png" type="image/png" />
+  <link rel="preload" href="/assets/fonts/FreckleFace-Regular.ttf" as="font" type="font/ttf" crossorigin />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/styles.css?v=3" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/styles.css?v=4" />
 </head>
 <body>
   <!-- Sticky social: white Discord + X icons on transparent -->
@@ -42,15 +43,14 @@
     </div>
     <nav class="dashboard__nav" aria-label="Main">
       <a href="#home" class="dashboard__link dashboard__link--active" data-section="home"><span class="dashboard__icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>Home</a>
-      <a href="#collections" class="dashboard__link" data-section="collections"><span class="dashboard__icon dashboard__icon--logo" aria-hidden="true"><img src="assets/logo.png" alt="" class="dashboard__icon-img" width="20" height="20"></span>Collections</a>
-      <a href="#blunana" class="dashboard__link" data-section="blunana"><img src="" alt="" class="dashboard__thumb" width="24" height="24"><span data-config="token-label">Token</span></a>
+      <a href="#collections" class="dashboard__link" data-section="collections"><span class="dashboard__icon dashboard__icon--logo dashboard__icon--gallery" aria-hidden="true"></span>Collections</a>
+      <a href="#token" class="dashboard__link dashboard__link--hidden" data-section="token"><span class="dashboard__thumb dashboard__thumb--menu-icon" aria-hidden="true"></span><span data-config="token-label">Token</span></a>
       <a href="#holders" class="dashboard__link" data-section="holders"><span class="dashboard__icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="currentColor"><path d="M28 27.7H4v-28a4 4 0 0 0-4 4v24a4 4 0 0 0 4 4h24a4 4 0 0 0 4-4Z"/><path d="M8 24V12h4v12H8zm8 0V8h4v16h-4zm8 0V4h4v20h-4z"/></svg></span>Holders</a>
       <a href="#utilities" class="dashboard__link" data-section="utilities"><span class="dashboard__icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5,20.5h0a2,2,0,0,1-2.83,0l-5.21-5.21A6.59,6.59,0,0,1,8,15.84a6.5,6.5,0,0,1-5-5.76,6.42,6.42,0,0,1,.65-3.47L8,11l2.5-.5L11,8,6.61,3.68A6.42,6.42,0,0,1,10.08,3a6.5,6.5,0,0,1,5.76,5,6.59,6.59,0,0,1-.55,4.42l5.21,5.21A2,2,0,0,1,20.5,20.5Z"/></svg></span>Utilities</a>
       <a href="#x-spaces" class="dashboard__link" data-section="x-spaces"><span class="dashboard__icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></span>X spaces</a>
       <a href="#team" class="dashboard__link" data-section="team"><span class="dashboard__icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>Team</a>
-      <a href="#partners" class="dashboard__link" data-section="partners"><span class="dashboard__icon" aria-hidden="true"><svg viewBox="0 0 640 512" fill="none" stroke="currentColor" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"><path d="M519.2 127.9l-47.6-47.6A56.252 56.252 0 0 0 432 64H205.2c-14.8 0-29.1 5.9-39.6 16.3L118 127.9H0v255.7h64c17.6 0 31.8-14.2 31.9-31.7h9.1l84.6 76.4c30.9 25.1 73.8 25.7 105.6 3.8 12.5 10.8 26 15.9 41.1 15.9 18.2 0 35.3-7.4 48.8-24 22.1 8.7 48.2 2.6 64-16.8l26.2-32.3c5.6-6.9 9.1-14.8 10.9-23h57.9c.1 17.5 14.4 31.7 31.9 31.7h64V127.9H519.2zM48 351.6c-8.8 0-16-7.2-16-16s7.2-16 16-16 16 7.2 16 16c0 8.9-7.2 16-16 16zm390-6.9l-26.1 32.2c-2.8 3.4-7.8 4-11.3 1.2l-23.9-19.4-30 36.5c-6 7.3-15 4.8-18 2.4l-36.8-31.5-15.6 19.2c-13.9 17.1-39.2 19.7-55.3 6.6l-97.3-88H96V175.8h41.9l61.7-61.6c2-.8 3.7-1.5 5.7-2.3H262l-38.7 35.5c-29.4 26.9-31.1 72.3-4.4 101.3 14.8 16.2 61.2 41.2 101.5 4.4l8.2-7.5 108.2 87.8c3.4 2.8 3.9 7.9 1.2 11.3zm106-40.8h-69.2c-2.3-2.8-4.9-5.4-7.7-7.7l-102.7-83.4 12.5-11.4c6.5-6 7-16.1 1-22.6L367 167.1c-6-6.5-16.1-6.9-22.6-1l-55.2 50.6c-9.5 8.7-25.7 9.4-34.6 0-9.3-9.9-8.5-25.1 1.2-33.9l65.6-60.1c7.4-6.8 17-10.5 27-10.5l83.7-.2c2.1 0 4.1.8 5.5 2.3l61.7 61.6H544v128zm48 47.7c-8.8 0-16-7.2-16-16s7.2-16 16-16 16 7.2 16 16c0 8.9-7.2 16-16 16z"/></svg></span>Partners</a>
+      <a href="#partners" class="dashboard__link dashboard__link--hidden" data-section="partners"><span class="dashboard__icon" aria-hidden="true"><svg viewBox="0 0 640 512" fill="none" stroke="currentColor" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"><path d="M519.2 127.9l-47.6-47.6A56.252 56.252 0 0 0 432 64H205.2c-14.8 0-29.1 5.9-39.6 16.3L118 127.9H0v255.7h64c17.6 0 31.8-14.2 31.9-31.7h9.1l84.6 76.4c30.9 25.1 73.8 25.7 105.6 3.8 12.5 10.8 26 15.9 41.1 15.9 18.2 0 35.3-7.4 48.8-24 22.1 8.7 48.2 2.6 64-16.8l26.2-32.3c5.6-6.9 9.1-14.8 10.9-23h57.9c.1 17.5 14.4 31.7 31.9 31.7h64V127.9H519.2zM48 351.6c-8.8 0-16-7.2-16-16s7.2-16 16-16 16 7.2 16 16c0 8.9-7.2 16-16 16zm390-6.9l-26.1 32.2c-2.8 3.4-7.8 4-11.3 1.2l-23.9-19.4-30 36.5c-6 7.3-15 4.8-18 2.4l-36.8-31.5-15.6 19.2c-13.9 17.1-39.2 19.7-55.3 6.6l-97.3-88H96V175.8h41.9l61.7-61.6c2-.8 3.7-1.5 5.7-2.3H262l-38.7 35.5c-29.4 26.9-31.1 72.3-4.4 101.3 14.8 16.2 61.2 41.2 101.5 4.4l8.2-7.5 108.2 87.8c3.4 2.8 3.9 7.9 1.2 11.3zm106-40.8h-69.2c-2.3-2.8-4.9-5.4-7.7-7.7l-102.7-83.4 12.5-11.4c6.5-6 7-16.1 1-22.6L367 167.1c-6-6.5-16.1-6.9-22.6-1l-55.2 50.6c-9.5 8.7-25.7 9.4-34.6 0-9.3-9.9-8.5-25.1 1.2-33.9l65.6-60.1c7.4-6.8 17-10.5 27-10.5l83.7-.2c2.1 0 4.1.8 5.5 2.3l61.7 61.6H544v128zm48 47.7c-8.8 0-16-7.2-16-16s7.2-16 16-16 16 7.2 16 16c0 8.9-7.2 16-16 16z"/></svg></span>Partners</a>
       <a href="#" class="dashboard__link dashboard__link--shop" target="_blank" rel="noopener" style="display:none;" data-config="shop-link"><span class="dashboard__icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1.5"/><circle cx="19" cy="21" r="1.5"/><path d="M3 4h2l2.4 12h11.2l1.4-8H7.3"/></svg></span>Shop</a>
-      <a href="/pairs" class="dashboard__link dashboard__link--pairs" rel="noopener"><span class="dashboard__icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"><rect width="13" height="13" x="3" y="3"/><polyline points="16 8 21 8 21 21 8 21 8 16"/></svg></span>Pairs</a>
     </nav>
     <div class="dashboard__verify">
       <button type="button" class="btn btn--primary btn--full" id="btn-verify" aria-label="Verify holdings">
@@ -73,15 +73,15 @@
         <p class="holdings__label">Your holdings</p>
         <div class="holdings__row">
           <span class="holdings__key" data-holdings-key="token">Token</span>
-          <span class="holdings__value" id="holdings-blunana">—</span>
+          <span class="holdings__value" id="holdings-token">—</span>
         </div>
         <div class="holdings__row">
-          <span class="holdings__key" data-holdings-key="mnk3ys">Col1</span>
-          <span class="holdings__value" id="holdings-mnk3ys">—</span>
+          <span class="holdings__key" data-holdings-key="absurdApes">Absurd Apes</span>
+          <span class="holdings__value" id="holdings-absurdApes">—</span>
         </div>
         <div class="holdings__row">
-          <span class="holdings__key" data-holdings-key="zmb3ys">Col2</span>
-          <span class="holdings__value" id="holdings-zmb3ys">—</span>
+          <span class="holdings__key" data-holdings-key="col2">Col2</span>
+          <span class="holdings__value" id="holdings-col2">—</span>
         </div>
         <div class="holdings__row">
           <span class="holdings__key" data-holdings-key="totalNfts">Total NFTs</span>
@@ -98,11 +98,11 @@
       <span class="dashboard-bottom__label">Home</span>
     </a>
     <a href="#collections" class="dashboard-bottom__item" data-section="collections" aria-label="Collections">
-      <span class="dashboard-bottom__icon dashboard-bottom__icon--logo"><img src="assets/logo.png" alt="" class="dashboard-bottom__icon-img" width="22" height="22"></span>
+      <span class="dashboard-bottom__icon dashboard-bottom__icon--logo dashboard-bottom__icon--gallery"></span>
       <span class="dashboard-bottom__label">Collections</span>
     </a>
-    <a href="#blunana" class="dashboard-bottom__item" data-section="blunana" aria-label="Token">
-      <img src="" alt="" class="dashboard-bottom__thumb" width="24" height="24">
+    <a href="#token" class="dashboard-bottom__item dashboard-bottom__item--hidden" data-section="token" aria-label="Token">
+      <span class="dashboard-bottom__thumb dashboard-bottom__thumb--menu-icon"></span>
       <span class="dashboard-bottom__label" data-config="token-label">Token</span>
     </a>
     <a href="#holders" class="dashboard-bottom__item" data-section="holders" aria-label="Holders">
@@ -121,11 +121,10 @@
     <div class="panel__inner">
       <h3 class="panel__title">More</h3>
       <nav class="panel__nav">
-        <a href="/pairs" class="panel__link" rel="noopener">Pairs</a>
         <a href="#utilities" class="panel__link" data-section="utilities">Utilities</a>
         <a href="#x-spaces" class="panel__link" data-section="x-spaces">X spaces</a>
         <a href="#team" class="panel__link" data-section="team">Team</a>
-        <a href="#partners" class="panel__link" data-section="partners">Partners</a>
+        <a href="#partners" class="panel__link panel__link--hidden" data-section="partners">Partners</a>
       </nav>
       <div class="panel__actions">
         <button type="button" class="btn btn--primary btn--full" id="btn-verify-panel">Verify</button>
@@ -143,15 +142,15 @@
         <p class="holdings__label">Your holdings</p>
         <div class="holdings__row">
           <span class="holdings__key" data-holdings-key="token">Token</span>
-          <span class="holdings__value" id="holdings-blunana-mobile">—</span>
+          <span class="holdings__value" id="holdings-token-mobile">—</span>
         </div>
         <div class="holdings__row">
-          <span class="holdings__key" data-holdings-key="mnk3ys">Col1</span>
-          <span class="holdings__value" id="holdings-mnk3ys-mobile">—</span>
+          <span class="holdings__key" data-holdings-key="absurdApes">Absurd Apes</span>
+          <span class="holdings__value" id="holdings-absurdApes-mobile">—</span>
         </div>
         <div class="holdings__row">
-          <span class="holdings__key" data-holdings-key="zmb3ys">Col2</span>
-          <span class="holdings__value" id="holdings-zmb3ys-mobile">—</span>
+          <span class="holdings__key" data-holdings-key="col2">Col2</span>
+          <span class="holdings__value" id="holdings-col2-mobile">—</span>
         </div>
         <div class="holdings__row">
           <span class="holdings__key" data-holdings-key="totalNfts">Total NFTs</span>
@@ -229,9 +228,9 @@
           </div>
         </div>
       </div>
-      <div class="hero-home__slotto">
+      <div class="hero-home__slotto" style="display:none;">
         <p class="hero-home__slotto-label">FEATURED ON SLOTTO.GG</p>
-        <a href="https://slotto.gg/partner/mnk3ylabs" target="_blank" rel="noopener" class="hero-home__slotto-btn" aria-label="SLOTTO.GG"></a>
+        <a href="#" target="_blank" rel="noopener" class="hero-home__slotto-btn" aria-label="SLOTTO.GG"></a>
       </div>
     </section>
 
@@ -245,7 +244,7 @@
       </div>
     </section>
 
-    <section class="section" id="blunana">
+    <section class="section section--hidden" id="token">
       <div class="container">
         <h2 class="section__title"><img src="" alt="" class="section__thumb" width="32" height="32"> <span data-config="token-label">Token</span></h2>
         <p class="section__lead">Project token on Solana.</p>
@@ -267,8 +266,8 @@
           </div>
           <div class="tokenomics__chart-wrap">
             <p class="tokenomics__chart-label" id="tokenomics-chart-label">TOKEN / USD — 15m</p>
-            <div class="tokenomics__chart" id="blunana-chart"></div>
-            <p class="tokenomics__chart-hint" id="blunana-chart-hint"></p>
+            <div class="tokenomics__chart" id="token-chart"></div>
+            <p class="tokenomics__chart-hint" id="token-chart-hint"></p>
           </div>
           <div class="tokenomics__summary">
             <p><strong>Network:</strong> Solana <img src="" alt="" class="tokenomics__solana-icon" id="tokenomics-solana-logo" width="20" height="20"></p>
@@ -293,9 +292,7 @@
           <select class="holders-toolbar__select" id="holders-sort" aria-label="Sort holders by">
             <option value="total">Total</option>
             <option value="token">Token</option>
-            <option value="mnk3ys">Col1</option>
-            <option value="zmb3ys">Col2</option>
-            <option value="nfts">Total NFTs</option>
+            <option value="absurdApes">Absurd Apes</option>
           </select>
         </div>
         <div class="holders-wrap">
@@ -305,14 +302,12 @@
                 <th scope="col">#</th>
                 <th scope="col">Wallet</th>
                 <th scope="col" data-col="token">Token</th>
-                <th scope="col" data-col="mnk3ys">Col1</th>
-                <th scope="col" data-col="zmb3ys">Col2</th>
-                <th scope="col" data-col="nfts">Total NFTs</th>
+                <th scope="col" data-col="absurdApes">Absurd Apes</th>
                 <th scope="col">Value ($)</th>
               </tr>
             </thead>
             <tbody id="holders-tbody">
-              <tr><td colspan="7" class="holders-loading">Loading…</td></tr>
+              <tr><td colspan="5" class="holders-loading">Loading…</td></tr>
             </tbody>
           </table>
         </div>
@@ -323,49 +318,23 @@
       <div class="container">
         <h2 class="section__title">Utilities</h2>
         <p class="section__lead">Staking, partner utilities and external tools.</p>
-        <a href="https://mnk3ylabs.lunarverse.app/" class="card card--lunarverse" target="_blank" rel="noopener">
-          <span class="card__bg" aria-hidden="true"></span>
-          <span class="card__lunarverse-content">
-            <h3 class="card__title">Lunarverse</h3>
-            <p class="card__text">MNK3YLABS utilities on Lunarverse — rewards, perks and holder benefits.</p>
-            <span class="btn btn--primary">Open Lunarverse →</span>
-          </span>
-        </a>
-        <div class="card card--gotm">
-          <span class="card__bg" aria-hidden="true"></span>
-          <div class="card__gotm-content">
-            <h3 class="card__title">NFT staking powered by GOTM Labz</h3>
-            <p class="card__text">Stake your MNK3YS or ZMB3YS NFTs to earn rewards. Spend BLUNANA in the Trait Store for traits, upgrades and cosmetics.</p>
-            <div class="card__gotm-buttons">
-              <a href="https://staking.mnk3ylabs.com/" class="btn btn--primary" target="_blank" rel="noopener">Stake MNK3YS</a>
-              <a href="https://www.gotmlabz.io/nftstake/zmb3ys" class="btn btn--outline" target="_blank" rel="noopener">Stake ZMB3YS</a>
-              <a href="https://traitstore.mnk3ylabs.com/" class="btn btn--outline" target="_blank" rel="noopener">Open Trait Store</a>
-            </div>
-          </div>
-        </div>
-        <a href="https://vaults.mobcollective.io/mob_collective/vaults/03824440e89ae080f53e9e4eb6e60d2b" class="card card--mobtools" target="_blank" rel="noopener">
-          <span class="card__bg" aria-hidden="true"></span>
-          <span class="card__mobtools-content">
-            <h3 class="card__title">Stake $BLUNANA with MOB TOOLS</h3>
-            <p class="card__text">Stake your BLUNANA token in MOB Collective Rise Vaults to earn rewards.</p>
-            <span class="btn btn--primary">Open vault →</span>
-          </span>
-        </a>
+        <p class="card__text">Add your utility links and staking info in <code>js/config.js</code> or as cards here.</p>
       </div>
     </section>
 
     <section class="section" id="x-spaces">
-      <div class="x-spaces__bg" aria-hidden="true"></div>
       <div class="container x-spaces__content">
-        <div class="x-spaces__top">
-          <h2 class="section__title">X spaces</h2>
-          <p class="x-spaces__lead" id="x-spaces-lead">Tune in to our weekly X space...</p>
-        </div>
-        <img src="assets/jungle-juice-banner.png" alt="" class="x-spaces__card-img" loading="lazy" aria-hidden="true" />
-        <div class="x-spaces__bottom">
-          <p class="x-spaces__tagline" id="x-spaces-tagline">"Special guests, crypto chat and banging tunes!!!"</p>
-          <p class="x-spaces__time" id="x-spaces-time">Tuesdays @ 2pm est</p>
-          <p class="x-spaces__hosts" id="x-spaces-hosts">Hosted by <a href="https://x.com/lunarpro" target="_blank" rel="noopener" class="x-spaces__link">@lunarpro</a> and <a href="https://x.com/deano_sol" target="_blank" rel="noopener" class="x-spaces__link">@deano_sol</a></p>
+        <h2 class="section__title">X spaces</h2>
+        <p class="x-spaces__lead" id="x-spaces-lead">Tune in to our weekly X space...</p>
+        <div class="x-spaces__grid">
+          <div class="x-spaces__col x-spaces__col--image">
+            <img src="assets/spaces.png" alt="" class="x-spaces__card-img" loading="lazy" />
+          </div>
+          <div class="x-spaces__col x-spaces__col--text">
+            <p class="x-spaces__tagline" id="x-spaces-tagline">"Community, alpha and vibes."</p>
+            <p class="x-spaces__time" id="x-spaces-time">4pm est</p>
+            <p class="x-spaces__hosts" id="x-spaces-hosts">Hosted by <a href="https://x.com/SkeetsANC" target="_blank" rel="noopener" class="x-spaces__link">@SkeetsANC</a> with co-host <a href="https://x.com/Cap_N_Chronic" target="_blank" rel="noopener" class="x-spaces__link">@Cap_N_Chronic</a></p>
+          </div>
         </div>
       </div>
     </section>
@@ -375,12 +344,12 @@
         <h2 class="section__title">Team</h2>
         <p class="section__lead">Core team and contributors.</p>
         <div class="grid grid--3" id="team-grid">
-          <!-- Filled by js from MNK3YS_CONFIG.team (xProfileUrl, discordId, description); Discord username/avatar fetched from API -->
+          <!-- Filled by js from ABSURD_APES_CONFIG.team (xProfileUrl, discordId, description); Discord username/avatar fetched from API -->
         </div>
       </div>
     </section>
 
-    <section class="section" id="partners">
+    <section class="section section--hidden" id="partners">
       <div class="container">
         <h2 class="section__title">Partners</h2>
         <p class="section__lead" id="partners-lead">Platforms and tools integrated with this project.</p>

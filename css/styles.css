@@ -1,4 +1,12 @@
-/* Mnk3ys — NFT + Token template. Mobile-first; side nav desktop, bottom nav mobile. */
+/* Absurd Apes — NFT + Token template. Mobile-first; side nav desktop, bottom nav mobile. */
+
+@font-face {
+  font-family: 'Freckle Face';
+  src: url('../assets/fonts/FreckleFace-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
 
 :root {
   --bg: #0d0e12;
@@ -18,8 +26,16 @@
   --bottom-height: 64px;
   --safe-bottom: env(safe-area-inset-bottom, 0);
   --safe-top: env(safe-area-inset-top, 0);
-  --font-sans: 'Space Grotesk', system-ui, sans-serif;
+  --font-sans: 'Freckle Face', 'Space Grotesk', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
+  /* Type scale: larger base for readability */
+  --text-base: 1.25rem;
+  --text-sm: 1.0625rem;
+  --text-xs: 1rem;
+  --text-lg: 1.375rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 1.875rem;
+  --text-3xl: 2.25rem;
 }
 
 *,
@@ -30,12 +46,13 @@
 
 html {
   scroll-behavior: smooth;
+  font-size: 125%; /* 20px base for readability (was 16px) */
 }
 
 body {
   margin: 0;
   font-family: var(--font-sans);
-  font-size: 16px;
+  font-size: 1rem;
   line-height: 1.5;
   color: var(--text);
   background: var(--bg);
@@ -70,8 +87,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 3.25rem;
+  height: 3.25rem;
   background: transparent;
   border: none;
   border-radius: 50%;
@@ -85,11 +102,11 @@ body {
   color: #fff;
 }
 .social-sticky__icon {
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 1.75rem;
+  height: 1.75rem;
 }
 
-/* ——— Hero homepage (MNK3YLABS / STRONGER TOGETHER) ——— */
+/* ——— Hero homepage ——— */
 .hero-home {
   position: relative;
   min-height: 100vh;
@@ -133,12 +150,14 @@ body {
   text-align: center;
 }
 .hero-home__title {
-  margin: 0 0 0.25rem;
+  margin: 0 auto 0.25rem;
   width: 100%;
-  font-family: 'Archivo Black', sans-serif;
+  max-width: 56ch;
+  font-family: var(--font-sans);
   font-size: clamp(2rem, 11vw, 5.5rem);
   font-weight: 900;
   letter-spacing: 0.02em;
+  text-transform: uppercase;
   color: rgba(255, 255, 255, 0.92);
   text-shadow: 0 0 40px rgba(0, 0, 0, 0.3);
   text-align: center !important;
@@ -170,11 +189,16 @@ body {
   color: rgba(255, 255, 255, 0.75);
   text-shadow: 0 3px 8px rgba(0, 0, 0, 0.8), 0 1px 4px rgba(0, 0, 0, 0.6);
 }
+.hero-home__tagline:empty {
+  display: none;
+  margin: 0;
+}
 .hero-home__sub {
   margin: 0 0 1.75rem;
-  font-size: 1rem;
+  font-size: 1.1875rem;
+  line-height: 1.5;
   color: rgba(255, 255, 255, 0.95);
-  max-width: 36ch;
+  max-width: 56ch;
   margin-left: auto;
   margin-right: auto;
   text-shadow: 0 3px 8px rgba(0, 0, 0, 0.8), 0 1px 4px rgba(0, 0, 0, 0.6);
@@ -212,7 +236,7 @@ body {
 }
 .hero-home__slotto-label {
   margin: 0;
-  font-size: 0.75rem;
+  font-size: 1rem;
   font-weight: 600;
   letter-spacing: 0.12em;
   color: #d4af37;
@@ -262,7 +286,7 @@ body {
     right: 1rem;
   }
   .hero-home__slotto-label {
-    font-size: 0.65rem;
+    font-size: 0.95rem;
   }
   .hero-home__slotto-btn {
     min-width: 110px;
@@ -380,12 +404,14 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  background: transparent;
 }
 .dashboard__logo-img {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  background: transparent;
 }
 .dashboard__title {
   font-weight: 700;
@@ -434,11 +460,31 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  background: transparent;
 }
 .dashboard__icon-img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  background: transparent;
+}
+/* Menu icons: same colour as nav (currentColor) via mask */
+.dashboard__icon--gallery {
+  width: 20px;
+  height: 20px;
+  background: currentColor;
+  -webkit-mask: url('../assets/gallery-icon.svg') center/contain no-repeat;
+  mask: url('../assets/gallery-icon.svg') center/contain no-repeat;
+}
+.dashboard__thumb--menu-icon {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: currentColor;
+  -webkit-mask: url('../assets/coin-icon.svg') center/contain no-repeat;
+  mask: url('../assets/coin-icon.svg') center/contain no-repeat;
 }
 .dashboard__link:hover {
   color: var(--text);
@@ -447,6 +493,9 @@ body {
 .dashboard__link--active {
   color: var(--accent);
   background: var(--accent-dim);
+}
+.dashboard__link--hidden {
+  display: none !important;
 }
 
 .dashboard__verify {
@@ -483,7 +532,7 @@ body {
 .dashboard__discord-username {
   flex: 1;
   min-width: 0;
-  font-size: 0.875rem;
+  font-size: 1.0625rem;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -547,7 +596,7 @@ body {
   min-height: 52px;
   color: var(--text-muted);
   text-decoration: none;
-  font-size: 0.65rem;
+  font-size: 0.95rem;
   font-weight: 500;
   border: none;
   background: none;
@@ -593,14 +642,36 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  background: transparent;
 }
 .dashboard-bottom__icon-img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  background: transparent;
+}
+.dashboard-bottom__icon--gallery {
+  width: 22px;
+  height: 22px;
+  background: currentColor;
+  -webkit-mask: url('../assets/gallery-icon.svg') center/contain no-repeat;
+  mask: url('../assets/gallery-icon.svg') center/contain no-repeat;
+}
+.dashboard-bottom__thumb--menu-icon {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: currentColor;
+  -webkit-mask: url('../assets/coin-icon.svg') center/contain no-repeat;
+  mask: url('../assets/coin-icon.svg') center/contain no-repeat;
 }
 .dashboard-bottom__label {
   line-height: 1.2;
+}
+.dashboard-bottom__item--hidden {
+  display: none !important;
 }
 
 .panel {
@@ -667,6 +738,9 @@ body {
   text-decoration: none;
   font-weight: 500;
   padding: 0.35rem 0;
+}
+.panel__link--hidden {
+  display: none !important;
 }
 .panel__actions {
   display: flex;
@@ -759,7 +833,7 @@ body {
 }
 .verify-modal__step-label {
   margin: 0 0 0.5rem;
-  font-size: 0.875rem;
+  font-size: 1.0625rem;
   font-weight: 600;
   color: var(--text-muted);
 }
@@ -788,7 +862,7 @@ body {
 }
 .verify-modal__address {
   font-family: var(--font-mono);
-  font-size: 0.8125rem;
+  font-size: 1.0625rem;
   word-break: break-all;
   color: var(--text-muted);
 }
@@ -804,7 +878,7 @@ body {
 }
 .verify-modal__success-msg {
   margin: 0;
-  font-size: 0.9375rem;
+  font-size: 1.125rem;
   font-weight: 600;
   color: var(--accent);
 }
@@ -913,7 +987,7 @@ body {
   justify-content: center;
   padding: 0.65rem 1.25rem;
   font-family: var(--font-sans);
-  font-size: 0.9375rem;
+  font-size: 1.125rem;
   font-weight: 600;
   border-radius: var(--radius-sm);
   border: 1px solid transparent;
@@ -928,7 +1002,7 @@ body {
 }
 .btn--sm {
   padding: 0.4rem 0.9rem;
-  font-size: 0.875rem;
+  font-size: 1.0625rem;
   min-height: 36px;
 }
 .btn:disabled {
@@ -982,7 +1056,7 @@ body {
 }
 .holdings__label {
   margin: 0 0 0.5rem;
-  font-size: 0.75rem;
+  font-size: 1rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -993,7 +1067,7 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 0.35rem 0;
-  font-size: 0.875rem;
+  font-size: 1.0625rem;
 }
 .holdings__key {
   color: var(--text-muted);
@@ -1050,13 +1124,27 @@ body {
   padding: 0;
   padding-top: max(3rem, calc(5vh + var(--safe-top)));
 }
-/* Holders: section fits in one viewport, table scrolls inside */
+/* Holders: section fits in one viewport, table scrolls inside; logo grid bg */
 #holders.section {
+  position: relative;
   max-height: 100vh;
   max-height: 100dvh;
   overflow: hidden;
 }
+#holders.section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: url('../assets/logo.png');
+  background-repeat: repeat;
+  background-size: 80px 80px;
+  opacity: 0.1;
+  pointer-events: none;
+}
 #holders .container {
+  position: relative;
+  z-index: 1;
   justify-content: flex-start;
   min-height: 0;
   overflow: hidden;
@@ -1112,7 +1200,7 @@ body {
 .hero__social-link {
   color: var(--text-muted);
   text-decoration: none;
-  font-size: 0.9375rem;
+  font-size: 1.125rem;
   font-weight: 500;
 }
 .hero__social-link:hover {
@@ -1134,14 +1222,14 @@ body {
 .card__text {
   margin: 0 0 1rem;
   color: var(--text-muted);
-  font-size: 0.9375rem;
+  font-size: 1.125rem;
 }
 .card__text:last-child {
   margin-bottom: 0;
 }
 .card__meta {
   margin: 0;
-  font-size: 0.875rem;
+  font-size: 1.0625rem;
   color: var(--text-muted);
 }
 .card__image {
@@ -1164,7 +1252,8 @@ body {
   background: var(--bg-elevated);
   overflow: hidden;
 }
-.card--embed .embed__media img {
+.card--embed .embed__media img,
+.card--embed .embed__media-gif {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -1181,7 +1270,7 @@ body {
 }
 .card--embed .embed__body .card__text {
   margin-bottom: 0.75rem;
-  font-size: 0.875rem;
+  font-size: 1.0625rem;
   line-height: 1.45;
 }
 .card--embed .embed__stats {
@@ -1196,13 +1285,13 @@ body {
   gap: 0.15rem;
 }
 .card--embed .embed__stat-label {
-  font-size: 0.7rem;
+  font-size: 1rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-muted);
 }
 .card--embed .embed__stat-value {
-  font-size: 0.875rem;
+  font-size: 1.0625rem;
   font-family: var(--font-mono);
   font-weight: 500;
   color: var(--success);
@@ -1336,7 +1425,7 @@ body {
 .card--gotm .card__text {
   color: rgba(255, 255, 255, 0.9);
   margin-bottom: 1rem;
-  font-size: 0.9375rem;
+  font-size: 1.125rem;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 .card--gotm .card__gotm-buttons {
@@ -1353,7 +1442,7 @@ body {
   border-color: rgba(255, 255, 255, 0.6);
 }
 
-/* Stake BLUNANA with MOB TOOLS — card with MOBTOOLS logo bg */
+/* Stake token / MOB TOOLS — card with MOBTOOLS logo bg */
 .card--mobtools {
   display: block;
   position: relative;
@@ -1399,7 +1488,7 @@ body {
 .card--mobtools .card__text {
   color: rgba(255, 255, 255, 0.88);
   margin-bottom: 1rem;
-  font-size: 0.9375rem;
+  font-size: 1.125rem;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 .card--mobtools .btn {
@@ -1460,84 +1549,124 @@ body {
   display: block;
 }
 
-/* Blunana, Partners: shared background image */
-#blunana,
+/* Hidden sections (Token, Partners) — hide from layout and nav */
+.section--hidden {
+  display: none !important;
+}
+
+/* Token section, Partners: shared background image */
+#token,
 #partners {
   position: relative;
   overflow: hidden;
 }
-#blunana::before,
+#token::before,
 #partners::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: url("../assets/blunana-bg.png") center / cover no-repeat;
+  background: url("../assets/hero-bg.png") center / cover no-repeat;
   pointer-events: none;
   z-index: 0;
 }
-#blunana .container,
+#token .container,
 #partners .container {
   position: relative;
   z-index: 1;
 }
 
-/* X spaces: banner as background, text overlay */
+/* X spaces: two columns — image | text, fill section; logo grid bg */
 #x-spaces {
   position: relative;
-  overflow: hidden;
+  min-height: 60vh;
+  min-height: 60dvh;
 }
-#x-spaces .section__title {
-  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
-}
-.x-spaces__bg {
+#x-spaces::before {
+  content: '';
   position: absolute;
   inset: 0;
-  background: url("../assets/jungle-juice-banner.png") center / cover no-repeat;
   z-index: 0;
+  background-image: url('../assets/logo.png');
+  background-repeat: repeat;
+  background-size: 80px 80px;
+  opacity: 0.1;
+  pointer-events: none;
 }
 #x-spaces .x-spaces__content {
   position: relative;
   z-index: 1;
   margin-top: 1rem;
-  max-width: 720px;
-  min-height: 24rem;
+  max-width: 1200px;
+  width: 100%;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  min-height: 0;
 }
-.x-spaces__top {
-  margin-bottom: 1rem;
+.x-spaces__lead {
+  margin-bottom: 1.5rem;
 }
-.x-spaces__top .x-spaces__lead {
-  margin-top: 0.5rem;
+.x-spaces__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.5rem;
+  align-items: stretch;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.x-spaces__col--image {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.x-spaces__col--text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.x-spaces__card-img {
+  width: 100%;
+  height: 100%;
+  max-height: 70vh;
+  border-radius: var(--radius);
+  object-fit: contain;
+  object-position: center;
+  display: block;
+}
+.x-spaces__col--image .x-spaces__card-img {
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: 70vh;
 }
 .x-spaces__bottom {
-  margin-top: auto;
-  padding-bottom: 3rem;
+  padding-bottom: 0;
 }
 .x-spaces__tagline {
-  margin: 0 0 0.75rem;
+  margin: 0 0 1rem;
   font-style: italic;
-  font-size: 1.875rem;
+  font-size: clamp(2rem, 4vw, 3.25rem);
   font-weight: 400;
+  line-height: 1.3;
   color: #d4af37;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
 }
 .x-spaces__lead,
 .x-spaces__time {
-  margin: 0 0 0.5rem;
+  margin: 0 0 0.75rem;
   color: var(--text);
-  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
 }
 .x-spaces__time {
-  font-size: 1.5rem;
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
   font-weight: 600;
+  line-height: 1.3;
 }
 .x-spaces__hosts {
   margin: 0;
   color: var(--text);
-  font-size: 1.25rem;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+  font-size: clamp(1.25rem, 2.5vw, 2rem);
+  line-height: 1.5;
 }
 .x-spaces__link {
   color: var(--accent);
@@ -1547,38 +1676,28 @@ body {
   text-decoration: underline;
 }
 
-/* Mobile: use banner as card image instead of full bg */
 @media (max-width: 899px) {
-  .x-spaces__bg {
-    display: none;
+  .x-spaces__grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  .x-spaces__col--image {
+    order: 1;
+  }
+  .x-spaces__col--text {
+    order: 2;
   }
   .x-spaces__card-img {
-    display: block;
-    width: 100%;
     max-width: 360px;
-    margin: 0.25rem auto 2.5rem;
-    border-radius: var(--radius);
-    object-fit: contain;
+    margin: 0 auto;
   }
   .x-spaces__tagline {
     text-align: center;
-    margin: 1rem 0 4rem;
+    margin: 1rem 0 1rem;
   }
-  #x-spaces .x-spaces__content {
-    min-height: 0;
-    justify-content: flex-start;
-  }
-  #x-spaces .section__title,
-  .x-spaces__lead,
   .x-spaces__time,
-  .x-spaces__hosts,
-  .x-spaces__tagline {
-    text-shadow: none;
-  }
-}
-@media (min-width: 900px) {
-  .x-spaces__card-img {
-    display: none;
+  .x-spaces__hosts {
+    text-align: center;
   }
 }
 
@@ -1606,7 +1725,7 @@ body {
   object-fit: cover;
 }
 .card__meta--handle .link {
-  font-size: 0.875rem;
+  font-size: 1.0625rem;
   color: var(--accent);
 }
 
@@ -1618,14 +1737,14 @@ body {
   margin-bottom: 1rem;
 }
 .holders-toolbar__label {
-  font-size: 0.875rem;
+  font-size: 1.0625rem;
   font-weight: 500;
   color: var(--text-muted);
 }
 .holders-toolbar__select {
   padding: 0.4rem 0.75rem;
   font-family: var(--font-sans);
-  font-size: 0.875rem;
+  font-size: 1.0625rem;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -1648,7 +1767,7 @@ body {
 .holders-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.875rem;
+  font-size: 1.0625rem;
 }
 .holders-table th,
 .holders-table td {
@@ -1677,28 +1796,28 @@ body {
   width: 2.5rem;
 }
 /* Show only relevant columns by sort: one count column + Value ($) */
-.holders-table--sort-token th[data-col="mnk3ys"],
-.holders-table--sort-token th[data-col="zmb3ys"],
+.holders-table--sort-token th[data-col="absurdApes"],
+.holders-table--sort-token th[data-col="col2"],
 .holders-table--sort-token th[data-col="nfts"],
-.holders-table--sort-token td[data-col="mnk3ys"],
-.holders-table--sort-token td[data-col="zmb3ys"],
+.holders-table--sort-token td[data-col="absurdApes"],
+.holders-table--sort-token td[data-col="col2"],
 .holders-table--sort-token td[data-col="nfts"] {
   display: none;
 }
-.holders-table--sort-mnk3ys th[data-col="token"],
-.holders-table--sort-mnk3ys th[data-col="zmb3ys"],
-.holders-table--sort-mnk3ys th[data-col="nfts"],
-.holders-table--sort-mnk3ys td[data-col="token"],
-.holders-table--sort-mnk3ys td[data-col="zmb3ys"],
-.holders-table--sort-mnk3ys td[data-col="nfts"] {
+.holders-table--sort-absurdApes th[data-col="token"],
+.holders-table--sort-absurdApes th[data-col="col2"],
+.holders-table--sort-absurdApes th[data-col="nfts"],
+.holders-table--sort-absurdApes td[data-col="token"],
+.holders-table--sort-absurdApes td[data-col="col2"],
+.holders-table--sort-absurdApes td[data-col="nfts"] {
   display: none;
 }
-.holders-table--sort-zmb3ys th[data-col="token"],
-.holders-table--sort-zmb3ys th[data-col="mnk3ys"],
-.holders-table--sort-zmb3ys th[data-col="nfts"],
-.holders-table--sort-zmb3ys td[data-col="token"],
-.holders-table--sort-zmb3ys td[data-col="mnk3ys"],
-.holders-table--sort-zmb3ys td[data-col="nfts"] {
+.holders-table--sort-col2 th[data-col="token"],
+.holders-table--sort-col2 th[data-col="absurdApes"],
+.holders-table--sort-col2 th[data-col="nfts"],
+.holders-table--sort-col2 td[data-col="token"],
+.holders-table--sort-col2 td[data-col="absurdApes"],
+.holders-table--sort-col2 td[data-col="nfts"] {
   display: none;
 }
 .holders-table--sort-nfts th[data-col="token"],
@@ -1753,7 +1872,7 @@ body {
 }
 .link--external::after {
   content: ' ↗';
-  font-size: 0.85em;
+  font-size: 1em;
 }
 
 /* Tokenomics — DEXTools-style price + 15m chart */
@@ -1766,7 +1885,7 @@ body {
 }
 .tokenomics__price-label {
   margin: 0 0 0.25rem;
-  font-size: 0.8rem;
+  font-size: 1.0625rem;
   color: var(--text-muted);
 }
 .tokenomics__price-main {
@@ -1778,7 +1897,7 @@ body {
 }
 .tokenomics__meta {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 1.125rem;
   color: var(--text-muted);
   display: flex;
   flex-wrap: wrap;
@@ -1805,14 +1924,14 @@ body {
   gap: 0.2rem;
 }
 .tokenomics__metric-label {
-  font-size: 0.7rem;
+  font-size: 1rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-muted);
 }
 .tokenomics__metric-value {
   font-family: var(--font-mono);
-  font-size: 0.9375rem;
+  font-size: 1.125rem;
   font-weight: 600;
   color: var(--text);
 }
@@ -1823,7 +1942,7 @@ body {
 }
 .tokenomics__chart-label {
   margin: 0 0 0.5rem;
-  font-size: 0.8rem;
+  font-size: 1.0625rem;
   font-weight: 600;
   color: var(--text-muted);
 }
@@ -1836,7 +1955,7 @@ body {
 }
 .tokenomics__chart-hint {
   margin: 0.5rem 0 0;
-  font-size: 0.75rem;
+  font-size: 1rem;
   color: var(--text-muted);
 }
 .tokenomics__actions {
@@ -1858,7 +1977,7 @@ body {
   padding: 0.75rem;
   background: var(--bg-elevated);
   border-radius: var(--radius-sm);
-  font-size: 0.9375rem;
+  font-size: 1.125rem;
 }
 .tokenomics__summary p {
   margin: 0.25rem 0;
@@ -1873,7 +1992,7 @@ body {
   margin-top: 0.25rem;
   padding: 0.5rem;
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: 1rem;
   word-break: break-all;
   background: var(--bg);
   border-radius: var(--radius-sm);
@@ -1967,7 +2086,7 @@ body {
 }
 .footer__copy {
   margin: 0 0 0.75rem;
-  font-size: 0.875rem;
+  font-size: 1.0625rem;
   color: var(--text-muted);
   display: flex;
   align-items: center;
@@ -1978,8 +2097,9 @@ body {
   flex-shrink: 0;
   width: 24px;
   height: 24px;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: 50%;
+  background: transparent;
 }
 .footer__links {
   display: flex;
@@ -1990,7 +2110,7 @@ body {
 .footer__links a {
   color: var(--accent);
   text-decoration: none;
-  font-size: 0.875rem;
+  font-size: 1.0625rem;
   font-weight: 500;
   display: inline-flex;
   align-items: center;

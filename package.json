@@ -1,7 +1,7 @@
 {
-  "name": "mnk3ys",
+  "name": "absurd-apes",
   "version": "1.0.0",
-  "description": "Mnk3ys NFT + Token site with Discord login",
+  "description": "Absurd Apes NFT + Token site with Discord login",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

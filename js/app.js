@@ -1,13 +1,13 @@
 /**
  * Project dashboard — config-driven template for NFT/token projects.
- * All project-specific copy and URLs come from window.MNK3YS_CONFIG (js/config.js).
+ * All project-specific copy and URLs come from window.ABSURD_APES_CONFIG (js/config.js).
  */
 
 (function () {
   'use strict';
 
   const BREAKPOINT = 900;
-  const CONFIG = window.MNK3YS_CONFIG || { holderPortalUrl: '', endpoints: {}, discordConnectUrl: '' };
+  const CONFIG = window.ABSURD_APES_CONFIG || { holderPortalUrl: '', endpoints: {}, discordConnectUrl: '' };
   const BASE_PATH = '';
   const PORTAL_URL = (CONFIG.holderPortalUrl || '').replace(/\/$/, '');
   const HOLDINGS_ENDPOINT = PORTAL_URL && CONFIG.endpoints?.holdings ? PORTAL_URL + CONFIG.endpoints.holdings : '';
@@ -32,26 +32,31 @@
     if (heroTagline) heroTagline.textContent = hero.tagline || '';
     var heroSub = document.getElementById('hero-subtitle');
     if (heroSub && hero.subtitle) {
-      var solanaUrl = hero.solanaLogoUrl || 'https://cryptologos.cc/logos/solana-sol-logo.svg?v=040';
-      var beforeSolana = hero.subtitle.replace(/\s+Solana\.?$/i, '');
-      heroSub.innerHTML = beforeSolana + ' <img src="' + solanaUrl + '" alt="" class="hero-home__solana-icon" width="20" height="20"> Solana.';
+      if (/\s+Solana\.?\s*$/i.test(hero.subtitle)) {
+        var solanaUrl = hero.solanaLogoUrl || 'https://cryptologos.cc/logos/solana-sol-logo.svg?v=040';
+        var beforeSolana = hero.subtitle.replace(/\s+Solana\.?\s*$/i, '');
+        heroSub.innerHTML = beforeSolana + ' <img src="' + solanaUrl + '" alt="" class="hero-home__solana-icon" width="20" height="20"> Solana.';
+      } else {
+        heroSub.textContent = hero.subtitle;
+      }
     }
 
     // Dashboard brand
     var dashTitle = document.querySelector('.dashboard__title');
     if (dashTitle) dashTitle.textContent = projectName;
-    var dashLogos = document.querySelectorAll('.dashboard__logo-img, .dashboard__icon-img, .footer__logo');
+    var dashLogos = document.querySelectorAll('.dashboard__logo-img, .footer__logo');
     dashLogos.forEach(function (img) { if (img && logoUrl) img.src = logoUrl; });
     var logoAlt = document.querySelector('.dashboard__logo-img');
     if (logoAlt) logoAlt.alt = projectName;
 
-    // Token in nav (sidebar + bottom): img src and label
-    var tokenImgs = document.querySelectorAll('.dashboard__thumb, .dashboard-bottom__thumb, .section__thumb, .panel__thumb');
-    tokenImgs.forEach(function (img) { if (img && token.logoUrl) img.src = token.logoUrl; });
+    // Token section only: logo img (menu uses CSS mask icon)
+    var sectionThumbs = document.querySelectorAll('.section__thumb, .panel__thumb');
+    sectionThumbs.forEach(function (img) { if (img && token.logoUrl) img.src = token.logoUrl; });
     var tokenLabels = document.querySelectorAll('[data-config="token-label"]');
-    tokenLabels.forEach(function (el) { el.textContent = tokenSymbol; });
+    var tokenLabelText = (token.navLabel != null && token.navLabel !== '') ? token.navLabel : tokenSymbol;
+    tokenLabels.forEach(function (el) { el.textContent = tokenLabelText; });
 
-    // Blunana section: token address, Solana logo, DEXTools + Solscan links
+    // Token section: token address, Solana logo, DEXTools + Solscan links
     var contractEl = document.getElementById('tokenomics-contract');
     if (contractEl && c.tokenMint) contractEl.textContent = c.tokenMint;
     var solanaLogoEl = document.getElementById('tokenomics-solana-logo');
@@ -99,7 +104,9 @@
       var hostLinks = c.xSpacesHosts.map(function (h) {
         return '<a href="' + (h.url || '#') + '" target="_blank" rel="noopener" class="x-spaces__link">' + (h.label || '') + '</a>';
       });
-      xSpacesHosts.innerHTML = 'Hosted by ' + hostLinks.join(' and ');
+      xSpacesHosts.innerHTML = hostLinks.length === 2
+        ? 'Hosted by ' + hostLinks[0] + '<br>with co-host ' + hostLinks[1]
+        : 'Hosted by ' + hostLinks.join(' and ');
     }
     var xSpacesTagline = document.getElementById('x-spaces-tagline');
     if (xSpacesTagline && c.xSpacesTagline) xSpacesTagline.innerHTML = '"' + c.xSpacesTagline + '"';
@@ -115,7 +122,7 @@
 
     // Holders labels (sidebar + mobile panel key labels)
     var labels = c.holdingsLabels || {};
-    ['token', 'mnk3ys', 'zmb3ys', 'totalNfts'].forEach(function (key) {
+    ['token', 'absurdApes', 'col2', 'totalNfts'].forEach(function (key) {
       if (!labels[key]) return;
       document.querySelectorAll('[data-holdings-key="' + key + '"]').forEach(function (el) {
         el.textContent = labels[key];
@@ -126,16 +133,12 @@
     var sortOpts = c.holdersSortOptions || {};
     var sortToken = document.querySelector('#holders-sort option[value="token"]');
     if (sortToken && sortOpts.token) sortToken.textContent = sortOpts.token;
-    var sortMnk3ys = document.querySelector('#holders-sort option[value="mnk3ys"]');
-    if (sortMnk3ys && sortOpts.mnk3ys) sortMnk3ys.textContent = sortOpts.mnk3ys;
-    var sortZmb3ys = document.querySelector('#holders-sort option[value="zmb3ys"]');
-    if (sortZmb3ys && sortOpts.zmb3ys) sortZmb3ys.textContent = sortOpts.zmb3ys;
+    var sortAbsurdApes = document.querySelector('#holders-sort option[value="absurdApes"]');
+    if (sortAbsurdApes && sortOpts.absurdApes) sortAbsurdApes.textContent = sortOpts.absurdApes;
     var thToken = document.querySelector('.holders-table th[data-col="token"]');
     if (thToken && labels.token) thToken.textContent = labels.token;
-    var thMnk3ys = document.querySelector('.holders-table th[data-col="mnk3ys"]');
-    if (thMnk3ys && labels.mnk3ys) thMnk3ys.textContent = labels.mnk3ys;
-    var thZmb3ys = document.querySelector('.holders-table th[data-col="zmb3ys"]');
-    if (thZmb3ys && labels.zmb3ys) thZmb3ys.textContent = labels.zmb3ys;
+    var thAbsurdApes = document.querySelector('.holders-table th[data-col="absurdApes"]');
+    if (thAbsurdApes && labels.absurdApes) thAbsurdApes.textContent = labels.absurdApes;
   }
   applyProjectConfig();
 
@@ -344,17 +347,17 @@
   const holdingsPanels = document.querySelectorAll('.holdings');
 
   function showHoldings(data) {
-    var blunana = data && data.blunanaFormatted != null ? data.blunanaFormatted : (data && data.blunana != null ? String(data.blunana) : '—');
-    var mnk3ys = data && data.mnk3ysCount != null ? String(data.mnk3ysCount) : '—';
-    var zmb3ys = data && data.zmb3ysCount != null ? String(data.zmb3ysCount) : '—';
+    var tokenVal = data && data.tokenFormatted != null ? data.tokenFormatted : (data && data.token != null ? String(data.token) : '—');
+    var absurdApes = data && data.absurdApesCount != null ? String(data.absurdApesCount) : '—';
+    var col2 = data && data.col2Count != null ? String(data.col2Count) : '—';
     var totalNfts = data && data.totalNfts != null ? String(data.totalNfts) : '—';
     [
-      [document.getElementById('holdings-blunana'), document.getElementById('holdings-blunana-mobile')],
-      [document.getElementById('holdings-mnk3ys'), document.getElementById('holdings-mnk3ys-mobile')],
-      [document.getElementById('holdings-zmb3ys'), document.getElementById('holdings-zmb3ys-mobile')],
+      [document.getElementById('holdings-token'), document.getElementById('holdings-token-mobile')],
+      [document.getElementById('holdings-absurdApes'), document.getElementById('holdings-absurdApes-mobile')],
+      [document.getElementById('holdings-col2'), document.getElementById('holdings-col2-mobile')],
       [document.getElementById('holdings-total-nfts'), document.getElementById('holdings-total-nfts-mobile')],
     ].forEach(function (pair, i) {
-      var val = [blunana, mnk3ys, zmb3ys, totalNfts][i];
+      var val = [tokenVal, absurdApes, col2, totalNfts][i];
       if (pair[0]) pair[0].textContent = val;
       if (pair[1]) pair[1].textContent = val;
     });
@@ -393,9 +396,9 @@
             .then(function (d) {
               if (!d) return null;
               return {
-                blunanaFormatted: d.token != null ? String(d.token) : '0',
-                mnk3ysCount: 0,
-                zmb3ysCount: 0,
+                tokenFormatted: d.token != null ? String(d.token) : '0',
+                absurdApesCount: 0,
+                col2Count: 0,
                 totalNfts: d.nfts != null ? d.nfts : 0,
               };
             });
@@ -771,47 +774,70 @@
         data.collections.forEach(function (c) {
           var card = document.createElement('div');
           card.className = 'card card--nft card--embed';
+          var isAbsurdHorizons = c.symbol === 'absurd_horizons';
           var mediaHtml = '';
-          var mediaSrc = c.animationUrl || c.image;
-          if (mediaSrc) {
-            var isGif = /\.gif(\?|$)/i.test(mediaSrc) || (c.animationUrl && !c.image);
-            if (isGif || c.animationUrl) {
-              mediaHtml = '<div class="embed__media embed__media--video"><img src="' + escapeHtml(mediaSrc) + '" alt="" loading="lazy" /></div>';
-            } else {
-              mediaHtml = '<div class="embed__media"><img src="' + escapeHtml(mediaSrc) + '" alt="" loading="lazy" /></div>';
-            }
+          if (isAbsurdHorizons) {
+            var horizonsCfg = (window.ABSURD_APES_CONFIG && window.ABSURD_APES_CONFIG.absurdHorizons) || {};
+            var imgSrc = horizonsCfg.imageUrl || 'assets/absurd-horizons.png';
+            var mintLabel = horizonsCfg.mintLabel || 'Minting Sunday 1st March';
+            var mintDateStr = horizonsCfg.mintDate || '2026-03-01';
+            var mintDate = new Date(mintDateStr);
+            var now = new Date();
+            var mintLive = now >= mintDate;
+            mediaHtml = '<div class="embed__media embed__media--video"><img src="' + escapeHtml(imgSrc) + '" alt="" class="embed__media-gif" loading="lazy" /></div>';
+            card.innerHTML =
+              mediaHtml +
+              '<div class="embed__body">' +
+                '<h3 class="card__title">' + escapeHtml(c.name || 'Absurd Horizons') + '</h3>' +
+                '<p class="card__text">' + escapeHtml(mintLabel) + '</p>' +
+                '<div class="collections__actions">' +
+                  (mintLive
+                    ? '<a href="' + escapeHtml(c.marketplaceUrl || 'https://magiceden.io/marketplace/absurd_horizons') + '" class="btn btn--primary" target="_blank" rel="noopener">Mint</a>'
+                    : '<button type="button" class="btn btn--primary btn--disabled" disabled aria-disabled="true">Mint</button>'
+                  ) +
+                '</div>' +
+              '</div>';
           } else {
-            mediaHtml = '<div class="embed__media embed__media--placeholder" aria-hidden="true"></div>';
+            var mediaSrc = c.animationUrl || c.image;
+            if (mediaSrc) {
+              var isGif = /\.gif(\?|$)/i.test(mediaSrc) || (c.animationUrl && !c.image);
+              if (isGif || c.animationUrl) {
+                mediaHtml = '<div class="embed__media embed__media--video"><img src="' + escapeHtml(mediaSrc) + '" alt="" loading="lazy" /></div>';
+              } else {
+                mediaHtml = '<div class="embed__media"><img src="' + escapeHtml(mediaSrc) + '" alt="" loading="lazy" /></div>';
+              }
+            } else {
+              mediaHtml = '<div class="embed__media embed__media--placeholder" aria-hidden="true"></div>';
+            }
+            var desc = (c.description || '').slice(0, 280);
+            if ((c.description || '').length > 280) desc += '…';
+            var stats = [];
+            if (c.supply != null && Number(c.supply) > 1) stats.push({ label: 'Supply', value: formatNum(c.supply) });
+            if (c.listedCount != null) stats.push({ label: 'Listed', value: formatNum(c.listedCount) });
+            if (c.floorPriceSol != null) stats.push({ label: 'Floor', value: c.floorPriceSol + ' SOL' });
+            if (c.volumeAllSol != null) stats.push({ label: 'Volume', value: c.volumeAllSol + ' SOL' });
+            if (c.avgPrice24hrSol != null) stats.push({ label: '24h avg', value: c.avgPrice24hrSol + ' SOL' });
+            var statsHtml = stats.length ? '<div class="embed__stats">' + stats.map(function (s) {
+              return '<div class="embed__stat"><span class="embed__stat-label">' + escapeHtml(s.label) + '</span><span class="embed__stat-value">' + escapeHtml(s.value) + '</span></div>';
+            }).join('') + '</div>' : '';
+            var meUrl = c.marketplaceUrl || ('https://magiceden.io/marketplace/' + encodeURIComponent(c.symbol || ''));
+            var tensorUrl = c.tensorUrl || ('https://www.tensor.trade/trade/' + encodeURIComponent(c.symbol || ''));
+            card.innerHTML =
+              mediaHtml +
+              '<div class="embed__body">' +
+                '<h3 class="card__title">' + escapeHtml(c.name || c.symbol) + '</h3>' +
+                (desc ? '<p class="card__text">' + escapeHtml(desc) + '</p>' : '') +
+                statsHtml +
+                '<div class="collections__actions">' +
+                  '<a href="' + escapeHtml(meUrl) + '" class="collections__btn" target="_blank" rel="noopener" aria-label="Trade on Magic Eden">' +
+                    '<img src="assets/magic-eden.png" alt="Magic Eden" class="collections__btn-img collections__btn-img--me" loading="lazy" />' +
+                  '</a>' +
+                  '<a href="' + escapeHtml(tensorUrl) + '" class="collections__btn" target="_blank" rel="noopener" aria-label="Trade on Tensor">' +
+                    '<img src="assets/tensor.png" alt="Tensor" class="collections__btn-img" loading="lazy" />' +
+                  '</a>' +
+                '</div>' +
+              '</div>';
           }
-          var desc = (c.description || '').slice(0, 280);
-          if ((c.description || '').length > 280) desc += '…';
-          var stats = [];
-          // Hide obviously wrong supply values (like 1) until upstream APIs return real totals
-          if (c.supply != null && Number(c.supply) > 1) stats.push({ label: 'Supply', value: formatNum(c.supply) });
-          if (c.listedCount != null) stats.push({ label: 'Listed', value: formatNum(c.listedCount) });
-          if (c.floorPriceSol != null) stats.push({ label: 'Floor', value: c.floorPriceSol + ' SOL' });
-          if (c.volumeAllSol != null) stats.push({ label: 'Volume', value: c.volumeAllSol + ' SOL' });
-          if (c.avgPrice24hrSol != null) stats.push({ label: '24h avg', value: c.avgPrice24hrSol + ' SOL' });
-          var statsHtml = stats.length ? '<div class="embed__stats">' + stats.map(function (s) {
-            return '<div class="embed__stat"><span class="embed__stat-label">' + escapeHtml(s.label) + '</span><span class="embed__stat-value">' + escapeHtml(s.value) + '</span></div>';
-          }).join('') + '</div>' : '';
-          var meUrl = c.marketplaceUrl || ('https://magiceden.io/marketplace/' + encodeURIComponent(c.symbol || ''));
-          var tensorUrl = c.tensorUrl || ('https://www.tensor.trade/trade/' + encodeURIComponent(c.symbol || ''));
-          card.innerHTML =
-            mediaHtml +
-            '<div class="embed__body">' +
-              '<h3 class="card__title">' + escapeHtml(c.name || c.symbol) + '</h3>' +
-              (desc ? '<p class="card__text">' + escapeHtml(desc) + '</p>' : '') +
-              statsHtml +
-              '<div class="collections__actions">' +
-                '<a href="' + escapeHtml(meUrl) + '" class="collections__btn" target="_blank" rel="noopener" aria-label="Trade on Magic Eden">' +
-                  '<img src="assets/magic-eden.png" alt="Magic Eden" class="collections__btn-img collections__btn-img--me" loading="lazy" />' +
-                '</a>' +
-                '<a href="' + escapeHtml(tensorUrl) + '" class="collections__btn" target="_blank" rel="noopener" aria-label="Trade on Tensor">' +
-                  '<img src="assets/tensor.png" alt="Tensor" class="collections__btn-img" loading="lazy" />' +
-                '</a>' +
-              '</div>' +
-            '</div>';
           grid.appendChild(card);
         });
       })
@@ -853,10 +879,10 @@
     } catch (_) { return ''; }
   }
 
-  // ----- Team (from MNK3YS_CONFIG.team: xProfileUrl, discordId, description) -----
+  // ----- Team (from ABSURD_APES_CONFIG.team: xProfileUrl, discordId, description) -----
   var teamGrid = document.getElementById('team-grid');
-  if (teamGrid && window.MNK3YS_CONFIG && Array.isArray(window.MNK3YS_CONFIG.team) && window.MNK3YS_CONFIG.team.length > 0) {
-    var teamList = window.MNK3YS_CONFIG.team;
+  if (teamGrid && window.ABSURD_APES_CONFIG && Array.isArray(window.ABSURD_APES_CONFIG.team) && window.ABSURD_APES_CONFIG.team.length > 0) {
+    var teamList = window.ABSURD_APES_CONFIG.team;
     teamGrid.innerHTML = '';
     teamList.forEach(function (member) {
       var xUrl = member.xProfileUrl || '';
@@ -921,9 +947,10 @@
     }
     function loadHolders(sort) {
       sort = sort || 'total';
+      if (sort === 'col2' || sort === 'nfts') sort = 'total'; // Horizons + Total NFTs hidden until after Horizons mints
       var table = document.getElementById('holders-table');
       if (table) table.className = 'holders-table holders-table--sort-' + sort;
-      holdersTbody.innerHTML = '<tr><td colspan="7" class="holders-loading">Loading…</td></tr>';
+      holdersTbody.innerHTML = '<tr><td colspan="5" class="holders-loading">Loading…</td></tr>';
       Promise.all([
         fetch(window.location.origin + '/api/holders?sort=' + encodeURIComponent(sort), { credentials: 'include' }).then(function (r) { return r.ok ? r.json() : null; }),
         fetch(window.location.origin + '/api/prices', { credentials: 'include' }).then(function (r) { return r.ok ? r.json() : null; }),
@@ -932,20 +959,20 @@
         var data = arr[0];
         var prices = arr[1] || {};
         var collectionsData = arr[2];
-        var blunanaUsd = prices.blunanaUsd;
+        var tokenUsd = prices.tokenUsd;
         var solUsd = prices.solUsd;
-        var floorMnk3ysSol = null;
-        var floorZmb3ysSol = null;
+        var floorAbsurdApesSol = null;
+        var floorCol2Sol = null;
         if (collectionsData && collectionsData.collections && Array.isArray(collectionsData.collections)) {
           collectionsData.collections.forEach(function (c) {
-            if (c.symbol === 'mnk3ys' && c.floorPriceSol != null) floorMnk3ysSol = parseFloat(String(c.floorPriceSol), 10);
-            if (c.symbol === 'zmb3ys' && c.floorPriceSol != null) floorZmb3ysSol = parseFloat(String(c.floorPriceSol), 10);
+            if (c.symbol === 'absurd_art_apes' && c.floorPriceSol != null) floorAbsurdApesSol = parseFloat(String(c.floorPriceSol), 10);
+            if (c.symbol === 'absurd_horizons' && c.floorPriceSol != null) floorCol2Sol = parseFloat(String(c.floorPriceSol), 10);
           });
         }
         var solUsdNum = solUsd != null ? Number(solUsd) : null;
-        var blunanaUsdNum = blunanaUsd != null ? Number(blunanaUsd) : null;
+        var tokenUsdNum = tokenUsd != null ? Number(tokenUsd) : null;
         if (!data || !data.holders) {
-          holdersTbody.innerHTML = '<tr><td colspan="7" class="holders-empty">No data</td></tr>';
+          holdersTbody.innerHTML = '<tr><td colspan="5" class="holders-empty">No data</td></tr>';
           return;
         }
         var rows = data.holders.map(function (h, i) {
@@ -953,14 +980,14 @@
           var displayName = baseName + (h.walletCount > 1 ? ' (' + h.walletCount + ' wallets)' : '');
           var walletLink = h.wallet ? 'https://solscan.io/account/' + encodeURIComponent(h.wallet) : null;
           var tokenBal = h.tokenBalance != null ? Number(h.tokenBalance) : null;
-          var mnk3ysCount = Number(h.mnk3ysCount) || 0;
-          var zmb3ysCount = Number(h.zmb3ysCount) || 0;
-          var tokenValueUsd = (blunanaUsdNum != null && !isNaN(blunanaUsdNum) && tokenBal != null && !isNaN(tokenBal)) ? tokenBal * blunanaUsdNum : null;
-          var nftValueMnk3ys = (solUsdNum != null && !isNaN(solUsdNum) && floorMnk3ysSol != null && !isNaN(floorMnk3ysSol)) ? mnk3ysCount * floorMnk3ysSol * solUsdNum : null;
-          var nftValueZmb3ys = (solUsdNum != null && !isNaN(solUsdNum) && floorZmb3ysSol != null && !isNaN(floorZmb3ysSol)) ? zmb3ysCount * floorZmb3ysSol * solUsdNum : null;
+          var absurdApesCount = Number(h.absurdApesCount) || 0;
+          var col2Count = Number(h.col2Count) || 0;
+          var tokenValueUsd = (tokenUsdNum != null && !isNaN(tokenUsdNum) && tokenBal != null && !isNaN(tokenBal)) ? tokenBal * tokenUsdNum : null;
+          var nftValueAbsurdApes = (solUsdNum != null && !isNaN(solUsdNum) && floorAbsurdApesSol != null && !isNaN(floorAbsurdApesSol)) ? absurdApesCount * floorAbsurdApesSol * solUsdNum : null;
+          var nftValueCol2 = (solUsdNum != null && !isNaN(solUsdNum) && floorCol2Sol != null && !isNaN(floorCol2Sol)) ? col2Count * floorCol2Sol * solUsdNum : null;
           var nftValueUsd = null;
-          if (solUsdNum != null && !isNaN(solUsdNum) && (floorMnk3ysSol != null || floorZmb3ysSol != null)) {
-            var nftSol = mnk3ysCount * (floorMnk3ysSol || 0) + zmb3ysCount * (floorZmb3ysSol || 0);
+          if (solUsdNum != null && !isNaN(solUsdNum) && (floorAbsurdApesSol != null || floorCol2Sol != null)) {
+            var nftSol = absurdApesCount * (floorAbsurdApesSol || 0) + col2Count * (floorCol2Sol || 0);
             nftValueUsd = nftSol * solUsdNum;
           }
           var valueUsd = null;
@@ -968,8 +995,8 @@
             valueUsd = (tokenValueUsd != null ? tokenValueUsd : 0) + (nftValueUsd != null ? nftValueUsd : 0);
             if (tokenValueUsd == null && nftValueUsd == null) valueUsd = null;
           } else if (sort === 'token') valueUsd = tokenValueUsd;
-          else if (sort === 'mnk3ys') valueUsd = nftValueMnk3ys;
-          else if (sort === 'zmb3ys') valueUsd = nftValueZmb3ys;
+          else if (sort === 'absurdApes') valueUsd = nftValueAbsurdApes;
+          else if (sort === 'col2') valueUsd = nftValueCol2;
           else if (sort === 'nfts') valueUsd = nftValueUsd;
           var valueCell = valueUsd != null ? formatUsd(valueUsd) : '—';
           var nameCell = walletLink
@@ -979,15 +1006,13 @@
             '<td>' + (i + 1) + '</td>' +
             '<td>' + nameCell + '</td>' +
             '<td data-col="token">' + escapeHtml(h.tokenBalanceFormatted || '0') + '</td>' +
-            '<td data-col="mnk3ys">' + (h.mnk3ysCount || 0) + '</td>' +
-            '<td data-col="zmb3ys">' + (h.zmb3ysCount || 0) + '</td>' +
-            '<td data-col="nfts">' + (h.totalNfts || 0) + '</td>' +
+            '<td data-col="absurdApes">' + (h.absurdApesCount || 0) + '</td>' +
             '<td>' + escapeHtml(valueCell) + '</td>' +
             '</tr>';
         });
-        holdersTbody.innerHTML = rows.length ? rows.join('') : '<tr><td colspan="7" class="holders-empty">No holders</td></tr>';
+        holdersTbody.innerHTML = rows.length ? rows.join('') : '<tr><td colspan="5" class="holders-empty">No holders</td></tr>';
       }).catch(function () {
-        holdersTbody.innerHTML = '<tr><td colspan="7" class="holders-empty">Failed to load</td></tr>';
+        holdersTbody.innerHTML = '<tr><td colspan="5" class="holders-empty">Failed to load</td></tr>';
       });
     }
     loadHolders('total');
@@ -1003,8 +1028,8 @@
   var mcapEl = document.getElementById('tokenomics-mcap');
   var liqEl = document.getElementById('tokenomics-liq');
   var volEl = document.getElementById('tokenomics-vol');
-  var chartEl = document.getElementById('blunana-chart');
-  var chartHintEl = document.getElementById('blunana-chart-hint');
+  var chartEl = document.getElementById('token-chart');
+  var chartHintEl = document.getElementById('token-chart-hint');
 
   function formatUsd(val) {
     if (val == null || isNaN(val)) return '—';
@@ -1028,8 +1053,8 @@
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (p) {
         if (!p) return;
-        if (priceUsdEl && p.blunanaUsd != null) priceUsdEl.textContent = '$' + formatPrice(p.blunanaUsd);
-        if (priceSolEl && p.blunanaPerSol != null) priceSolEl.textContent = formatPrice(p.blunanaPerSol) + ' SOL';
+        if (priceUsdEl && p.tokenUsd != null) priceUsdEl.textContent = '$' + formatPrice(p.tokenUsd);
+        if (priceSolEl && p.tokenPerSol != null) priceSolEl.textContent = formatPrice(p.tokenPerSol) + ' SOL';
         if (change24El && p.priceChange24h != null) {
           var pc = p.priceChange24h;
           change24El.textContent = (pc >= 0 ? '+' : '') + pc.toFixed(2) + '% 24H';
@@ -1043,13 +1068,13 @@
   }
 
   if (chartEl) {
-    fetch(window.location.origin + '/api/blunana-ohlc?type=15m', { credentials: 'include' })
+    fetch(window.location.origin + '/api/token-ohlc?type=15m', { credentials: 'include' })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (data) {
         var items = (data && data.data && data.data.items) ? data.data.items : [];
         if (chartHintEl) chartHintEl.textContent = data && data.message ? data.message : '';
         if (items.length === 0) {
-          if (chartHintEl && !chartHintEl.textContent) chartHintEl.textContent = 'Add BIRDEYE_API_KEY in server .env to show 15m chart.';
+          if (chartHintEl && !chartHintEl.textContent) chartHintEl.textContent = 'Add BIRDEYE_API_KEY and AAA_TOKEN_MINT in server .env to show 15m chart.';
           return;
         }
         var candlestickData = items.map(function (c) {
