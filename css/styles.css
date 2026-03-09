@@ -8,6 +8,22 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: 'Saira Stencil One';
+  src: url('../assets/fonts/SairaStencilOne-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Chakra Petch';
+  src: url('../assets/fonts/ChakraPetch-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --bg: #0d0e12;
   --bg-elevated: #16181f;
@@ -27,6 +43,8 @@
   --safe-bottom: env(safe-area-inset-bottom, 0);
   --safe-top: env(safe-area-inset-top, 0);
   --font-sans: 'Freckle Face', 'Space Grotesk', system-ui, sans-serif;
+  --font-title: 'Saira Stencil One', var(--font-sans);
+  --font-menu: 'Chakra Petch', var(--font-sans);
   --font-mono: 'JetBrains Mono', monospace;
   /* Type scale: larger base for readability */
   --text-base: 1.25rem;
@@ -158,7 +176,7 @@ body {
   margin: 0 auto 0.25rem;
   width: 100%;
   max-width: 56ch;
-  font-family: var(--font-sans);
+  font-family: var(--font-title);
   font-size: clamp(2rem, 11vw, 5.5rem);
   font-weight: 900;
   letter-spacing: 0.02em;
@@ -458,6 +476,7 @@ body {
 
 .raffles-list { margin-top: 2.5rem; }
 .raffles-list__title {
+  font-family: var(--font-title);
   margin: 0 0 1rem;
   font-size: 1.25rem;
   font-weight: 600;
@@ -671,6 +690,7 @@ body {
   background: transparent;
 }
 .dashboard__title {
+  font-family: var(--font-title);
   font-weight: 700;
   font-size: 1.125rem;
 }
@@ -682,6 +702,7 @@ body {
   margin-bottom: 1.5rem;
 }
 .dashboard__link {
+  font-family: var(--font-menu);
   display: flex;
   align-items: center;
   gap: 0.6rem;
@@ -933,6 +954,7 @@ body {
   mask: url('../assets/coin-icon.svg') center/contain no-repeat;
 }
 .dashboard-bottom__label {
+  font-family: var(--font-menu);
   line-height: 1.2;
 }
 .dashboard-bottom__item--hidden {
@@ -1428,6 +1450,7 @@ body {
   max-height: none;
 }
 .section__title {
+  font-family: var(--font-title);
   margin: 0 0 0.5rem;
   font-size: clamp(2.25rem, 3vw, 3rem);
   font-weight: 700;
@@ -1446,6 +1469,7 @@ body {
 }
 
 .hero__title {
+  font-family: var(--font-title);
   margin: 0 0 0.5rem;
   font-size: clamp(1.75rem, 5vw, 2.5rem);
   font-weight: 700;
