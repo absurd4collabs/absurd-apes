@@ -381,13 +381,15 @@
       var rect = section.getBoundingClientRect();
       var vh = window.innerHeight;
       var progress;
-      /* Section not laid out yet (e.g. before paint in production) => arrow at top */
+      /* Section not laid out => arrow at top */
       if (rect.height <= 0) {
         progress = 0;
-      } else if (rect.bottom <= 0) {
-        progress = 1;
-      } else if (rect.top >= vh) {
+      } else if (rect.bottom >= vh) {
+        /* Section not yet scrolled into view (bottom still at/below viewport); full-width load => arrow at top */
         progress = 0;
+      } else if (rect.top <= 0) {
+        /* Section above viewport => arrow at bottom */
+        progress = 1;
       } else if (rect.height >= vh) {
         var travel = rect.height - vh;
         progress = 1 + rect.top / travel;
