@@ -36,6 +36,8 @@
         var solanaUrl = hero.solanaLogoUrl || 'https://cryptologos.cc/logos/solana-sol-logo.svg?v=040';
         var beforeSolana = hero.subtitle.replace(/\s+Solana\.?\s*$/i, '');
         heroSub.innerHTML = beforeSolana + ' <img src="' + solanaUrl + '" alt="" class="hero-home__solana-icon" width="20" height="20"> Solana.';
+      } else if (hero.subtitle.indexOf('<') !== -1) {
+        heroSub.innerHTML = hero.subtitle;
       } else {
         heroSub.textContent = hero.subtitle;
       }
@@ -293,6 +295,121 @@
 
   showView(getRoute());
 
+  // ----- Hero scroll animations (tagline moves left, body moves right and up) -----
+  (function () {
+    var heroSection = document.getElementById('home');
+    var heroTagline = document.getElementById('hero-tagline');
+    var heroContent = document.querySelector('.hero-home__content');
+    var headerTitle = document.getElementById('hero-title');
+    if (!heroSection || !heroTagline || !heroContent) return;
+
+    var taglineMoveLeft = 400;
+    var taglineMoveDown = 200;
+    var bodyMoveRight = 280;
+    var bodyMoveUp = 140;
+    var taglineBaseTopPx = null;
+
+    function getScrollRoot() {
+      var el = heroSection;
+      while (el && el !== document.body) {
+        var style = window.getComputedStyle(el);
+        var overflow = (style.overflowY || style.overflow || '') + (style.overflowX || '');
+        if (/(auto|scroll|overlay)/.test(overflow)) return el;
+        el = el.parentElement;
+      }
+      return window;
+    }
+
+    function tick() {
+      if (getRoute() !== 'home' || !heroSection.isConnected) {
+        if (headerTitle) headerTitle.style.opacity = '';
+        return;
+      }
+      var rect = heroSection.getBoundingClientRect();
+      var h = rect.height;
+      var top = rect.top;
+      var progress = top <= 0 ? Math.min(1, -top / h) : 0;
+      var txTag = -progress * taglineMoveLeft;
+      var tyTag = progress * taglineMoveDown;
+      var txBody = progress * bodyMoveRight;
+      var tyBody = -progress * bodyMoveUp;
+      if (taglineBaseTopPx == null && progress === 0) {
+        taglineBaseTopPx = heroTagline.getBoundingClientRect().top;
+      }
+      if (taglineBaseTopPx != null) {
+        heroTagline.style.top = (taglineBaseTopPx + tyTag) + 'px';
+        heroTagline.style.visibility = rect.bottom < 0 ? 'hidden' : 'visible';
+      }
+      heroTagline.style.transform = 'translateX(' + txTag + 'px)';
+      heroContent.style.transform = 'translate3d(' + txBody + 'px, ' + tyBody + 'px, 0)';
+      heroContent.style.setProperty('--last-line-scale', 1 + Math.pow(progress, 0.6) * 2.2);
+      if (headerTitle) {
+        headerTitle.style.opacity = progress < 0.75 ? '1' : String(1 - (progress - 0.75) / 0.25);
+        headerTitle.style.pointerEvents = progress >= 0.75 ? 'none' : '';
+      }
+      heroTagline.style.opacity = progress < 0.75 ? '1' : String(1 - (progress - 0.75) / 0.25);
+      heroTagline.style.pointerEvents = progress >= 0.75 ? 'none' : '';
+    }
+
+    var ticking = false;
+    function onScroll() {
+      if (!ticking) {
+        requestAnimationFrame(function () {
+          tick();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    }
+
+    var scrollRoot = getScrollRoot();
+    if (scrollRoot === window) {
+      window.addEventListener('scroll', onScroll, { passive: true });
+    } else {
+      scrollRoot.addEventListener('scroll', onScroll, { passive: true });
+    }
+    window.addEventListener('resize', tick);
+    tick();
+  })();
+
+  // ----- Horizons section: arrow moves down with scroll -----
+  (function () {
+    var section = document.getElementById('horizons');
+    if (!section) return;
+
+    function updateHorizonsScroll() {
+      var rect = section.getBoundingClientRect();
+      var vh = window.innerHeight;
+      var progress;
+      /* Progress 0 = section just entering (bottom at viewport bottom); 1 = section top at viewport top */
+      if (rect.height >= vh) {
+        var travel = rect.height - vh;
+        progress = 1 + rect.top / travel;
+      } else {
+        if (rect.bottom <= 0) progress = 1;
+        else if (rect.top >= vh) progress = 0;
+        else progress = (vh - rect.bottom) / (vh - rect.height);
+      }
+      progress = Math.max(0, Math.min(1, progress));
+      section.style.setProperty('--horizons-scroll', String(progress));
+    }
+
+    var ticking = false;
+    function onScroll() {
+      if (!ticking) {
+        requestAnimationFrame(function () {
+          updateHorizonsScroll();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', updateHorizonsScroll);
+    updateHorizonsScroll();
+  })();
+
   // ----- Wallet (Solana) -----
   function getDetectedWallets() {
     var list = [];
@@ -334,9 +451,11 @@
 
   function setWalletConnected(connected) {
     document.body.classList.toggle('wallet-connected', connected);
-    var label = connected ? 'Connected' : 'Connect wallet';
+    var label = connected ? 'Connected' : 'Connect';
     document.querySelectorAll('#btn-connect-wallet, #btn-connect-wallet-mobile').forEach(function (btn) {
-      if (btn) btn.textContent = label;
+      if (!btn) return;
+      var textEl = btn.querySelector('.btn__text');
+      if (textEl) textEl.textContent = label; else btn.textContent = label;
     });
     if (typeof syncVerifyModalState === 'function') syncVerifyModalState();
     if (connected && document.getElementById('main-raffles') && !document.getElementById('main-raffles').hidden && typeof window.initRafflesPage === 'function') window.initRafflesPage();
@@ -484,7 +603,7 @@
   }
 
   function setVerifyLoading(loading) {
-    var btns = document.querySelectorAll('#btn-verify, #btn-verify-panel, #hero-verify-cta, #verify-modal-btn-verify');
+    var btns = document.querySelectorAll('#btn-verify, #btn-verify-panel, #verify-modal-btn-verify');
     btns.forEach(function (btn) {
       if (!btn) return;
       btn.disabled = loading;
@@ -662,10 +781,6 @@
     closeMobilePanel();
     openVerifyModal();
   });
-  document.getElementById('hero-verify-cta')?.addEventListener('click', function () {
-    if (window.innerWidth < 900) openMobilePanel();
-    openVerifyModal();
-  });
 
   if (verifyModalBackdrop) verifyModalBackdrop.addEventListener('click', closeVerifyModal);
   if (verifyModalClose) verifyModalClose.addEventListener('click', closeVerifyModal);
@@ -716,13 +831,15 @@
     var wrapMobile = document.getElementById('discord-connected-mobile');
     if (btnSidebar) {
       btnSidebar.hidden = !!connected;
-      btnSidebar.textContent = 'Connect Discord';
+      var textSidebar = btnSidebar.querySelector('.btn__text');
+      if (textSidebar) textSidebar.textContent = 'Login'; else btnSidebar.textContent = 'Login';
       btnSidebar.title = 'Sign in with Discord';
       btnSidebar.dataset.discordConnected = connected ? '1' : '0';
     }
     if (btnMobile) {
       btnMobile.hidden = !!connected;
-      btnMobile.textContent = 'Connect Discord';
+      var textMobile = btnMobile.querySelector('.btn__text');
+      if (textMobile) textMobile.textContent = 'Login'; else btnMobile.textContent = 'Login';
       btnMobile.title = 'Sign in with Discord';
       btnMobile.dataset.discordConnected = connected ? '1' : '0';
     }
@@ -883,70 +1000,54 @@
         data.collections.forEach(function (c) {
           var card = document.createElement('div');
           card.className = 'card card--nft card--embed';
-          var isAbsurdHorizons = c.symbol === 'absurd_horizons';
+          var mainCollectionLogo = c.symbol === 'absurd_art_apes' ? 'assets/logo.png' : null;
+          var mediaSrc = mainCollectionLogo || c.animationUrl || c.image;
           var mediaHtml = '';
-          if (isAbsurdHorizons) {
-            var horizonsCfg = (window.ABSURD_APES_CONFIG && window.ABSURD_APES_CONFIG.absurdHorizons) || {};
-            var imgSrc = horizonsCfg.imageUrl || 'assets/absurd-horizons.png';
-            var mintLabel = horizonsCfg.mintLabel || 'Minting Sunday 1st March';
-            var mintDateStr = horizonsCfg.mintDate || '2026-03-01';
-            var mintDate = new Date(mintDateStr);
-            var now = new Date();
-            var mintLive = now >= mintDate;
-            mediaHtml = '<div class="embed__media embed__media--video"><img src="' + escapeHtml(imgSrc) + '" alt="" class="embed__media-gif" loading="lazy" /></div>';
-            card.innerHTML =
-              mediaHtml +
-              '<div class="embed__body">' +
-                '<h3 class="card__title">' + escapeHtml(c.name || 'Absurd Horizons') + '</h3>' +
-                '<p class="card__text">' + escapeHtml(mintLabel) + '</p>' +
-                '<div class="collections__actions">' +
-                  (mintLive
-                    ? '<a href="' + escapeHtml(c.marketplaceUrl || 'https://magiceden.io/marketplace/absurd_horizons') + '" class="btn btn--primary" target="_blank" rel="noopener">Mint</a>'
-                    : '<button type="button" class="btn btn--primary btn--disabled" disabled aria-disabled="true">Mint</button>'
-                  ) +
-                '</div>' +
-              '</div>';
+          if (mediaSrc) {
+            var isGif = !mainCollectionLogo && (/\.gif(\?|$)/i.test(mediaSrc) || (c.animationUrl && !c.image));
+            if (isGif) {
+              mediaHtml = '<div class="embed__media embed__media--video"><img src="' + escapeHtml(mediaSrc) + '" alt="" loading="lazy" /></div>';
+            } else {
+              mediaHtml = '<div class="embed__media"><img src="' + escapeHtml(mediaSrc) + '" alt="" loading="lazy" /></div>';
+            }
           } else {
-            var mediaSrc = c.animationUrl || c.image;
-            if (mediaSrc) {
-              var isGif = /\.gif(\?|$)/i.test(mediaSrc) || (c.animationUrl && !c.image);
-              if (isGif || c.animationUrl) {
-                mediaHtml = '<div class="embed__media embed__media--video"><img src="' + escapeHtml(mediaSrc) + '" alt="" loading="lazy" /></div>';
-              } else {
-                mediaHtml = '<div class="embed__media"><img src="' + escapeHtml(mediaSrc) + '" alt="" loading="lazy" /></div>';
-              }
+            var fallbackImg = c.symbol === 'absurd_horizons' ? ('assets/absurd-horizons.png') : null;
+            if (fallbackImg) {
+              mediaHtml = '<div class="embed__media embed__media--video"><img src="' + escapeHtml(fallbackImg) + '" alt="" loading="lazy" /></div>';
             } else {
               mediaHtml = '<div class="embed__media embed__media--placeholder" aria-hidden="true"></div>';
             }
-            var desc = (c.description || '').slice(0, 280);
-            if ((c.description || '').length > 280) desc += '…';
-            var stats = [];
-            if (c.supply != null && Number(c.supply) > 1) stats.push({ label: 'Supply', value: formatNum(c.supply) });
-            if (c.listedCount != null) stats.push({ label: 'Listed', value: formatNum(c.listedCount) });
-            if (c.floorPriceSol != null) stats.push({ label: 'Floor', value: c.floorPriceSol + ' SOL' });
-            if (c.volumeAllSol != null) stats.push({ label: 'Volume', value: c.volumeAllSol + ' SOL' });
-            if (c.avgPrice24hrSol != null) stats.push({ label: '24h avg', value: c.avgPrice24hrSol + ' SOL' });
-            var statsHtml = stats.length ? '<div class="embed__stats">' + stats.map(function (s) {
-              return '<div class="embed__stat"><span class="embed__stat-label">' + escapeHtml(s.label) + '</span><span class="embed__stat-value">' + escapeHtml(s.value) + '</span></div>';
-            }).join('') + '</div>' : '';
-            var meUrl = c.marketplaceUrl || ('https://magiceden.io/marketplace/' + encodeURIComponent(c.symbol || ''));
-            var tensorUrl = c.tensorUrl || ('https://www.tensor.trade/trade/' + encodeURIComponent(c.symbol || ''));
-            card.innerHTML =
-              mediaHtml +
-              '<div class="embed__body">' +
-                '<h3 class="card__title">' + escapeHtml(c.name || c.symbol) + '</h3>' +
-                (desc ? '<p class="card__text">' + escapeHtml(desc) + '</p>' : '') +
-                statsHtml +
-                '<div class="collections__actions">' +
-                  '<a href="' + escapeHtml(meUrl) + '" class="collections__btn" target="_blank" rel="noopener" aria-label="Trade on Magic Eden">' +
-                    '<img src="assets/magic-eden.png" alt="Magic Eden" class="collections__btn-img collections__btn-img--me" loading="lazy" />' +
-                  '</a>' +
-                  '<a href="' + escapeHtml(tensorUrl) + '" class="collections__btn" target="_blank" rel="noopener" aria-label="Trade on Tensor">' +
-                    '<img src="assets/tensor.png" alt="Tensor" class="collections__btn-img" loading="lazy" />' +
-                  '</a>' +
-                '</div>' +
-              '</div>';
           }
+          var desc = (c.description || '').slice(0, 280);
+          if ((c.description || '').length > 280) desc += '…';
+          var stats = [];
+          if (c.supply != null && Number(c.supply) > 1) stats.push({ label: 'Supply', value: formatNum(c.supply) });
+          if (c.listedCount != null) stats.push({ label: 'Listed', value: formatNum(c.listedCount) });
+          if (c.floorPriceSol != null) stats.push({ label: 'Floor', value: c.floorPriceSol + ' SOL' });
+          if (c.volumeAllSol != null) stats.push({ label: 'Volume', value: c.volumeAllSol + ' SOL' });
+          if (c.avgPrice24hrSol != null) stats.push({ label: '24h avg', value: c.avgPrice24hrSol + ' SOL' });
+          var statsHtml = stats.length ? '<div class="embed__stats">' + stats.map(function (s) {
+            return '<div class="embed__stat"><span class="embed__stat-label">' + escapeHtml(s.label) + '</span><span class="embed__stat-value">' + escapeHtml(s.value) + '</span></div>';
+          }).join('') + '</div>' : '';
+          var meUrl = c.marketplaceUrl || ('https://magiceden.io/marketplace/' + encodeURIComponent(c.symbol || ''));
+          var tensorUrl = c.tensorUrl || ('https://www.tensor.trade/trade/' + encodeURIComponent(c.symbol || ''));
+          var actionsHtml =
+            '<div class="collections__actions">' +
+            '<a href="' + escapeHtml(meUrl) + '" class="collections__btn" target="_blank" rel="noopener" aria-label="Trade on Magic Eden">' +
+              '<img src="assets/magic-eden.png" alt="Magic Eden" class="collections__btn-img collections__btn-img--me" loading="lazy" />' +
+            '</a>' +
+            '<a href="' + escapeHtml(tensorUrl) + '" class="collections__btn" target="_blank" rel="noopener" aria-label="Trade on Tensor">' +
+              '<img src="assets/tensor.png" alt="Tensor" class="collections__btn-img" loading="lazy" />' +
+            '</a>' +
+          '</div>';
+          card.innerHTML =
+            mediaHtml +
+            '<div class="embed__body">' +
+              '<h3 class="card__title">' + escapeHtml(c.name || c.symbol) + '</h3>' +
+              (desc ? '<p class="card__text">' + escapeHtml(desc) + '</p>' : '') +
+              statsHtml +
+              actionsHtml +
+            '</div>';
           grid.appendChild(card);
         });
       })

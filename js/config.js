@@ -35,9 +35,9 @@ window.ABSURD_APES_CONFIG = {
 
   // ——— Hero ———
   hero: {
-    title: 'Absurd Apes',
-    tagline: '',
-    subtitle: 'Absurd Art Apes is a unique NFT project, built on Solana, that was created to address a very real issue facing artists today. It\'s an effort to raise awareness in web3 around the challenges artists face in trusting people to pay for their services.',
+    title: 'ABSURD APES',
+    tagline: "The Most Absurd Art you'll see in Web3",
+    subtitle: "<p>The Absurd brand was introduced over 2 years ago in March 2024 with our very first NFT Collection \"Absurd Art Apes\".</p><p>We started as an art project, raising awareness for artists and now we have multiple utilities including NFT staking earning $AAA token and Trait store for ultimate customisation both provided by GOTM Labs, we also have Raffles and much more.</p><p>We are just getting started with huge plans for brand expansion including our second NFT collection \"Absurd Horizons\" MINTING NOW, Absurd Reserve airdropping $SOL on a monthly basis, token launch, Absurd Merch and the major step of bridging into Web2.</p><p>We Absurd, Expect Us.</p>",
     solanaLogoUrl: 'https://cryptologos.cc/logos/solana-sol-logo.svg?v=040',
     backgroundImage: 'assets/hero-bg.png',
   },

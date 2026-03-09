@@ -30,15 +30,18 @@
   <link rel="stylesheet" href="/css/styles.css?v=4" />
 </head>
 <body>
-  <!-- Sticky social: white Discord + X icons on transparent -->
-  <div class="social-sticky" aria-label="Social links">
-    <a href="#" class="social-sticky__btn" data-config="social-x" target="_blank" rel="noopener" aria-label="X (Twitter)">
-      <svg class="social-sticky__icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-    </a>
-    <a href="#" class="social-sticky__btn" data-config="social-discord" target="_blank" rel="noopener" aria-label="Discord">
-      <svg class="social-sticky__icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
-    </a>
-  </div>
+  <!-- Header: title (left) + social links (right) -->
+  <header class="site-header" aria-label="Site header">
+    <h1 class="site-header__title" id="hero-title"><span id="hero-title-inner"></span></h1>
+    <div class="site-header__social social-sticky" aria-label="Social links">
+      <a href="#" class="social-sticky__btn" data-config="social-x" target="_blank" rel="noopener" aria-label="X (Twitter)">
+        <svg class="social-sticky__icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+      </a>
+      <a href="#" class="social-sticky__btn" data-config="social-discord" target="_blank" rel="noopener" aria-label="Discord">
+        <svg class="social-sticky__icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+      </a>
+    </div>
+  </header>
 
   <!-- Desktop/Tablet: side dashboard -->
   <aside class="dashboard dashboard--side" id="dashboard-side" aria-label="Dashboard">
@@ -48,6 +51,7 @@
     </div>
     <nav class="dashboard__nav" aria-label="Main">
       <a href="/" class="dashboard__link dashboard__link--active" data-route="home"><span class="dashboard__icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>Home</a>
+      <a href="#horizons" class="dashboard__link" data-section="horizons"><span class="dashboard__icon dashboard__icon--horizons" aria-hidden="true"></span>Horizons</a>
       <a href="#collections" class="dashboard__link" data-section="collections"><span class="dashboard__icon dashboard__icon--logo dashboard__icon--gallery" aria-hidden="true"></span>Collections</a>
       <a href="#token" class="dashboard__link dashboard__link--hidden" data-section="token"><span class="dashboard__thumb dashboard__thumb--menu-icon" aria-hidden="true"></span><span data-config="token-label">Token</span></a>
       <a href="#holders" class="dashboard__link" data-section="holders"><span class="dashboard__icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="currentColor"><path d="M28 27.7H4v-28a4 4 0 0 0-4 4v24a4 4 0 0 0 4 4h24a4 4 0 0 0 4-4Z"/><path d="M8 24V12h4v12H8zm8 0V8h4v16h-4zm8 0V4h4v20h-4z"/></svg></span>Holders</a>
@@ -63,11 +67,13 @@
         Verify
       </button>
       <button type="button" class="btn btn--outline btn--full btn-connect" id="btn-connect-wallet" aria-label="Connect wallet">
-        Connect wallet
+        <svg class="btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4h-4z"/></svg>
+        <span class="btn__text">Connect</span>
       </button>
       <div class="dashboard__discord-wrap">
-        <button type="button" class="btn btn--outline btn--full btn-connect" id="btn-connect-discord" aria-label="Connect Discord">
-          Connect Discord
+        <button type="button" class="btn btn--outline btn--full btn-connect btn--discord" id="btn-connect-discord" aria-label="Login with Discord">
+          <svg class="btn__icon btn__icon--discord" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+          <span class="btn__text">Login</span>
         </button>
         <div class="dashboard__discord-connected" id="discord-connected-sidebar" hidden>
           <img class="dashboard__discord-avatar" id="discord-avatar-sidebar" src="" alt="" width="28" height="28" />
@@ -103,6 +109,10 @@
       <span class="dashboard-bottom__icon"><svg class="dashboard-bottom__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
       <span class="dashboard-bottom__label">Home</span>
     </a>
+    <a href="#horizons" class="dashboard-bottom__item" data-section="horizons" aria-label="Horizons">
+      <span class="dashboard-bottom__icon dashboard-bottom__icon--horizons"></span>
+      <span class="dashboard-bottom__label">Horizons</span>
+    </a>
     <a href="#collections" class="dashboard-bottom__item" data-section="collections" aria-label="Collections">
       <span class="dashboard-bottom__icon dashboard-bottom__icon--logo dashboard-bottom__icon--gallery"></span>
       <span class="dashboard-bottom__label">Collections</span>
@@ -127,6 +137,7 @@
     <div class="panel__inner">
       <h3 class="panel__title">More</h3>
       <nav class="panel__nav">
+        <a href="#horizons" class="panel__link" data-section="horizons">Horizons</a>
         <a href="#utilities" class="panel__link" data-section="utilities">Utilities</a>
         <a href="#x-spaces" class="panel__link" data-section="x-spaces">X spaces</a>
         <a href="#team" class="panel__link" data-section="team">Team</a>
@@ -135,9 +146,15 @@
       </nav>
       <div class="panel__actions">
         <button type="button" class="btn btn--primary btn--full" id="btn-verify-panel">Verify</button>
-        <button type="button" class="btn btn--outline btn--full" id="btn-connect-wallet-mobile">Connect wallet</button>
+        <button type="button" class="btn btn--outline btn--full btn-connect" id="btn-connect-wallet-mobile" aria-label="Connect wallet">
+          <svg class="btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4h-4z"/></svg>
+          <span class="btn__text">Connect</span>
+        </button>
         <div class="dashboard__discord-wrap dashboard__discord-wrap--panel">
-          <button type="button" class="btn btn--outline btn--full" id="btn-connect-discord-mobile">Connect Discord</button>
+          <button type="button" class="btn btn--outline btn--full btn-connect btn--discord" id="btn-connect-discord-mobile" aria-label="Login with Discord">
+            <svg class="btn__icon btn__icon--discord" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+            <span class="btn__text">Login</span>
+          </button>
           <div class="dashboard__discord-connected" id="discord-connected-mobile" hidden>
             <img class="dashboard__discord-avatar" id="discord-avatar-mobile" src="" alt="" width="28" height="28" />
             <span class="dashboard__discord-username" id="discord-username-mobile"></span>
@@ -226,19 +243,29 @@
     <div class="main__content main__content--home" id="main-home">
     <section class="section section--hero hero-home" id="home">
       <div class="hero-home__bg" aria-hidden="true"></div>
+      <p class="hero-home__tagline" id="hero-tagline"></p>
       <div class="hero-home__content">
         <div class="hero-home__content-inner">
-          <h1 class="hero-home__title" id="hero-title"><span id="hero-title-inner"></span></h1>
-          <p class="hero-home__tagline" id="hero-tagline"></p>
-          <p class="hero-home__sub" id="hero-subtitle"></p>
-          <div class="hero-home__actions" id="hero-verify-actions">
-            <button type="button" class="btn btn--hero-verify" id="hero-verify-cta">Verify holdings</button>
-          </div>
+          <div class="hero-home__sub" id="hero-subtitle"></div>
         </div>
       </div>
       <div class="hero-home__slotto" style="display:none;">
         <p class="hero-home__slotto-label">FEATURED ON SLOTTO.GG</p>
         <a href="#" target="_blank" rel="noopener" class="hero-home__slotto-btn" aria-label="SLOTTO.GG"></a>
+      </div>
+    </section>
+
+    <section class="section section--horizons" id="horizons">
+      <div class="container">
+        <h2 class="section__title">Absurd Horizons</h2>
+      </div>
+      <div class="horizons__right">
+        <span class="horizons__arrow" aria-hidden="true">
+          <svg viewBox="0 0 512.015 512.015" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="M498.843,1.635c-7.979-3.328-17.152-1.472-23.253,4.629L256.006,225.848L36.422,6.264c-6.101-6.101-15.275-7.957-23.253-4.629C5.19,4.92,0.006,12.728,0.006,21.347v234.667c0,5.675,2.24,11.093,6.251,15.083l234.667,234.667c4.16,4.16,9.621,6.251,15.083,6.251c5.461,0,10.923-2.091,15.083-6.251l234.667-234.667c4.011-3.989,6.251-9.408,6.251-15.083V21.347C512.006,12.728,506.822,4.92,498.843,1.635z"/></svg>
+        </span>
+        <div class="horizons__cta">
+          <a href="https://launchmynft.io/sol/22520" class="horizons__mint btn btn--primary" target="_blank" rel="noopener noreferrer">Mint now</a>
+        </div>
       </div>
     </section>
 
