@@ -2057,6 +2057,10 @@ body {
   pointer-events: auto;
 }
 /* Arrow: starts at 22%, ends at 80% so it stops above the mint button (--horizons-scroll set by JS) */
+/* When .horizons--arrow-at-top is on section, arrow is forced to top until JS removes it (fixes production flash) */
+.horizons--arrow-at-top .horizons__arrow {
+  top: 22% !important;
+}
 .horizons__arrow {
   position: absolute;
   left: 50%;

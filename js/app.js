@@ -412,10 +412,12 @@
 
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', updateHorizonsScroll);
-    /* Force arrow at top for first paint; only run formula after first frame to avoid production flash */
-    section.style.setProperty('--horizons-scroll', '0');
+    /* Class .horizons--arrow-at-top in HTML keeps arrow at top until we remove it here (no variable/cache issues) */
     requestAnimationFrame(function () {
-      requestAnimationFrame(updateHorizonsScroll);
+      requestAnimationFrame(function () {
+        section.classList.remove('horizons--arrow-at-top');
+        updateHorizonsScroll();
+      });
     });
   })();
 
