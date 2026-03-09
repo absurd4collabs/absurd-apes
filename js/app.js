@@ -186,7 +186,8 @@
 
   function setRouteActive(route) {
     routeLinks.forEach(function (link) {
-      var isActive = link.getAttribute('data-route') === route;
+      /* On home route, setActiveSection controls which item is active; only Raffles gets route-active */
+      var isActive = link.getAttribute('data-route') === route && route !== 'home';
       link.classList.toggle('dashboard__link--active', isActive);
       link.classList.toggle('dashboard-bottom__item--active', isActive);
       link.setAttribute('aria-current', isActive && route === 'raffles' ? 'page' : 'false');
@@ -210,6 +211,8 @@
     link.addEventListener('click', function (e) {
       var href = link.getAttribute('href');
       if (!href || href === '#' || link.target === '_blank') return;
+      /* Home is href="#home" and handled by section nav (scroll + hash); only handle full-page routes here */
+      if (href.indexOf('#') === 0) return;
       var path = href.split('?')[0].split('#')[0].replace(/\/$/, '') || '/';
       if (path === '/raffles' || path === '/') {
         e.preventDefault();
