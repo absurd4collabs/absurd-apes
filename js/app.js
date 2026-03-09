@@ -381,16 +381,19 @@
       var rect = section.getBoundingClientRect();
       var vh = window.innerHeight;
       var progress;
-      /* Progress 0 = section just entering (bottom at viewport bottom); 1 = section top at viewport top */
-      if (rect.height >= vh) {
+      /* Progress 0 = arrow at top (section not yet in view or just entering); 1 = arrow at bottom (section leaving at top) */
+      if (rect.bottom <= 0) {
+        progress = 1;
+      } else if (rect.top >= vh) {
+        progress = 0;
+      } else if (rect.height >= vh) {
         var travel = rect.height - vh;
         progress = 1 + rect.top / travel;
+        progress = Math.max(0, Math.min(1, progress));
       } else {
-        if (rect.bottom <= 0) progress = 1;
-        else if (rect.top >= vh) progress = 0;
-        else progress = (vh - rect.bottom) / (vh - rect.height);
+        progress = (vh - rect.bottom) / (vh - rect.height);
+        progress = Math.max(0, Math.min(1, progress));
       }
-      progress = Math.max(0, Math.min(1, progress));
       section.style.setProperty('--horizons-scroll', String(progress));
     }
 
