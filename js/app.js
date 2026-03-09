@@ -381,8 +381,10 @@
       var rect = section.getBoundingClientRect();
       var vh = window.innerHeight;
       var progress;
-      /* Progress 0 = arrow at top (section not yet in view or just entering); 1 = arrow at bottom (section leaving at top) */
-      if (rect.bottom <= 0) {
+      /* Section not laid out yet (e.g. before paint in production) => arrow at top */
+      if (rect.height <= 0) {
+        progress = 0;
+      } else if (rect.bottom <= 0) {
         progress = 1;
       } else if (rect.top >= vh) {
         progress = 0;
@@ -410,6 +412,13 @@
 
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', updateHorizonsScroll);
+    /* Set initial position so arrow starts at top; run after load so layout is ready */
+    section.style.setProperty('--horizons-scroll', '0');
+    if (document.readyState === 'complete') {
+      requestAnimationFrame(updateHorizonsScroll);
+    } else {
+      window.addEventListener('load', function () { requestAnimationFrame(updateHorizonsScroll); });
+    }
     updateHorizonsScroll();
   })();
 
