@@ -412,14 +412,11 @@
 
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', updateHorizonsScroll);
-    /* Set initial position so arrow starts at top; run after load so layout is ready */
+    /* Force arrow at top for first paint; only run formula after first frame to avoid production flash */
     section.style.setProperty('--horizons-scroll', '0');
-    if (document.readyState === 'complete') {
+    requestAnimationFrame(function () {
       requestAnimationFrame(updateHorizonsScroll);
-    } else {
-      window.addEventListener('load', function () { requestAnimationFrame(updateHorizonsScroll); });
-    }
-    updateHorizonsScroll();
+    });
   })();
 
   // ----- Wallet (Solana) -----

@@ -2021,6 +2021,7 @@ body {
   overflow: hidden;
   min-height: 0; /* allow aspect-ratio to set height */
   aspect-ratio: 1024 / 680; /* match horizons-bg.png (1024×680) */
+  --horizons-scroll: 0; /* arrow at top until JS runs (avoids production flash) */
 }
 #horizons::before {
   content: '';
