@@ -118,7 +118,7 @@ window.ABSURD_APES_CONFIG = {
     { label: '@SkeetsANC', url: 'https://x.com/SkeetsANC' },
     { label: '@Cap_N_Chronic', url: 'https://x.com/Cap_N_Chronic' },
   ],
-  xSpacesTagline: 'Community, alpha and vibes.',
+  xSpacesTagline: 'Podcasting the most extraordinary minds, people and projects in Web3',
 
   // ——— Pairs game (standalone page at /pairs) ———
   pairs: {
