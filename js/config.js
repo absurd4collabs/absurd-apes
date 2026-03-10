@@ -135,5 +135,6 @@ window.ABSURD_APES_CONFIG = {
     { name: 'capnchronic85', image: 'assets/team-capnchronic.png', role: 'MOD, Space Host', xProfileUrl: 'https://x.com/Cap_N_Chronic' },
     { name: 'shaawtyanc', image: 'assets/team-shaawty.png', role: 'Project Assistant, Advisor', xProfileUrl: 'https://x.com/ShaawtyANC' },
     { name: 'anonymous.__.', image: 'assets/team-anonymous.png', role: 'MOD, King Ding-a-ling', xProfileUrl: 'https://x.com/della_jonny' },
+    { name: 'Tom [SLOTTO]', image: 'assets/team-tom.png', role: 'Website developer', xProfileUrl: 'https://x.com/BUXDAO' },
   ],
 };
