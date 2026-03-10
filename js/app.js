@@ -1198,7 +1198,7 @@
       if (table) table.className = 'holders-table holders-table--sort-' + sort;
       holdersTbody.innerHTML = '<tr><td colspan="6" class="holders-loading">Loading…</td></tr>';
       Promise.all([
-        fetch(window.location.origin + '/api/holders?sort=total', { credentials: 'include' }).then(function (r) { return r.ok ? r.json() : null; }),
+        fetch(window.location.origin + '/api/holders?sort=' + encodeURIComponent(sort), { credentials: 'include' }).then(function (r) { return r.ok ? r.json() : null; }),
         fetch(window.location.origin + '/api/prices', { credentials: 'include' }).then(function (r) { return r.ok ? r.json() : null; }),
         fetch(window.location.origin + '/api/collections', { credentials: 'include' }).then(function (r) { return r.ok ? r.json() : null; }),
       ]).then(function (arr) {
@@ -1237,10 +1237,28 @@
           if (tokenValueUsd != null || nftValueUsd != null) {
             totalValueUsd = (tokenValueUsd != null ? tokenValueUsd : 0) + (nftValueUsd != null ? nftValueUsd : 0);
           }
-          return { h: h, tokenBal: tokenBal != null ? tokenBal : 0, totalValueUsd: totalValueUsd, nftValueAbsurdApes: nftValueAbsurdApes, nftValueCol2: nftValueCol2 };
+          return { h: h, tokenBal: tokenBal != null ? tokenBal : 0, totalValueUsd: totalValueUsd, nftValueAbsurdApes: nftValueAbsurdApes, nftValueCol2: nftValueCol2, absurdApesCount: absurdApesCount, col2Count: col2Count };
         });
         if (sort === 'token') {
           list.sort(function (a, b) { return b.tokenBal - a.tokenBal; });
+        } else if (sort === 'col2') {
+          list.sort(function (a, b) {
+            var va = a.nftValueCol2 != null ? a.nftValueCol2 : -1;
+            var vb = b.nftValueCol2 != null ? b.nftValueCol2 : -1;
+            if (va >= 0 && vb >= 0) return vb - va;
+            if (va >= 0) return -1;
+            if (vb >= 0) return 1;
+            return b.col2Count - a.col2Count;
+          });
+        } else if (sort === 'absurdApes') {
+          list.sort(function (a, b) {
+            var va = a.nftValueAbsurdApes != null ? a.nftValueAbsurdApes : -1;
+            var vb = b.nftValueAbsurdApes != null ? b.nftValueAbsurdApes : -1;
+            if (va >= 0 && vb >= 0) return vb - va;
+            if (va >= 0) return -1;
+            if (vb >= 0) return 1;
+            return b.absurdApesCount - a.absurdApesCount;
+          });
         } else {
           list.sort(function (a, b) {
             var va = a.totalValueUsd != null ? a.totalValueUsd : -1;

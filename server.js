@@ -1265,6 +1265,17 @@ app.get('/api/holders', async function (req, res) {
     });
   }
 
+  // Filter out wallets with no holdings for the selected view
+  if (validSort === 'token') {
+    list = list.filter((h) => (h.tokenBalance || 0) > 0);
+  } else if (validSort === 'absurdApes') {
+    list = list.filter((h) => (h.absurdApesCount || 0) > 0);
+  } else if (validSort === 'col2') {
+    list = list.filter((h) => (h.col2Count || 0) > 0);
+  } else {
+    list = list.filter((h) => (h.tokenBalance || 0) > 0 || (h.totalNfts || 0) > 0);
+  }
+
   if (validSort === 'token') list.sort((a, b) => b.tokenBalance - a.tokenBalance);
   else if (validSort === 'absurdApes') list.sort((a, b) => (b.absurdApesCount || 0) - (a.absurdApesCount || 0));
   else if (validSort === 'col2') list.sort((a, b) => (b.col2Count || 0) - (a.col2Count || 0));
