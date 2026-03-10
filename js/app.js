@@ -787,13 +787,15 @@
     if (heroVerifyActions) {
       heroVerifyActions.classList.toggle('hero-home__actions--verified', hasVerifiedThisSession);
     }
+    var verifyBtnSidebar = document.getElementById('btn-verify');
+    var verifyBtnPanel = document.getElementById('btn-verify-panel');
+    if (verifyBtnSidebar) verifyBtnSidebar.hidden = hasVerifiedThisSession;
+    if (verifyBtnPanel) verifyBtnPanel.hidden = hasVerifiedThisSession;
   }
 
   function setVerifySuccessInModal() {
     hasVerifiedThisSession = true;
-    if (heroVerifyActions) heroVerifyActions.classList.add('hero-home__actions--verified');
-    if (verifyModalBtnVerify) verifyModalBtnVerify.hidden = true;
-    if (verifyModalSuccess) verifyModalSuccess.hidden = false;
+    syncVerifyModalState();
   }
 
   document.getElementById('btn-verify')?.addEventListener('click', openVerifyModal);
