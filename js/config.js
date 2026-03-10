@@ -53,15 +53,22 @@ window.ABSURD_APES_CONFIG = {
       name: 'GOTM Labz',
       description: 'Stake your NFTs and upgrade traits for Absurd Art Apes.',
       links: [
-        { label: 'NFT Stake', url: 'https://www.nftstake.app/absurdartapes' },
-        { label: 'Trait Store', url: 'https://www.traitstore.app/absurdartapes' },
+        { label: 'NFT Stake', url: 'https://www.gotmlabz.io/nftstake/absurdartapes' },
+        { label: 'Trait Store', url: 'https://www.gotmlabz.io/traitstore/absurdartapes' },
       ],
     },
+  ],
+  utilitiesComingSoon: [
     {
-      id: 'lunarverse',
-      name: 'Lunarverse',
-      description: 'Absurd Excursions — experiences and utilities on Lunarverse.',
-      url: 'https://absurdexcursions.lunarverse.app/',
+      name: 'Absurd Reserve',
+      image: 'assets/absurd-reserve.png',
+      description: 'Locked liquidity for peace of mind to holders 🔒\nCompounding for constant growth for the vault ✅\nMonthly Solana airdrops that increase monthly 🪂',
+    },
+    {
+      name: 'Absurd Portals',
+      image: 'assets/absurd-portals.png',
+      description: "We're bringing the minting madness back - bigger, wilder, and more absurd than ever!\n\nHere's the deal:\nYour Apes are about to step through mysterious portals into an alternate dimension. On the other side? A brand-new Ape with a fresh set of traits with new artwork. Think of it as re-rolling the dice with a shot at landing hyper-rare traits that unlock massive staking benefits.\n\nAll 400+ OG traits will be in the mix, PLUS brand-new exclusive traits that deliver real utility:\n• 💧 Staking drip boosts\n• 💰 SOL & NFT bounties",
+      expandable: true,
     },
   ],
 
@@ -127,5 +134,6 @@ window.ABSURD_APES_CONFIG = {
     { name: 'zippo5118', image: 'assets/team-zippo.png', role: 'Head MOD, Games Coordinator', xProfileUrl: 'https://x.com/Zippo1321' },
     { name: 'capnchronic85', image: 'assets/team-capnchronic.png', role: 'MOD, Space Host', xProfileUrl: 'https://x.com/Cap_N_Chronic' },
     { name: 'shaawtyanc', image: 'assets/team-shaawty.png', role: 'Project Assistant, Advisor', xProfileUrl: 'https://x.com/ShaawtyANC' },
+    { name: 'anonymous.__.', image: 'assets/team-anonymous.png', role: 'MOD, King Ding-a-ling', xProfileUrl: 'https://x.com/della_jonny' },
   ],
 };

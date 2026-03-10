@@ -122,21 +122,12 @@
       }).join('');
     }
 
-    // Utilities (Lunarverse, GOTM Labz cards)
+    // Utilities (GOTM Labz + Coming soon cards)
     var utilitiesLead = document.getElementById('utilities-lead');
     if (utilitiesLead && c.utilitiesLead) utilitiesLead.textContent = c.utilitiesLead;
     var utilitiesGrid = document.getElementById('utilities-grid');
     if (utilitiesGrid && c.utilities && c.utilities.length) {
       utilitiesGrid.innerHTML = c.utilities.map(function (u) {
-        if (u.url) {
-          return '<a href="' + escapeHtml(u.url) + '" class="card card--lunarverse" target="_blank" rel="noopener">' +
-            '<div class="card__bg"></div>' +
-            '<div class="card__lunarverse-content">' +
-              '<h3 class="card__title">' + escapeHtml(u.name || '') + '</h3>' +
-              '<p class="card__text">' + escapeHtml(u.description || '') + '</p>' +
-              '<span class="btn btn--primary">Visit</span>' +
-            '</div></a>';
-        }
         if (u.links && u.links.length) {
           var buttonsHtml = u.links.map(function (l) {
             return '<a href="' + escapeHtml(l.url || '#') + '" class="btn btn--outline" target="_blank" rel="noopener">' + escapeHtml(l.label || '') + '</a>';
@@ -151,6 +142,40 @@
         }
         return '';
       }).join('');
+    }
+    var utilitiesComingLabel = document.getElementById('utilities-coming-label');
+    var utilitiesComingGrid = document.getElementById('utilities-coming-grid');
+    if (utilitiesComingGrid && c.utilitiesComingSoon && c.utilitiesComingSoon.length) {
+      if (utilitiesComingLabel) utilitiesComingLabel.hidden = false;
+      utilitiesComingGrid.innerHTML = c.utilitiesComingSoon.map(function (u) {
+        var desc = (u.description || '').replace(/\n/g, '<br>');
+        var imgSrc = u.image ? escapeHtml(u.image) : '';
+        var expandable = !!u.expandable;
+        var cardClass = 'card card--coming-soon' + (expandable ? ' card--coming-soon-expandable' : '');
+        var readMoreBtn = expandable
+          ? '<button type="button" class="card__read-more link" aria-expanded="false">Read more</button>'
+          : '';
+        return '<div class="' + cardClass + '">' +
+          (imgSrc ? '<div class="card__coming-soon-image"><img src="' + imgSrc + '" alt="" loading="lazy" /></div>' : '') +
+          '<div class="card__coming-soon-content">' +
+            '<h3 class="card__title">' + escapeHtml(u.name || '') + '</h3>' +
+            '<div class="card__text-wrap">' +
+              '<p class="card__text">' + desc + '</p>' +
+            '</div>' +
+            readMoreBtn +
+          '</div></div>';
+      }).join('');
+      utilitiesComingGrid.querySelectorAll('.card__read-more').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var card = btn.closest('.card--coming-soon');
+          if (!card) return;
+          var isExpanded = card.classList.toggle('card--expanded');
+          btn.setAttribute('aria-expanded', isExpanded);
+          btn.textContent = isExpanded ? 'Read less' : 'Read more';
+        });
+      });
+    } else if (utilitiesComingLabel) {
+      utilitiesComingLabel.hidden = true;
     }
 
     // Holders labels (sidebar + mobile panel key labels)

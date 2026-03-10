@@ -1607,23 +1607,12 @@ body.holdings-verified #btn-verify-panel {
   padding: 0;
   padding-top: max(3rem, calc(5vh + var(--safe-top)));
 }
-/* Holders: section fits in one viewport, table scrolls inside; logo grid bg */
+/* Holders: section fits in one viewport, table scrolls inside */
 #holders.section {
   position: relative;
   max-height: 100vh;
   max-height: 100dvh;
   overflow: hidden;
-}
-#holders.section::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background-image: url('../assets/logo.png');
-  background-repeat: repeat;
-  background-size: 80px 80px;
-  opacity: 0.1;
-  pointer-events: none;
 }
 #holders .container {
   position: relative;
@@ -1950,6 +1939,93 @@ body.holdings-verified #btn-verify-panel {
 .card--gotm .card__gotm-buttons .btn--outline:hover {
   background: rgba(255, 255, 255, 0.15);
   border-color: rgba(255, 255, 255, 0.6);
+}
+
+/* Utilities: Coming soon — image above description, equal height, truncate + read more */
+.utilities-coming-label {
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.utilities-coming-grid {
+  margin-top: 0;
+  align-items: stretch;
+}
+.card--coming-soon {
+  overflow: hidden;
+  padding: 0;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.card--coming-soon .card__coming-soon-image {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: var(--bg-elevated);
+}
+.card--coming-soon .card__coming-soon-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.card--coming-soon .card__coming-soon-content {
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+  min-height: 0;
+}
+.card--coming-soon .card__title {
+  color: var(--text);
+  font-size: 1.25rem;
+  margin: 0;
+  flex-shrink: 0;
+}
+.card--coming-soon .card__text-wrap {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.card--coming-soon .card__text {
+  color: var(--text-muted);
+  font-size: 1rem;
+  line-height: 1.5;
+  margin: 0;
+}
+.card--coming-soon-expandable .card__text {
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.card--coming-soon-expandable.card--expanded .card__text {
+  -webkit-line-clamp: unset;
+  overflow: visible;
+  display: block;
+}
+.card--coming-soon .card__read-more {
+  flex-shrink: 0;
+  margin-top: 0.25rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  text-align: left;
+}
+.card--coming-soon .card__read-more:hover {
+  text-decoration: underline;
 }
 
 /* Stake token / MOB TOOLS — card with MOBTOOLS logo bg */
