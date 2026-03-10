@@ -478,6 +478,7 @@
       if (textEl) textEl.textContent = label; else btn.textContent = label;
     });
     if (typeof syncVerifyModalState === 'function') syncVerifyModalState();
+    if (connected && window.checkAlreadyVerified) window.checkAlreadyVerified();
     if (connected && document.getElementById('main-raffles') && !document.getElementById('main-raffles').hidden && typeof window.initRafflesPage === 'function') window.initRafflesPage();
   }
 
@@ -613,6 +614,7 @@
       panel.classList.remove('holdings--hidden');
       panel.classList.add('holdings--visible');
     });
+    document.body.classList.add('holdings-verified');
   }
 
   function hideHoldings() {
@@ -620,14 +622,21 @@
       panel.classList.add('holdings--hidden');
       panel.classList.remove('holdings--visible');
     });
+    document.body.classList.remove('holdings-verified');
   }
 
   function setVerifyLoading(loading) {
-    var btns = document.querySelectorAll('#btn-verify, #btn-verify-panel, #verify-modal-btn-verify');
-    btns.forEach(function (btn) {
+    var modalBtn = document.getElementById('verify-modal-btn-verify');
+    var sidebarBtn = document.getElementById('btn-verify');
+    var panelBtn = document.getElementById('btn-verify-panel');
+    if (modalBtn) {
+      modalBtn.disabled = loading;
+      modalBtn.textContent = loading ? 'Checking…' : 'Verify holdings';
+    }
+    [sidebarBtn, panelBtn].forEach(function (btn) {
       if (!btn) return;
       btn.disabled = loading;
-      btn.textContent = loading ? 'Checking…' : 'Verify holdings';
+      btn.textContent = loading ? 'Checking…' : 'Verify';
     });
   }
 
@@ -798,6 +807,19 @@
     syncVerifyModalState();
   }
 
+  function checkAlreadyVerified() {
+    if (!isDiscordConnected() || !getWalletPublicKey()) return;
+    if (hasVerifiedThisSession) return;
+    fetchVerifyHoldings(getWalletPublicKey()).then(function (data) {
+      if (data) {
+        hasVerifiedThisSession = true;
+        showHoldings(data);
+        syncVerifyModalState();
+      }
+    });
+  }
+  window.checkAlreadyVerified = checkAlreadyVerified;
+
   document.getElementById('btn-verify')?.addEventListener('click', openVerifyModal);
   document.getElementById('btn-verify-panel')?.addEventListener('click', function () {
     closeMobilePanel();
@@ -890,6 +912,7 @@
       var w = getWalletPublicKey();
       if (w && typeof linkWalletToDiscord === 'function') setTimeout(function () { linkWalletToDiscord(w); }, 400);
     }
+    if (connected && window.checkAlreadyVerified) window.checkAlreadyVerified();
   }
 
   function fetchDiscordMe() {

@@ -881,6 +881,11 @@ body {
 .dashboard__verify .btn + .btn {
   margin-top: 0.5rem;
 }
+body.holdings-verified #btn-verify,
+body.holdings-verified #btn-verify-panel {
+  display: none !important;
+  visibility: hidden !important;
+}
 .btn__icon {
   width: 1.2em;
   height: 1.2em;
@@ -2204,6 +2209,7 @@ body {
 .horizons__cta {
   z-index: 2;
 }
+
 .horizons__mint {
   text-decoration: none;
   padding: 0.85rem 1.75rem;
