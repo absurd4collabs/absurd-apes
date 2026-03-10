@@ -121,9 +121,11 @@ window.ABSURD_APES_CONFIG = {
     gridRows: 4,
   },
 
-  // ——— Team ———
+  // ——— Team (image, name, role, xProfileUrl — no Discord fetch) ———
   team: [
-    { xProfileUrl: 'https://x.com/SkeetsANC', discordId: '1074064709101305918', description: 'Founder, Artist & Creative' },
-    { xProfileUrl: 'https://x.com/Zippo1321', discordId: '971215759328030800', description: 'Head Mod & Game Coordinator' },
+    { name: 'SkeetsANC', image: 'assets/team-skeets.png', role: 'Founder, Artist & Creative', xProfileUrl: 'https://x.com/SkeetsANC' },
+    { name: 'zippo5118', image: 'assets/team-zippo.png', role: 'Head MOD, Games Coordinator', xProfileUrl: 'https://x.com/Zippo1321' },
+    { name: 'capnchronic85', image: 'assets/team-capnchronic.png', role: 'MOD, Space Host', xProfileUrl: 'https://x.com/Cap_N_Chronic' },
+    { name: 'shaawtyanc', image: 'assets/team-shaawty.png', role: 'Project Assistant, Advisor', xProfileUrl: 'https://x.com/ShaawtyANC' },
   ],
 };

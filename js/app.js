@@ -1147,56 +1147,30 @@
     } catch (_) { return ''; }
   }
 
-  // ----- Team (from ABSURD_APES_CONFIG.team: xProfileUrl, discordId, description) -----
+  // ----- Team (from ABSURD_APES_CONFIG.team: image, name, role, xProfileUrl) -----
   var teamGrid = document.getElementById('team-grid');
   if (teamGrid && window.ABSURD_APES_CONFIG && Array.isArray(window.ABSURD_APES_CONFIG.team) && window.ABSURD_APES_CONFIG.team.length > 0) {
     var teamList = window.ABSURD_APES_CONFIG.team;
     teamGrid.innerHTML = '';
     teamList.forEach(function (member) {
+      var name = member.name || 'Team';
+      var image = member.image || '';
+      var role = member.role || '';
       var xUrl = member.xProfileUrl || '';
-      var discordId = member.discordId || '';
-      var description = member.description || '';
       var card = document.createElement('div');
       card.className = 'card card--team';
-      var title = '';
-      var avatarSrc = '';
-      var fetchPromise = discordId
-        ? fetch(window.location.origin + '/api/discord/user/' + encodeURIComponent(discordId), { credentials: 'include' })
-            .then(function (r) { return r.ok ? r.json() : null; })
-            .then(function (u) {
-              if (u) {
-                title = u.global_name || u.username || '';
-                avatarSrc = discordAvatarUrlFromUser(u);
-              }
-            })
-            .catch(function () {})
-        : Promise.resolve();
-      fetchPromise.then(function () {
-        if (!title) title = xHandleFromUrl(xUrl) || 'Team';
-        if (!avatarSrc) avatarSrc = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23666" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>');
-        var linkAttrs = xUrl ? ' href="' + escapeHtml(xUrl) + '" target="_blank" rel="noopener"' : '';
-        var handleDisplay = xHandleFromUrl(xUrl);
-        card.innerHTML =
-          '<div class="card__avatar-wrap">' +
-            '<img class="card__avatar card__avatar--img" src="' + escapeHtml(avatarSrc) + '" alt="" loading="lazy" />' +
-          '</div>' +
-          '<h3 class="card__title">' + escapeHtml(title) + '</h3>' +
-          (handleDisplay ? '<p class="card__meta card__meta--handle"><a class="link link--external" href="' + escapeHtml(xUrl) + '" target="_blank" rel="noopener">' + escapeHtml(handleDisplay) + '</a></p>' : '') +
-          (description ? '<p class="card__text">' + escapeHtml(description) + '</p>' : '');
-        if (xUrl && !handleDisplay) {
-          var titleEl = card.querySelector('.card__title');
-          if (titleEl) {
-            var wrap = document.createElement('a');
-            wrap.href = xUrl;
-            wrap.target = '_blank';
-            wrap.rel = 'noopener';
-            wrap.className = 'link link--external';
-            wrap.textContent = titleEl.textContent;
-            titleEl.textContent = '';
-            titleEl.appendChild(wrap);
-          }
-        }
-      });
+      var imgSrc = image ? image : 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%23666" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>');
+      var handleDisplay = xHandleFromUrl(xUrl);
+      var xLine = xUrl && handleDisplay
+        ? '<p class="card__meta card__meta--handle"><a class="link link--external" href="' + escapeHtml(xUrl) + '" target="_blank" rel="noopener">' + escapeHtml(handleDisplay) + '</a></p>'
+        : '';
+      card.innerHTML =
+        '<div class="card__avatar-wrap">' +
+          '<img class="card__avatar card__avatar--img" src="' + escapeHtml(imgSrc) + '" alt="" loading="lazy" />' +
+        '</div>' +
+        '<h3 class="card__title">' + escapeHtml(name) + '</h3>' +
+        xLine +
+        (role ? '<p class="card__text card__text--role">' + escapeHtml(role) + '</p>' : '');
       teamGrid.appendChild(card);
     });
   }

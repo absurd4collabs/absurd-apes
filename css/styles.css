@@ -2391,28 +2391,43 @@ body.holdings-verified #btn-verify-panel {
   }
 }
 
-/* Team cards: square image, centered in card with padding above */
+/* Team cards: circular image, details centered below */
+.card--team {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
 .card--team .card__avatar-wrap {
   width: 100%;
+  max-width: 220px;
   aspect-ratio: 1;
   margin-top: 0.5rem;
   margin-bottom: 1rem;
   margin-left: auto;
   margin-right: auto;
   overflow: hidden;
-  border-radius: var(--radius);
+  border-radius: 50%;
 }
 .card--team .card__avatar,
 .card--team .card__avatar--img {
   width: 100%;
   height: 100%;
-  border-radius: 0;
+  border-radius: 50%;
   object-fit: cover;
   display: block;
 }
 .card--team .card__avatar--img {
   aspect-ratio: 1;
   object-fit: cover;
+}
+.card--team .card__title {
+  width: 100%;
+  margin-bottom: 0.25rem;
+}
+.card--team .card__text--role {
+  margin-top: 0;
+  color: var(--text-muted);
 }
 .card__meta--handle .link {
   font-size: 1.0625rem;
