@@ -1004,6 +1004,8 @@
     else closeMobilePanel();
   });
 
+  document.getElementById('btn-panel-close')?.addEventListener('click', closeMobilePanel);
+
   // Close panel when a "more" menu link is clicked (section nav still handled by [data-section] links)
   mobilePanel?.querySelectorAll('.panel__link').forEach(function (link) {
     link.addEventListener('click', closeMobilePanel);
