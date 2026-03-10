@@ -204,6 +204,18 @@
   }
   applyProjectConfig();
 
+  // Horizons alpha: expandable on desktop (Read more / Read less)
+  (function () {
+    var btn = document.getElementById('horizons-alpha-read-more');
+    var block = document.getElementById('horizons-alpha');
+    if (!btn || !block) return;
+    btn.addEventListener('click', function () {
+      var expanded = block.classList.toggle('horizons__alpha--expanded');
+      btn.setAttribute('aria-expanded', expanded);
+      btn.textContent = expanded ? 'Read less' : 'Read more';
+    });
+  })();
+
   // ----- Client-side route: home vs raffles (no full reload, dashboard stays) -----
   function getRoute() {
     var path = window.location.pathname.replace(/\/$/, '') || '/';

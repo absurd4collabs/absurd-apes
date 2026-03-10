@@ -2195,7 +2195,7 @@ body.holdings-verified #btn-verify-panel {
   max-width: 22rem;
   z-index: 2;
   padding: 0.75rem 1rem;
-  background: rgba(13, 14, 18, 0.65);
+  background: var(--bg-card);
   border-radius: var(--radius);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
 }
@@ -2205,31 +2205,48 @@ body.holdings-verified #btn-verify-panel {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 .horizons__alpha-line {
-  margin: 0 0 0.25rem;
+  margin: 0 0 0.35rem;
   font-size: 0.95rem;
   font-weight: 700;
   color: #fff;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  line-height: 1.3;
+  line-height: 1.65;
 }
 .horizons__alpha-body {
-  margin: 0 0 0.35rem;
+  margin: 0 0 0.65rem;
   font-size: 0.8125rem;
   color: #fff;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  line-height: 1.35;
+  line-height: 1.75;
 }
 .horizons__alpha-cta {
-  margin: 0.5rem 0 0;
+  margin: 0.6rem 0 0;
   font-size: 0.9rem;
   font-weight: 600;
   color: #fff;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  line-height: 1.6;
+}
+.horizons__alpha-read-more {
+  margin-top: 0.35rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: var(--accent);
+  text-shadow: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.horizons__alpha-read-more:hover {
+  text-decoration: underline;
 }
 .horizons__mint-label {
   margin: 0 0 0.35rem 0;
   font-size: var(--text-sm);
   color: #fff;
+  line-height: 1.6;
 }
 .horizons__progress-track {
   height: 0.5rem;
@@ -2270,6 +2287,17 @@ body.holdings-verified #btn-verify-panel {
   .horizons__alpha-cta {
     font-size: 0.8rem;
     margin-top: 0.35rem;
+  }
+  .horizons__alpha-read-more {
+    display: none;
+  }
+}
+@media (min-width: 900px) {
+  .horizons__alpha .horizons__alpha-more {
+    display: none;
+  }
+  .horizons__alpha.horizons__alpha--expanded .horizons__alpha-more {
+    display: block;
   }
 }
 @media (min-width: 768px) {
@@ -2336,15 +2364,48 @@ body.holdings-verified #btn-verify-panel {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 @media (orientation: portrait) and (max-width: 899px) {
+  /* Image at top only; mint progress container below, full width */
   #horizons {
-    aspect-ratio: 1720 / 1568; /* match horizons-bg-portrait.png so full image height shows */
+    aspect-ratio: unset;
+    min-height: 0;
+    padding-top: 91vw; /* 100vw * 1568/1720 ≈ portrait image height */
+    padding-bottom: 0.5rem;
   }
   #horizons::before {
     background: url("../assets/horizons-bg-portrait.png") center / cover no-repeat;
+    height: 91vw;
+    bottom: auto;
   }
+  #horizons .container {
+    position: static;
+    width: 100%;
+    max-width: none;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-top: 1rem;
+    padding-bottom: 0.5rem;
+    margin-top: 0;
+  }
+  #horizons .section__title {
+    margin: 0;
+    height: 0;
+    overflow: hidden;
+  }
+  .horizons__mint-progress {
+    position: static;
+    top: auto;
+    left: auto;
+    right: auto;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    border-radius: var(--radius);
+    background: var(--bg-card);
+  }
+  /* Keep arrow + mint button in the image area (above the full-width block); larger bottom = higher on image */
   .horizons__right {
     right: 1rem;
-    bottom: 1.25rem;
+    bottom: calc(100% - 91vw + 2rem);
     width: 6rem; /* match button so arrow center aligns */
   }
   .horizons__right .horizons__cta {
