@@ -168,10 +168,14 @@
     if (sortToken && sortOpts.token) sortToken.textContent = sortOpts.token;
     var sortAbsurdApes = document.querySelector('#holders-sort option[value="absurdApes"]');
     if (sortAbsurdApes && sortOpts.absurdApes) sortAbsurdApes.textContent = sortOpts.absurdApes;
+    var sortCol2 = document.querySelector('#holders-sort option[value="col2"]');
+    if (sortCol2 && sortOpts.col2) sortCol2.textContent = sortOpts.col2;
     var thToken = document.querySelector('.holders-table th[data-col="token"]');
     if (thToken && labels.token) thToken.textContent = labels.token;
     var thAbsurdApes = document.querySelector('.holders-table th[data-col="absurdApes"]');
     if (thAbsurdApes && labels.absurdApes) thAbsurdApes.textContent = labels.absurdApes;
+    var thCol2 = document.querySelector('.holders-table th[data-col="col2"]');
+    if (thCol2 && labels.col2) thCol2.textContent = labels.col2;
   }
   applyProjectConfig();
 
@@ -1017,22 +1021,18 @@
           var card = document.createElement('div');
           card.className = 'card card--nft card--embed';
           var mainCollectionLogo = c.symbol === 'absurd_art_apes' ? 'assets/logo.png' : null;
-          var mediaSrc = mainCollectionLogo || c.animationUrl || c.image;
+          var horizonsImg = c.symbol === 'absurd_horizons' ? 'assets/absurd-horizons.png' : null;
+          var mediaSrc = horizonsImg || mainCollectionLogo || c.animationUrl || c.image;
           var mediaHtml = '';
           if (mediaSrc) {
-            var isGif = !mainCollectionLogo && (/\.gif(\?|$)/i.test(mediaSrc) || (c.animationUrl && !c.image));
+            var isGif = !horizonsImg && !mainCollectionLogo && (/\.gif(\?|$)/i.test(mediaSrc) || (c.animationUrl && !c.image));
             if (isGif) {
               mediaHtml = '<div class="embed__media embed__media--video"><img src="' + escapeHtml(mediaSrc) + '" alt="" loading="lazy" /></div>';
             } else {
               mediaHtml = '<div class="embed__media"><img src="' + escapeHtml(mediaSrc) + '" alt="" loading="lazy" /></div>';
             }
           } else {
-            var fallbackImg = c.symbol === 'absurd_horizons' ? ('assets/absurd-horizons.png') : null;
-            if (fallbackImg) {
-              mediaHtml = '<div class="embed__media embed__media--video"><img src="' + escapeHtml(fallbackImg) + '" alt="" loading="lazy" /></div>';
-            } else {
-              mediaHtml = '<div class="embed__media embed__media--placeholder" aria-hidden="true"></div>';
-            }
+            mediaHtml = '<div class="embed__media embed__media--placeholder" aria-hidden="true"></div>';
           }
           var desc = (c.description || '').slice(0, 280);
           if ((c.description || '').length > 280) desc += '…';
@@ -1066,6 +1066,21 @@
             '</div>';
           grid.appendChild(card);
         });
+        var horizons = data.collections.find(function (c) { return c.symbol === 'absurd_horizons'; });
+        if (horizons) {
+          var supply = horizons.supply != null ? Number(horizons.supply) : 0;
+          var total = 4444;
+          var pct = total > 0 ? Math.min(100, (supply / total) * 100) : 0;
+          var labelEl = document.getElementById('horizons-mint-label');
+          var fillEl = document.getElementById('horizons-progress-fill');
+          var trackEl = document.querySelector('#horizons-mint-progress .horizons__progress-track');
+          if (labelEl) labelEl.textContent = (supply.toLocaleString()) + ' / ' + (total.toLocaleString()) + ' minted';
+          if (fillEl) fillEl.style.width = pct.toFixed(1) + '%';
+          if (trackEl) {
+            trackEl.setAttribute('aria-valuenow', String(Math.round(supply)));
+            trackEl.setAttribute('aria-valuemax', String(total));
+          }
+        }
       })
       .catch(function () {});
   }
@@ -1171,14 +1186,17 @@
       if (n >= 0.01) return '$' + n.toFixed(2);
       return '$' + n.toFixed(4);
     }
+    var HOLDERS_AAA_BANK_WALLET = 'Ffpwo7q7Gtv85w3ZfhDSSz3DnnqboRnPDAW56de3ZqAP';
+    var HOLDERS_ME_LISTINGS_WALLET = '1BWutmTvYPwDtmw9abTkS4Ssr8no61spGAvW1X6NDix';
+
     function loadHolders(sort) {
       sort = sort || 'total';
-      if (sort === 'col2' || sort === 'nfts') sort = 'total'; // Horizons + Total NFTs hidden until after Horizons mints
+      if (sort === 'nfts') sort = 'total';
       var table = document.getElementById('holders-table');
       if (table) table.className = 'holders-table holders-table--sort-' + sort;
-      holdersTbody.innerHTML = '<tr><td colspan="5" class="holders-loading">Loading…</td></tr>';
+      holdersTbody.innerHTML = '<tr><td colspan="6" class="holders-loading">Loading…</td></tr>';
       Promise.all([
-        fetch(window.location.origin + '/api/holders?sort=' + encodeURIComponent(sort), { credentials: 'include' }).then(function (r) { return r.ok ? r.json() : null; }),
+        fetch(window.location.origin + '/api/holders?sort=total', { credentials: 'include' }).then(function (r) { return r.ok ? r.json() : null; }),
         fetch(window.location.origin + '/api/prices', { credentials: 'include' }).then(function (r) { return r.ok ? r.json() : null; }),
         fetch(window.location.origin + '/api/collections', { credentials: 'include' }).then(function (r) { return r.ok ? r.json() : null; }),
       ]).then(function (arr) {
@@ -1198,13 +1216,10 @@
         var solUsdNum = solUsd != null ? Number(solUsd) : null;
         var tokenUsdNum = tokenUsd != null ? Number(tokenUsd) : null;
         if (!data || !data.holders) {
-          holdersTbody.innerHTML = '<tr><td colspan="5" class="holders-empty">No data</td></tr>';
+          holdersTbody.innerHTML = '<tr><td colspan="6" class="holders-empty">No data</td></tr>';
           return;
         }
-        var rows = data.holders.map(function (h, i) {
-          var baseName = h.displayName || (h.wallet && h.wallet.length > 12 ? h.wallet.slice(0, 4) + '…' + h.wallet.slice(-4) : (h.wallet || '—'));
-          var displayName = baseName + (h.walletCount > 1 ? ' (' + h.walletCount + ' wallets)' : '');
-          var walletLink = h.wallet ? 'https://solscan.io/account/' + encodeURIComponent(h.wallet) : null;
+        var list = data.holders.map(function (h) {
           var tokenBal = h.tokenBalance != null ? Number(h.tokenBalance) : null;
           var absurdApesCount = Number(h.absurdApesCount) || 0;
           var col2Count = Number(h.col2Count) || 0;
@@ -1216,29 +1231,51 @@
             var nftSol = absurdApesCount * (floorAbsurdApesSol || 0) + col2Count * (floorCol2Sol || 0);
             nftValueUsd = nftSol * solUsdNum;
           }
-          var valueUsd = null;
-          if (sort === 'total') {
-            valueUsd = (tokenValueUsd != null ? tokenValueUsd : 0) + (nftValueUsd != null ? nftValueUsd : 0);
-            if (tokenValueUsd == null && nftValueUsd == null) valueUsd = null;
-          } else if (sort === 'token') valueUsd = tokenValueUsd;
-          else if (sort === 'absurdApes') valueUsd = nftValueAbsurdApes;
-          else if (sort === 'col2') valueUsd = nftValueCol2;
-          else if (sort === 'nfts') valueUsd = nftValueUsd;
+          var totalValueUsd = null;
+          if (tokenValueUsd != null || nftValueUsd != null) {
+            totalValueUsd = (tokenValueUsd != null ? tokenValueUsd : 0) + (nftValueUsd != null ? nftValueUsd : 0);
+          }
+          return { h: h, tokenBal: tokenBal != null ? tokenBal : 0, totalValueUsd: totalValueUsd, nftValueAbsurdApes: nftValueAbsurdApes, nftValueCol2: nftValueCol2 };
+        });
+        if (sort === 'token') {
+          list.sort(function (a, b) { return b.tokenBal - a.tokenBal; });
+        } else {
+          list.sort(function (a, b) {
+            var va = a.totalValueUsd != null ? a.totalValueUsd : -1;
+            var vb = b.totalValueUsd != null ? b.totalValueUsd : -1;
+            return vb - va;
+          });
+        }
+        var rows = list.map(function (item, i) {
+          var h = item.h;
+          var valueUsd = sort === 'total' ? item.totalValueUsd : (sort === 'absurdApes' ? item.nftValueAbsurdApes : (sort === 'col2' ? item.nftValueCol2 : null));
           var valueCell = valueUsd != null ? formatUsd(valueUsd) : '—';
-          var nameCell = walletLink
-            ? '<a href="' + escapeHtml(walletLink) + '" target="_blank" rel="noopener" class="holders-wallet">' + escapeHtml(displayName) + '</a>'
-            : '<span class="holders-wallet">' + escapeHtml(displayName) + '</span>';
+          var baseName = h.displayName || (h.wallet && h.wallet.length > 12 ? h.wallet.slice(0, 4) + '…' + h.wallet.slice(-4) : (h.wallet || '—'));
+          var displayName = baseName + (h.walletCount > 1 ? ' (' + h.walletCount + ' wallets)' : '');
+          var walletLink = h.wallet ? 'https://solscan.io/account/' + encodeURIComponent(h.wallet) : null;
+          var walletLower = (h.wallet || '').toLowerCase();
+          var isAaaBank = walletLower === HOLDERS_AAA_BANK_WALLET.toLowerCase();
+          var isMeListings = walletLower === HOLDERS_ME_LISTINGS_WALLET.toLowerCase();
+          var nameClass = 'holders-wallet';
+          if (isAaaBank) nameClass += ' holders-wallet--special';
+          else if (isMeListings) nameClass += ' holders-wallet--special';
+          else if (h.discordId) nameClass += ' holders-wallet--discord';
+          var label = isAaaBank ? 'AAA Bank' : (isMeListings ? 'ME Listings' : displayName);
+          var nameCell = walletLink && !isAaaBank && !isMeListings
+            ? '<a href="' + escapeHtml(walletLink) + '" target="_blank" rel="noopener" class="' + nameClass + '">' + escapeHtml(label) + '</a>'
+            : '<span class="' + nameClass + '">' + escapeHtml(label) + '</span>';
           return '<tr>' +
             '<td>' + (i + 1) + '</td>' +
             '<td>' + nameCell + '</td>' +
             '<td data-col="token">' + escapeHtml(h.tokenBalanceFormatted || '0') + '</td>' +
             '<td data-col="absurdApes">' + (h.absurdApesCount || 0) + '</td>' +
+            '<td data-col="col2">' + (h.col2Count || 0) + '</td>' +
             '<td>' + escapeHtml(valueCell) + '</td>' +
             '</tr>';
         });
-        holdersTbody.innerHTML = rows.length ? rows.join('') : '<tr><td colspan="5" class="holders-empty">No holders</td></tr>';
+        holdersTbody.innerHTML = rows.length ? rows.join('') : '<tr><td colspan="6" class="holders-empty">No holders</td></tr>';
       }).catch(function () {
-        holdersTbody.innerHTML = '<tr><td colspan="5" class="holders-empty">Failed to load</td></tr>';
+        holdersTbody.innerHTML = '<tr><td colspan="6" class="holders-empty">Failed to load</td></tr>';
       });
     }
     loadHolders('total');

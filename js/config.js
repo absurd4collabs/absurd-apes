@@ -49,12 +49,6 @@ window.ABSURD_APES_CONFIG = {
   utilitiesLead: 'Staking, partner utilities and external tools.',
   utilities: [
     {
-      id: 'lunarverse',
-      name: 'Lunarverse',
-      description: 'Absurd Excursions — experiences and utilities on Lunarverse.',
-      url: 'https://absurdexcursions.lunarverse.app/',
-    },
-    {
       id: 'gotm',
       name: 'GOTM Labz',
       description: 'Stake your NFTs and upgrade traits for Absurd Art Apes.',
@@ -62,6 +56,12 @@ window.ABSURD_APES_CONFIG = {
         { label: 'NFT Stake', url: 'https://www.nftstake.app/absurdartapes' },
         { label: 'Trait Store', url: 'https://www.traitstore.app/absurdartapes' },
       ],
+    },
+    {
+      id: 'lunarverse',
+      name: 'Lunarverse',
+      description: 'Absurd Excursions — experiences and utilities on Lunarverse.',
+      url: 'https://absurdexcursions.lunarverse.app/',
     },
   ],
 
@@ -73,8 +73,8 @@ window.ABSURD_APES_CONFIG = {
   // ——— Holders (labels; keys match server countKey: token, absurdApes, col2, totalNfts) ———
   holdingsLabels: {
     token: 'AAA',
-    absurdApes: 'Absurd Art Apes',
-    col2: 'Absurd Horizons',
+    absurdApes: 'Apes',
+    col2: 'Horizons',
     totalNfts: 'Total NFTs',
   },
   holdersLead: 'Top holders by AAA token and NFT collections.',

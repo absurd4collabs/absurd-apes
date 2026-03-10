@@ -364,11 +364,11 @@ body {
     padding-top: max(2.5rem, calc(4vh + var(--safe-top)));
   }
 }
-/* Mobile portrait: use same hero bg as desktop */
+/* Mobile portrait: use portrait-oriented hero bg */
 @media (orientation: portrait) and (max-width: 899px) {
   .hero-home__bg {
     background:
-      url("../assets/hero-bg.png") center / cover no-repeat,
+      url("../assets/hero-bg-portrait.png") center / cover no-repeat,
       radial-gradient(ellipse 80% 60% at 50% 100%, rgba(34, 85, 51, 0.2) 0%, transparent 50%),
       linear-gradient(180deg, rgba(13, 14, 18, 0.72) 0%, rgba(13, 14, 18, 0.92) 100%);
   }
@@ -841,6 +841,13 @@ body {
   background: currentColor;
   -webkit-mask: url('../assets/raffle-icon.svg') center/contain no-repeat;
   mask: url('../assets/raffle-icon.svg') center/contain no-repeat;
+}
+.dashboard__icon--slotto {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: url('../assets/slotto.png') center / cover no-repeat;
 }
 .dashboard__icon--horizons {
   width: 20px;
@@ -1772,7 +1779,7 @@ body {
   content: '';
   position: absolute;
   inset: 0;
-  background: url("../assets/lunarverse-bg.png") center / cover no-repeat;
+  background: url("../assets/lunarverse-bg.png") right bottom / cover no-repeat;
   z-index: 0;
 }
 .card--lunarverse .card__bg::after {
@@ -1825,7 +1832,7 @@ body {
   content: '';
   position: absolute;
   inset: 0;
-  background: url("../assets/gotm-labz-bg.png") center / cover no-repeat;
+  background: url("../assets/gotm-labz-bg.png") right bottom / cover no-repeat;
   z-index: 0;
 }
 .card--gotm .card__bg::after {
@@ -1836,13 +1843,13 @@ body {
   z-index: 1;
 }
 
-/* Mobile portrait: use dedicated utility card backgrounds */
+/* Mobile portrait: use dedicated utility card backgrounds, pinned bottom-right */
 @media (orientation: portrait) and (max-width: 899px) {
   .card--lunarverse .card__bg::before {
-    background-image: url("../assets/lunarverse-bg-mobile.png");
+    background: url("../assets/lunarverse-bg-mobile.png") right bottom / cover no-repeat;
   }
   .card--gotm .card__bg::before {
-    background-image: url("../assets/gotm-labz-bg-mobile.png");
+    background: url("../assets/gotm-labz-bg-mobile.png") right bottom / cover no-repeat;
   }
 }
 
@@ -2039,6 +2046,58 @@ body {
   text-shadow: 0 0 0.5rem rgba(0, 0, 0, 0.6), 0 1px 2px rgba(0, 0, 0, 0.8);
   visibility: hidden;
 }
+/* Mint progress: supply from Magic Eden, 4,444 total */
+.horizons__mint-progress {
+  position: absolute;
+  top: 1.25rem;
+  left: 1.25rem;
+  right: 10rem;
+  max-width: 20rem;
+  z-index: 2;
+  padding: 0.75rem 1rem;
+  background: rgba(13, 14, 18, 0.65);
+  border-radius: var(--radius);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+}
+.horizons__mint-label {
+  margin: 0 0 0.35rem 0;
+  font-size: var(--text-sm);
+  color: var(--text);
+}
+.horizons__progress-track {
+  height: 0.5rem;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.horizons__progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--success);
+  border-radius: var(--radius-sm);
+  transition: width 0.4s ease;
+}
+@media (orientation: portrait) and (max-width: 899px) {
+  .horizons__mint-progress {
+    top: 1rem;
+    left: 1rem;
+    right: 5rem;
+    max-width: 14rem;
+  }
+  .horizons__mint-label {
+    font-size: var(--text-xs);
+  }
+  .horizons__progress-track {
+    height: 0.4rem;
+  }
+}
+@media (min-width: 768px) {
+  .horizons__mint-progress {
+    top: 2rem;
+    left: 2rem;
+    max-width: 22rem;
+  }
+}
 /* Right column: arrow + mint button, both centered; arrow moves with scroll */
 .horizons__right {
   position: absolute;
@@ -2095,20 +2154,32 @@ body {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 @media (orientation: portrait) and (max-width: 899px) {
+  #horizons {
+    aspect-ratio: 1720 / 1568; /* match horizons-bg-portrait.png so full image height shows */
+  }
+  #horizons::before {
+    background: url("../assets/horizons-bg-portrait.png") center / cover no-repeat;
+  }
   .horizons__right {
     right: 1rem;
     bottom: 1.25rem;
-    width: 10rem;
+    width: 6rem; /* match button so arrow center aligns */
+  }
+  .horizons__right .horizons__cta {
+    left: auto;
+    right: 0;
+    transform: none;
   }
   .horizons__arrow {
-    width: 2.5rem;
-    height: 2.5rem;
-    top: calc(22% + var(--horizons-scroll, 0) * 43%);
+    width: 2rem;
+    height: 2rem;
+    left: 50%; /* 50% of 6rem = center above button */
+    top: calc(22% + var(--horizons-scroll, 0) * 56%);
   }
   .horizons__mint {
-    padding: 0.5rem 1rem;
-    font-size: 1rem;
-    min-width: 7.5rem;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.875rem;
+    min-width: 5rem;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   }
 }
@@ -2349,13 +2420,17 @@ body {
   color: var(--text-muted);
   width: 2.5rem;
 }
-/* Show only relevant columns by sort: one count column + Value ($) */
+/* Show only relevant columns by sort; token view hides Value ($) column */
 .holders-table--sort-token th[data-col="absurdApes"],
 .holders-table--sort-token th[data-col="col2"],
 .holders-table--sort-token th[data-col="nfts"],
 .holders-table--sort-token td[data-col="absurdApes"],
 .holders-table--sort-token td[data-col="col2"],
 .holders-table--sort-token td[data-col="nfts"] {
+  display: none;
+}
+.holders-table--sort-token th:last-child,
+.holders-table--sort-token td:last-child {
   display: none;
 }
 .holders-table--sort-absurdApes th[data-col="token"],
@@ -2386,11 +2461,58 @@ body {
 .holders-wallet:hover {
   text-decoration: underline;
 }
+.holders-wallet--special {
+  color: var(--success) !important;
+}
+.holders-wallet--discord {
+  color: #f97316 !important;
+}
 .holders-loading,
 .holders-empty {
   text-align: center;
   color: var(--text-muted);
   padding: 1.5rem !important;
+}
+
+/* Mobile portrait: scale down holders table and toolbar for more info in viewport */
+@media (max-width: 599px) {
+  #holders .section__title {
+    font-size: 1.5rem;
+    margin-bottom: 0.35rem;
+  }
+  #holders .section__lead {
+    font-size: 0.8125rem;
+    margin-bottom: 0.75rem;
+  }
+  .holders-toolbar {
+    margin-bottom: 0.5rem;
+    gap: 0.35rem;
+  }
+  .holders-toolbar__label {
+    font-size: 0.8125rem;
+  }
+  .holders-toolbar__select {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.8125rem;
+  }
+  .holders-wrap {
+    max-height: min(70rem, 75vh);
+  }
+  .holders-table {
+    font-size: 0.75rem;
+  }
+  .holders-table th,
+  .holders-table td {
+    padding: 0.35rem 0.4rem;
+  }
+  .holders-table td:first-child {
+    width: 1.75rem;
+  }
+  .holders-loading,
+  .holders-empty {
+    padding: 0.75rem !important;
+    font-size: 0.8125rem;
+  }
 }
 
 .grid {

@@ -1157,7 +1157,12 @@ app.get('/api/holders', async function (req, res) {
     for (let c = 0; c < COLLECTIONS.length; c++) {
       const col = COLLECTIONS[c];
       const key = col.countKey;
-      if (!key || !col.collectionMint) continue;
+      if (!key || !col.collectionMint) {
+        if (col.slug === 'absurd_horizons' && !col.collectionMint) {
+          console.warn('Holders: ABSURD_HORIZONS_COLLECTION_MINT not set in .env — Horizons counts will be 0. Get the collection address from Solscan (any minted NFT → Collection) or LaunchMyNFT.');
+        }
+        continue;
+      }
       let page = 1;
       let hasMore = true;
       while (hasMore) {
