@@ -21,6 +21,7 @@
   }
 
   var selectedNft = null;
+  var prizeWalletForCreate = null;
   var tokenInfoCache = {};
   var customTokenDecimals = 6;
 
@@ -43,6 +44,7 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         adminEl.hidden = !data.admin;
+        prizeWalletForCreate = (data.prizeWallet && String(data.prizeWallet).trim()) || null;
         if (data.admin) {
           setMinEndTime();
           bindAdminForm();
@@ -83,6 +85,17 @@
     var msgEl = document.getElementById('raffles-admin-msg');
 
     if (selectNftBtn) selectNftBtn.addEventListener('click', openNftPicker);
+    var removeNftBtn = document.getElementById('raffles-nft-remove');
+    if (removeNftBtn) removeNftBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      selectedNft = null;
+      var preview = document.getElementById('raffles-nft-preview');
+      var previewImg = document.getElementById('raffles-nft-preview-img');
+      var previewName = document.getElementById('raffles-nft-preview-name');
+      if (preview) preview.hidden = true;
+      if (previewImg) previewImg.src = '';
+      if (previewName) previewName.textContent = '';
+    });
     if (tokenType) tokenType.addEventListener('change', function () {
       customWrap.hidden = tokenType.value !== 'custom';
       customInfo.textContent = '';
@@ -110,15 +123,26 @@
     var nftPreview = document.getElementById('raffles-nft-preview');
     var nftPreviewImg = document.getElementById('raffles-nft-preview-img');
     var nftPreviewName = document.getElementById('raffles-nft-preview-name');
+    var lastPreviewImageUrl = '';
     function updateNftPreview() {
       if (!nftPreview || !nftPreviewImg || !nftPreviewName) return;
-      if (selectedNft) {
+      if (selectedNft && selectedNft.id) {
         nftPreview.hidden = false;
-        nftPreviewImg.src = selectedNft.image || '';
+        var rawImg = selectedNft.image || '';
+        if (rawImg && rawImg !== lastPreviewImageUrl) {
+          lastPreviewImageUrl = rawImg;
+          nftPreviewImg.src = proxyImageUrl(rawImg);
+        } else if (!rawImg) {
+          lastPreviewImageUrl = '';
+          nftPreviewImg.src = '';
+        }
         nftPreviewImg.alt = selectedNft.name || '';
         nftPreviewName.textContent = selectedNft.name || selectedNft.id || 'Selected';
       } else {
+        lastPreviewImageUrl = '';
         nftPreview.hidden = true;
+        nftPreviewImg.src = '';
+        nftPreviewName.textContent = '';
       }
     }
     updateNftPreview();
@@ -273,29 +297,38 @@
       return;
     }
 
-    if (startBtn) { startBtn.disabled = true; startBtn.textContent = 'Creating…'; }
+    if (!prizeWalletForCreate) {
+      setMsg('Prize wallet not configured. Refresh the page; if it persists, check server PRIZE_WALLET.', true);
+      return;
+    }
 
-    var body = {
-      prizeNftMint: selectedNft.id,
-      prizeNftName: selectedNft.name || null,
-      prizeNftImage: selectedNft.image || null,
-      ticketCount: ticketCount,
-      ticketPriceTokenType: tokenType,
-      ticketPriceTokenMint: tokenMint || undefined,
-      ticketPriceRaw: String(priceRaw),
-      ticketPriceDecimals: getTicketPriceDecimals(),
-      endsAt: endsAtDate.toISOString(),
-    };
+    if (startBtn) { startBtn.disabled = true; startBtn.textContent = 'Send NFT…'; }
+    setMsg('Confirm in your wallet: send the prize NFT to the prize wallet.', false);
 
-    var createUrl = window.location.origin + '/api/raffles?t=' + Date.now();
-    console.log('[Raffles] POST', createUrl, '— creating raffle (look for this URL in Network tab)');
-    fetchWithCreds(createUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      redirect: 'manual',
-    })
-      .then(function (r) {
+    transferNftToPrizeWallet(selectedNft.id, prizeWalletForCreate)
+      .then(function (sig) {
+        if (!sig) throw new Error('No transaction signature');
+        if (startBtn) startBtn.textContent = 'Creating…';
+        setMsg('NFT sent. Creating raffle…', false);
+        var body = {
+          prizeNftMint: selectedNft.id,
+          prizeNftName: selectedNft.name || null,
+          prizeNftImage: selectedNft.image || null,
+          ticketCount: ticketCount,
+          ticketPriceTokenType: tokenType,
+          ticketPriceTokenMint: tokenMint || undefined,
+          ticketPriceRaw: String(priceRaw),
+          ticketPriceDecimals: getTicketPriceDecimals(),
+          endsAt: endsAtDate.toISOString(),
+          nftTransferSignature: sig,
+        };
+        var createUrl = window.location.origin + '/api/raffles?t=' + Date.now();
+        return fetchWithCreds(createUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          redirect: 'manual',
+        }).then(function (r) {
         return r.text().then(function (text) {
           if (r.type === 'opaqueredirect' || r.status === 302 || r.status === 301) {
             throw new Error('Server redirected (session may have expired). Please refresh and connect Discord again, then try Start raffle.');
@@ -309,49 +342,24 @@
           try { raffle = text ? JSON.parse(text) : null; } catch (e) { raffle = null; }
           return { status: r.status, text: text, raffle: raffle };
         });
-      })
-      .then(function (result) {
+      }).then(function (result) {
         var raffle = result.raffle;
         var hasId = raffle != null && typeof raffle === 'object' && ('id' in raffle) && (raffle.id === 0 || raffle.id === '0' || (raffle.id !== undefined && raffle.id !== null && raffle.id !== ''));
         if (!hasId) {
-          console.warn('[Raffles] Create raffle response: status=' + result.status + ', bodyLength=' + (result.text ? result.text.length : 0) + ', bodyPreview=' + (result.text ? result.text.slice(0, 300) : 'empty'));
-          console.warn('[Raffles] So the POST did run; in Network tab filter by "raffles" or "api/raffles" to find it.');
-          setMsg('Server error: invalid response after creating raffle. Restart the server and try again. (Check console for response details.)', true);
-          if (startBtn) { startBtn.disabled = false; startBtn.textContent = 'Start raffle'; }
+          setMsg('Server error: invalid response after creating raffle.', true);
           return;
         }
-        var prizeWallet = (raffle.prizeWallet || raffle.prize_wallet || '').trim();
-        if (!prizeWallet) {
-          setMsg('Raffle created but prize wallet missing from server. Add PRIZE_WALLET to .env (Solana address), restart the server, then create again. You can send the NFT to your prize wallet manually.', true);
-          initRafflesPage();
-          if (startBtn) { startBtn.disabled = false; startBtn.textContent = 'Start raffle'; }
-          return;
-        }
+        setMsg('Raffle started.', false);
+        selectedNft = null;
+        var nftPreview = document.getElementById('raffles-nft-preview');
+        if (nftPreview) nftPreview.hidden = true;
         initRafflesPage();
-        setMsg('Raffle created. Sending NFT to prize wallet — confirm in your wallet…', false);
-        if (startBtn) startBtn.textContent = 'Confirm in wallet…';
-        return transferNftToPrizeWallet(selectedNft.id, prizeWallet).then(function (sig) {
-          setMsg('Raffle started. NFT sent. Tx: ' + (sig || '').slice(0, 16) + '…', false);
-          selectedNft = null;
-          var nftPreview = document.getElementById('raffles-nft-preview');
-          if (nftPreview) nftPreview.hidden = true;
-          initRafflesPage();
-        }).catch(function (err) {
-          var msg = err && err.message ? err.message : String(err);
-          if (/user rejected|4001|denied/i.test(msg)) {
-            setMsg('Transfer cancelled. Raffle was created — you can send the NFT to the prize wallet manually.', true);
-          } else {
-            setMsg('Raffle created but NFT transfer failed: ' + msg, true);
-          }
-          initRafflesPage();
-        });
-      })
-      .catch(function (err) {
+      }).catch(function (err) {
         setMsg(err && err.message ? err.message : 'Failed to create raffle.', true);
-      })
-      .finally(function () {
+      }).finally(function () {
         if (startBtn) { startBtn.disabled = false; startBtn.textContent = 'Start raffle'; }
       });
+    });
   }
 
   function transferNftToPrizeWallet(nftMint, prizeWallet) {
@@ -396,12 +404,20 @@
         var sourceAta = findAta(ownerPk, mintPk, actualTokenProgram);
         var destAta = findAta(destPk, mintPk, actualTokenProgram);
         return connection.getAccountInfo(sourceAta).then(function (sourceInfo) {
-          if (!sourceInfo || !sourceInfo.data) return Promise.reject(new Error('You don’t own this NFT in the connected wallet.'));
+          if (!sourceInfo || !sourceInfo.data) {
+            return Promise.reject(new Error(
+              'You don’t own this NFT in the connected wallet. Use the same wallet you used when selecting the NFT, or re-open the picker and choose an NFT from the current wallet. Compressed NFTs are not supported as prizes.'
+            ));
+          }
           var data = sourceInfo.data;
           if (data.length < 72) return Promise.reject(new Error('Invalid token account data.'));
           var amountView = new DataView(data.buffer || data, data.byteOffset + 64, 8);
           var amount = amountView.getBigUint64(0, true);
-          if (amount < 1) return Promise.reject(new Error('You don’t own this NFT in the connected wallet.'));
+          if (amount < 1) {
+            return Promise.reject(new Error(
+              'You don’t own this NFT in the connected wallet. Use the same wallet you used when selecting the NFT, or re-open the picker and choose an NFT from the current wallet.'
+            ));
+          }
           return { actualTokenProgram: actualTokenProgram, sourceAta: sourceAta, destAta: destAta, decimals: decimals };
         });
       }).then(function (opts) {
@@ -410,7 +426,8 @@
         var destAta = opts.destAta;
         var decimals = opts.decimals != null ? opts.decimals : 0;
         return connection.getAccountInfo(destAta).then(function (info) {
-          if (!info) {
+          var needCreate = !info;
+          if (needCreate) {
             var createIx = new TransactionInstruction({
               keys: [
                 { pubkey: ownerPk, isSigner: true, isWritable: true },
@@ -453,11 +470,12 @@
           tx.recentBlockhash = blockhash;
           tx.feePayer = ownerPk;
 
-          function sendTx() {
+          function sendTx(txToSend) {
+            var t = txToSend || tx;
             if (typeof provider.signAndSendTransaction === 'function') {
-              return Promise.resolve(provider.signAndSendTransaction(tx)).then(normalizeSig);
+              return Promise.resolve(provider.signAndSendTransaction(t)).then(normalizeSig);
             }
-            var serialized = tx.serialize({ requireAllSignatures: false });
+            var serialized = t.serialize({ requireAllSignatures: false });
             var raw = serialized && serialized instanceof Uint8Array ? serialized : new Uint8Array(serialized);
             var base64 = typeof raw.toString === 'function' && raw.toString('base64') ? raw.toString('base64') : btoa(String.fromCharCode.apply(null, raw));
             return provider.request({ method: 'signAndSendTransaction', params: { transaction: base64 } }).then(normalizeSig);
@@ -475,8 +493,15 @@
             return connection.simulateTransaction(tx).then(function (sim) {
               var err = sim && sim.value && sim.value.err;
               if (err) {
-                var msg = typeof err === 'string' ? err : (err.message || JSON.stringify(err));
-                return Promise.reject(new Error('Simulation failed: ' + msg));
+                var errStr = typeof err === 'string' ? err : JSON.stringify(err);
+                if (needCreate && /InstructionError.*\[0,|Custom.*1/.test(errStr)) {
+                  var txTransferOnly = new Transaction();
+                  txTransferOnly.add(transferIx);
+                  txTransferOnly.recentBlockhash = blockhash;
+                  txTransferOnly.feePayer = ownerPk;
+                  return sendTx(txTransferOnly);
+                }
+                return Promise.reject(new Error('Transfer failed: ' + errStr));
               }
               return sendTx();
             });
@@ -872,15 +897,23 @@
       });
   }
 
+  var rafflesRefetchAfterEndThrottle = 0;
   setInterval(function () {
     var main = document.getElementById('main-raffles');
     if (!main || main.hidden) return;
+    var now = Date.now();
+    var shouldRefetch = false;
     document.querySelectorAll('.raffle-card__time[data-ends]').forEach(function (el) {
       var ends = el.getAttribute('data-ends');
       if (!ends) return;
       var endsAt = new Date(ends);
       el.textContent = formatTimeLeft(endsAt);
+      if (endsAt <= new Date()) shouldRefetch = true;
     });
+    if (shouldRefetch && now > rafflesRefetchAfterEndThrottle) {
+      rafflesRefetchAfterEndThrottle = now + 15000;
+      initRafflesPage();
+    }
   }, 5000);
 
   document.addEventListener('click', function (e) {

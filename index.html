@@ -442,9 +442,6 @@
     <div class="main__content main__content--raffles" id="main-raffles" hidden>
       <div class="raffles-page">
         <div class="container">
-          <h1 class="raffles-page__title">Raffles</h1>
-          <p class="raffles-page__lead">Raffle platform for Absurd Apes.</p>
-
           <section class="raffles-admin" id="raffles-admin" hidden>
             <h2 class="raffles-admin__title">Admin — Create raffle</h2>
             <div class="raffles-admin__form">
@@ -452,7 +449,10 @@
                 <label class="raffles-admin__label">Prize NFT (from your wallet)</label>
                 <button type="button" class="btn btn--outline" id="raffles-select-nft">Select NFT</button>
                 <div class="raffles-admin__nft-preview" id="raffles-nft-preview" hidden>
-                  <img id="raffles-nft-preview-img" src="" alt="" width="64" height="64" />
+                  <div class="raffles-admin__nft-preview-img-wrap">
+                    <img id="raffles-nft-preview-img" src="" alt="" width="64" height="64" />
+                    <button type="button" class="raffles-admin__nft-preview-x" id="raffles-nft-remove" aria-label="Remove selected NFT">&times;</button>
+                  </div>
                   <span id="raffles-nft-preview-name"></span>
                 </div>
               </div>
@@ -484,7 +484,6 @@
           </section>
 
           <section class="raffles-list" id="raffles-list">
-            <h2 class="raffles-list__title">Active raffles</h2>
             <div class="raffles-list__grid" id="raffles-list-grid"></div>
             <p class="raffles-list__empty" id="raffles-list-empty" hidden>No active raffles.</p>
           </section>

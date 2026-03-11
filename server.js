@@ -41,6 +41,8 @@ const COLLECTIONS = [
 const LAMPORTS_PER_SOL = 1e9;
 const AAA_TOKEN_MINT = process.env.AAA_TOKEN_MINT || process.env.TOKEN_MINT || '';
 const TOKEN_PROGRAM_ID = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+const TOKEN_2022_PROGRAM_ID = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
+const ATA_PROGRAM_ID = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL';
 const TOKEN_DECIMALS = parseInt(process.env.TOKEN_DECIMALS || process.env.AAA_DECIMALS || '6', 10);
 
 const ADMIN_DISCORD_IDS = (process.env.ADMIN_DISCORD_IDS || '')
@@ -358,7 +360,9 @@ function isRaffleAdmin(discordId) {
 
 app.get('/api/raffles/admin-check', function (req, res) {
   if (!req.session?.discord) return res.json({ admin: false });
-  res.json({ admin: isRaffleAdmin(req.session.discord.id) });
+  const admin = isRaffleAdmin(req.session.discord.id);
+  const prizeWallet = admin && PRIZE_WALLET ? (PRIZE_WALLET || '').trim() : undefined;
+  res.json({ admin, prizeWallet: prizeWallet || undefined });
 });
 
 // ——— Raffles: list active ———
@@ -439,6 +443,76 @@ app.get('/api/raffles/:id/my-tickets', async function (req, res) {
   res.json({ ticketCount, maxPerWallet, total });
 });
 
+/** Derive Associated Token Account address for owner + mint + tokenProgram. */
+function deriveAta(ownerB58, mintB58, tokenProgramId) {
+  const { PublicKey } = require('@solana/web3.js');
+  const owner = new PublicKey(ownerB58);
+  const mint = new PublicKey(mintB58);
+  const tokenProgram = new PublicKey(tokenProgramId);
+  const ataProgram = new PublicKey(ATA_PROGRAM_ID);
+  const [ata] = PublicKey.findProgramAddressSync(
+    [owner.toBuffer(), tokenProgram.toBuffer(), mint.toBuffer()],
+    ataProgram
+  );
+  return ata.toBase58();
+}
+
+/** Verify an NFT transfer tx: the given mint was transferred to prizeWallet. Returns { ok, error }. */
+async function verifyNftTransferToPrizeWallet(signature, prizeNftMint, prizeWallet) {
+  if (!HELIUS_API_KEY) return { ok: false, error: 'RPC not configured' };
+  const sig = String(signature).trim();
+  if (!sig) return { ok: false, error: 'Invalid signature' };
+  const destWallet = String(prizeWallet || '').trim();
+  const mint = String(prizeNftMint || '').trim();
+  if (!destWallet || !mint) return { ok: false, error: 'Invalid prize wallet or mint' };
+  const expectedAtaToken = deriveAta(destWallet, mint, TOKEN_PROGRAM_ID);
+  const expectedAtaToken2022 = deriveAta(destWallet, mint, TOKEN_2022_PROGRAM_ID);
+  const maxAttempts = 6;
+  const delayMs = 3000;
+  try {
+    let result = null;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const rpcRes = await axios.post(
+        `${HELIUS_RPC}/?api-key=${HELIUS_API_KEY}`,
+        {
+          jsonrpc: '2.0',
+          id: '1',
+          method: 'getTransaction',
+          params: [sig, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0, commitment: 'confirmed' }],
+        },
+        { timeout: 15000, validateStatus: () => true }
+      );
+      result = rpcRes.data?.result;
+      if (result) {
+        if (result.meta?.err) return { ok: false, error: 'Transaction failed on-chain' };
+        break;
+      }
+      if (attempt < maxAttempts) await new Promise((r) => setTimeout(r, delayMs));
+    }
+    if (!result) return { ok: false, error: 'Transaction not found. Please try again.' };
+    const msg = result.transaction?.message;
+    if (!msg) return { ok: false, error: 'Invalid transaction' };
+    const instructions = msg.instructions || [];
+    const inner = (result.meta?.innerInstructions || []).flatMap((ii) => ii.instructions || []);
+    const all = [...instructions, ...inner];
+    for (const ix of all) {
+      const p = ix.parsed;
+      if (!p || !p.info) continue;
+      if (p.type === 'transferChecked' || p.type === 'transfer') {
+        const info = p.info;
+        const destTokenAccount = (info.destination && String(info.destination).trim()) || '';
+        const isPrizeAta = destTokenAccount === expectedAtaToken || destTokenAccount === expectedAtaToken2022;
+        if (!isPrizeAta) continue;
+        if (p.type === 'transferChecked' && info.mint && String(info.mint).trim() !== mint) continue;
+        return { ok: true };
+      }
+    }
+    return { ok: false, error: 'NFT transfer to prize wallet not found in transaction' };
+  } catch (e) {
+    return { ok: false, error: e.message || 'Verification failed' };
+  }
+}
+
 /** Verify a Solana payment tx: transfer to paymentDestination of expectedAmount (lamports for SOL, raw token amount for SPL). Returns { ok, error }. */
 async function verifyRafflePaymentTx(signature, paymentDestination, expectedAmountLamportsOrRaw, isSol) {
   if (!HELIUS_API_KEY) return { ok: false, error: 'RPC not configured' };
@@ -475,7 +549,9 @@ async function verifyRafflePaymentTx(signature, paymentDestination, expectedAmou
       if (!isSol && (p.type === 'transferChecked' || p.type === 'transfer')) {
         const info = p.info;
         const amount = info.tokenAmount?.amount ?? info.amount;
-        if (info.destination === dest && (amount === expected || String(amount) === expected)) return { ok: true };
+        const amountStr = amount != null ? String(amount).replace(/^0+/, '') || '0' : '';
+        const expectedNorm = String(expected).replace(/^0+/, '') || '0';
+        if (info.destination === dest && amountStr === expectedNorm) return { ok: true };
       }
     }
     return { ok: false, error: 'Payment transfer to treasury not found or amount mismatch' };
@@ -538,7 +614,13 @@ app.post('/api/raffles/:id/buy', express.json(), async function (req, res) {
     const humanPrice = Number(raw) / Math.pow(10, storedDecimals);
     expectedAmount = String(BigInt(Math.round(humanPrice * Math.pow(10, actualDecimals) * count)));
   }
-  const verification = await verifyRafflePaymentTx(signature, paymentDestination, expectedAmount, isSol);
+  let verification = await verifyRafflePaymentTx(signature, paymentDestination, expectedAmount, isSol);
+  for (const delayMs of [2000, 4000]) {
+    if (!verification.ok && /not found|invalid transaction/i.test(verification.error || '')) {
+      await new Promise((r) => setTimeout(r, delayMs));
+      verification = await verifyRafflePaymentTx(signature, paymentDestination, expectedAmount, isSol);
+    } else break;
+  }
   if (!verification.ok) {
     return res.status(400).json({ error: verification.error || 'Payment verification failed' });
   }
@@ -702,6 +784,16 @@ app.post('/api/raffles', express.json(), async function (req, res) {
   const ticketPriceDecimals = body.ticketPriceDecimals != null ? parseInt(body.ticketPriceDecimals, 10) : 6;
   const prizeNftName = (body.prizeNftName && String(body.prizeNftName)) || null;
   const prizeNftImage = (body.prizeNftImage && String(body.prizeNftImage)) || null;
+  const nftTransferSignature = (body.nftTransferSignature && String(body.nftTransferSignature).trim()) || '';
+  if (!nftTransferSignature) {
+    return res.status(400).json({
+      error: 'Send the prize NFT to the prize wallet first, then call create with nftTransferSignature. The raffle is only created after the transfer is verified.',
+    });
+  }
+  const nftVerify = await verifyNftTransferToPrizeWallet(nftTransferSignature, prizeNftMint, prizeWalletAddr);
+  if (!nftVerify.ok) {
+    return res.status(400).json({ error: nftVerify.error || 'NFT transfer verification failed' });
+  }
   if (!db.createRaffle) return res.status(503).json({ error: 'Database not configured' });
   try {
     const row = await db.createRaffle({
@@ -770,9 +862,9 @@ app.get('/api/nfts', async function (req, res) {
     );
     const items = rpcRes.data?.result?.items || [];
     for (const item of items) {
-      const interfaceType = item.interface || (item.content?.metadata?.symbol ? 'V1_NFT' : null);
       const isFungible = item.interface === 'FungibleToken' || item.interface === 'FungibleAsset';
       if (isFungible) continue;
+      if (item.compression?.compressed) continue;
       const id = item.id || item.content?.metadata?.mint;
       const name = item.content?.metadata?.name || item.id || 'Unknown';
       const img = item.content?.links?.image || item.content?.metadata?.uri || null;

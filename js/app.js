@@ -239,6 +239,10 @@
     if (mainHome) mainHome.hidden = route !== 'home';
     if (mainRaffles) mainRaffles.hidden = route !== 'raffles';
     setRouteActive(route);
+    var heroTitleInner = document.getElementById('hero-title-inner');
+    if (heroTitleInner) {
+      heroTitleInner.textContent = route === 'raffles' ? 'ABSURD RAFFLES' : (CONFIG.hero && CONFIG.hero.title ? CONFIG.hero.title : CONFIG.projectName || 'Project');
+    }
     if (route === 'raffles' && typeof window.initRafflesPage === 'function') window.initRafflesPage();
     if (route === 'home') setActiveSection(getSectionIdFromHash());
     else {

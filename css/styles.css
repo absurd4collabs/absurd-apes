@@ -121,6 +121,8 @@ body {
   text-align: left;
   white-space: nowrap;
   transition: opacity 0.25s ease-out;
+  min-width: 0;
+  flex-shrink: 1;
 }
 .site-header__title > span {
   background: linear-gradient(to bottom, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 1) 45%, rgba(255, 255, 255, 0.3) 100%);
@@ -157,6 +159,29 @@ body {
 .social-sticky__icon {
   width: 1.75rem;
   height: 1.75rem;
+}
+
+/* Small portrait: keep header social on screen — smaller buttons, less padding */
+@media (max-width: 400px) and (orientation: portrait) {
+  .site-header {
+    padding-left: max(0.5rem, env(safe-area-inset-left));
+    padding-right: max(0.5rem, env(safe-area-inset-right));
+  }
+  .site-header__title {
+    font-size: clamp(1.1rem, 4.5vw, 1.5rem);
+  }
+  .social-sticky {
+    gap: 0.35rem;
+    flex-shrink: 0;
+  }
+  .social-sticky__btn {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+  .social-sticky__icon {
+    width: 1.35rem;
+    height: 1.35rem;
+  }
 }
 
 /* ——— Hero homepage ——— */
@@ -451,8 +476,55 @@ body {
   text-align: left !important;
   direction: ltr !important;
 }
+
+/* Very small portrait (e.g. Phantom wallet browser ~360×550) — home body text slightly smaller */
+@media (max-width: 400px) and (max-height: 650px) and (orientation: portrait) {
+  #home .hero-home__sub,
+  .hero-home__sub {
+    font-size: 0.65rem;
+    line-height: 1.35;
+  }
+  #home .hero-home__sub p,
+  .hero-home__sub p {
+    margin-bottom: 0.35rem;
+  }
+  #home .hero-home__sub p:last-child,
+  .hero-home__sub p:last-child {
+    margin-top: 0.35rem;
+  }
+}
+
 #home .hero-home__actions {
   justify-content: flex-start !important;
+}
+
+/* Small portrait: Collections + Utilities — section height from content, no clipping */
+@media (max-width: 400px) and (max-height: 650px) and (orientation: portrait) {
+  #collections.section,
+  #utilities.section {
+    min-height: 0;
+    overflow: visible;
+    justify-content: flex-start;
+  }
+  #collections .container,
+  #utilities .container {
+    justify-content: flex-start;
+    flex: 0 1 auto;
+    min-height: 0;
+  }
+  #collections .grid,
+  #utilities .grid,
+  .utilities-coming-grid {
+    min-height: min-content;
+  }
+  .card--embed,
+  .card--coming-soon {
+    min-height: min-content;
+  }
+  .card--embed .embed__body,
+  .card--coming-soon .card__coming-soon-content {
+    flex-shrink: 0;
+  }
 }
 
 .main {
@@ -526,9 +598,39 @@ body {
   gap: 0.75rem;
   margin-top: 0.5rem;
 }
+.raffles-admin__nft-preview[hidden] {
+  display: none !important;
+}
+.raffles-admin__nft-preview-img-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
 .raffles-admin__nft-preview img {
   border-radius: 8px;
   object-fit: cover;
+  display: block;
+}
+.raffles-admin__nft-preview-x {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.raffles-admin__nft-preview-x:hover {
+  background: rgba(0, 0, 0, 0.9);
 }
 .raffles-admin__custom-token { margin-top: 0.5rem; }
 .raffles-admin__token-info {
