@@ -429,21 +429,25 @@
       var rect = section.getBoundingClientRect();
       var vh = window.innerHeight;
       var progress;
-      /* Section not laid out => arrow at top */
+      var isMobilePortrait = window.innerWidth <= 899 && window.matchMedia('(orientation: portrait)').matches;
+      var imageHeightPx = isMobilePortrait ? window.innerWidth * 91 / 100 : 0;
+
       if (rect.height <= 0) {
         progress = 0;
+      } else if (isMobilePortrait && imageHeightPx > 0) {
+        /* Mobile portrait: arrow moves 0→1 as section top goes from 91vw below viewport to viewport top. Animation runs while image is coming into view. */
+        if (rect.top >= imageHeightPx) {
+          progress = 0;
+        } else if (rect.top <= 0) {
+          progress = 1;
+        } else {
+          progress = (imageHeightPx - rect.top) / imageHeightPx;
+          progress = Math.max(0, Math.min(1, progress));
+        }
       } else if (rect.bottom >= vh) {
-        /* Section not yet scrolled into view (bottom still at/below viewport); full-width load => arrow at top */
         progress = 0;
-      } else if (rect.top <= 0) {
-        /* Section above viewport => arrow at bottom */
-        progress = 1;
       } else if (rect.height >= vh) {
         var travel = rect.height - vh;
-        /* Mobile portrait: cap travel to image height (91vw) so arrow completes while image is still in view */
-        if (window.innerWidth <= 899 && window.matchMedia('(orientation: portrait)').matches) {
-          travel = Math.min(travel, window.innerWidth * 91 / 100);
-        }
         progress = 1 + rect.top / travel;
         progress = Math.max(0, Math.min(1, progress));
       } else {
