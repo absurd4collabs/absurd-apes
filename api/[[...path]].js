@@ -89,6 +89,20 @@ module.exports = (req, res) => {
     }
   }
 
+  if (u === '/discord-bot-invite.html' || u === '/discord-bot-invite') {
+    const invitePath = path.join(ROOT, 'discord-bot-invite.html');
+    const invitePathPublic = path.join(ROOT, 'public', 'discord-bot-invite.html');
+    try {
+      const body = fs.existsSync(invitePath)
+        ? fs.readFileSync(invitePath, 'utf8')
+        : fs.readFileSync(invitePathPublic, 'utf8');
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.status(200).send(body);
+    } catch (e) {
+      return res.status(404).end();
+    }
+  }
+
   const isRoot = u === '' || u === '/' || u === '/index.html';
   const rel = (u || '').replace(/^\/+/, '') || 'index.html';
   const filePath = path.join(ROOT, isRoot ? 'index.html' : rel);

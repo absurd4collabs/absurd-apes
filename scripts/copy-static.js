@@ -16,7 +16,7 @@ function copyDir(src, d) {
 }
 
 fs.mkdirSync(dest, { recursive: true });
-['index.html', 'pairs.html', 'css', 'js', 'assets'].forEach((name) => {
+['index.html', 'pairs.html', 'discord-bot-invite.html', 'css', 'js', 'assets'].forEach((name) => {
   const src = path.join(root, name);
   if (!fs.existsSync(src)) return;
   const d = path.join(dest, name);
