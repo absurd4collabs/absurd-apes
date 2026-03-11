@@ -113,7 +113,7 @@ window.ABSURD_APES_CONFIG = {
   // ——— X spaces ———
   xSpacesImageUrl: 'assets/spaces.png',
   xSpacesLead: 'Tune in to our weekly X space...',
-  xSpacesTime: 'Mondays @ 4pm est',
+  xSpacesTime: 'Mondays<br>4-5pm EST',
   xSpacesHosts: [
     { label: '@SkeetsANC', url: 'https://x.com/SkeetsANC' },
     { label: '@Cap_N_Chronic', url: 'https://x.com/Cap_N_Chronic' },

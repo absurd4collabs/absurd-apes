@@ -100,7 +100,7 @@
     var xSpacesLead = document.getElementById('x-spaces-lead');
     if (xSpacesLead) xSpacesLead.textContent = c.xSpacesLead || 'Tune in to our weekly X space...';
     var xSpacesTime = document.getElementById('x-spaces-time');
-    if (xSpacesTime) xSpacesTime.textContent = c.xSpacesTime || 'Tuesdays @ 2pm est';
+    if (xSpacesTime) xSpacesTime.innerHTML = c.xSpacesTime || 'Mondays<br>4-5pm EST';
     var xSpacesHosts = document.getElementById('x-spaces-hosts');
     if (xSpacesHosts && c.xSpacesHosts && c.xSpacesHosts.length) {
       var hostLinks = c.xSpacesHosts.map(function (h) {
