@@ -309,7 +309,7 @@ async function drawRaffleWinner(raffleId) {
   try {
     await client.query('BEGIN');
     const r = await client.query(
-      'SELECT winner_wallet, ends_at FROM raffles WHERE id = $1 FOR UPDATE',
+      'SELECT winner_wallet, ends_at, ticket_count FROM raffles WHERE id = $1 FOR UPDATE',
       [raffleId]
     );
     const row = r.rows?.[0];
@@ -319,7 +319,15 @@ async function drawRaffleWinner(raffleId) {
       return { winner: row.winner_wallet, justDrawn: false };
     }
     const endsAt = row.ends_at ? new Date(row.ends_at) : null;
-    if (endsAt && endsAt > new Date()) {
+    const soldRes = await client.query(
+      'SELECT COALESCE(SUM(ticket_count), 0)::int AS total FROM raffle_tickets WHERE raffle_id = $1',
+      [raffleId]
+    );
+    const sold = parseInt(soldRes.rows?.[0]?.total, 10) || 0;
+    const total = parseInt(row.ticket_count, 10) || 0;
+    const isEndedByTime = endsAt && endsAt <= new Date();
+    const isSoldOut = total > 0 && sold >= total;
+    if (!isEndedByTime && !isSoldOut) {
       await client.query('COMMIT');
       return { winner: null, justDrawn: false };
     }
@@ -328,13 +336,13 @@ async function drawRaffleWinner(raffleId) {
       [raffleId]
     );
     const rows = entries.rows || [];
-    let total = 0;
-    for (const e of rows) total += parseInt(e.ticket_count, 10) || 0;
-    if (total < 1) {
+    let entriesTotal = 0;
+    for (const e of rows) entriesTotal += parseInt(e.ticket_count, 10) || 0;
+    if (entriesTotal < 1) {
       await client.query('COMMIT');
       return { winner: null, justDrawn: false };
     }
-    const rand = Math.random() * total;
+    const rand = Math.random() * entriesTotal;
     let acc = 0;
     let winner = null;
     for (const e of rows) {

@@ -1,32 +1,66 @@
 # Discord bot invite (raffle announcements)
 
-The app can post to a Discord channel when:
-- **A new raffle is created** — message with prize name, ticket count, end time, and link to /raffles
-- **A raffle ends** — message with prize name, winner wallet, and link to /raffles
+The app posts to a Discord channel when:
+- **A new raffle is created** — rich embed with prize image, name, ticket count, cost per ticket, and link
+- **A raffle ends** — announcement with winner (wallet or Discord username if linked)
 
-To enable this:
+The bot needs: **View Channels**, **Send Messages**, **Embed Links**, and (for future slash commands) **Use Application Commands**.
 
-## 1. Invite the bot to your server
+---
 
-Use this URL (replace `YOUR_APPLICATION_ID` with your **Application ID** from [Discord Developer Portal](https://discord.com/developers/applications) → your app → **General** → Application ID):
+## Create the invite link from the Developer Portal
+
+1. Open **[Discord Developer Portal](https://discord.com/developers/applications)** and sign in.
+2. Select your application (or create one: **New Application**).
+3. Go to **OAuth2** → **URL Generator** in the left sidebar.
+4. Under **SCOPES**, check:
+   - **bot** — so the link adds the bot to the server
+   - **applications.commands** — for future slash commands (e.g. track raffle progress)
+5. Under **BOT PERMISSIONS**, check:
+   - **View Channels**
+   - **Send Messages**
+   - **Embed Links**
+6. At the bottom, copy the **Generated URL**. It will look like:
+   ```
+   https://discord.com/api/oauth2/authorize?client_id=YOUR_APPLICATION_ID&permissions=2416167936&scope=bot%20applications.commands
+   ```
+   (Permission value `2416167936` = View Channels, Send Messages, Embed Links, Read Message History, Use Slash Commands, and related permissions.)
+
+**Alternative (manual URL):**  
+Replace `YOUR_APPLICATION_ID` with your **Application ID** (General → Application ID):
 
 ```
-https://discord.com/api/oauth2/authorize?client_id=YOUR_APPLICATION_ID&permissions=2048&scope=bot
+https://discord.com/api/oauth2/authorize?client_id=YOUR_APPLICATION_ID&permissions=2416167936&scope=bot%20applications.commands
 ```
 
-- **Permissions 2048** = Send Messages (required for the bot to post).
-- Optional: add `&permissions=11264` for Send Messages + View Channel + Embed Links if you want richer embeds later.
+---
 
-Open the URL in a browser, choose your server, authorize. The bot will join.
+## Share the invite with your server admin
 
-## 2. Get the channel ID
+Send your **server founder/admin** one of the following:
 
-1. In Discord: **User Settings** → **App Settings** → **Advanced** → enable **Developer Mode**.
-2. Right‑click the channel where you want raffle posts → **Copy channel ID**.
+- **Option A — Professional invite page (recommended)**  
+  Deploy the project (or run locally) and open:
+  ```
+  https://YOUR-SITE.com/discord-bot-invite.html?client_id=YOUR_APPLICATION_ID
+  ```
+  Replace `YOUR_APPLICATION_ID` with your app’s Application ID from the Developer Portal (General → Application ID). That page shows a short description and an **“Invite to server”** button. Share this link with your server admin in Discord or email; when they open it, they get a single clear “Invite to server” action.
 
-## 3. Set env vars
+- **Option B — Direct invite link**  
+  Send the Generated URL from the Developer Portal. The admin opens it, selects the server, and authorizes the bot.
 
-- **`DISCORD_BOT_TOKEN`** — Same Discord app → **Bot** → **Reset Token** → copy. (You may already have this for the Team section.)
-- **`DISCORD_RAFFLE_CHANNEL_ID`** — The channel ID from step 2.
+The admin must have **Manage Server** or **Administrator** on the server to add the bot.
 
-Restart the server (or redeploy on Vercel). New raffles and drawn winners will be posted to that channel.
+---
+
+## After the bot is in the server
+
+1. **Get the channel ID** for the raffles channel:  
+   Discord → **User Settings** → **App Settings** → **Advanced** → enable **Developer Mode**.  
+   Right‑click the channel → **Copy channel ID**.
+
+2. **Set env vars** (and restart / redeploy):
+   - **`DISCORD_BOT_TOKEN`** — Same app → **Bot** → **Reset Token** → copy.
+   - **`DISCORD_RAFFLE_CHANNEL_ID`** — The channel ID from above.
+
+New raffles and winner announcements will then post to that channel.

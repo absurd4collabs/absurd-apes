@@ -369,15 +369,20 @@ app.get('/api/raffles', async function (req, res) {
   const withSold = await Promise.all(
     raffles.map(async (r) => {
       const sold = await db.getRaffleSoldCount(r.id);
+      const total = r.ticketCount || 0;
       let winnerWallet = r.winnerWallet;
       const endsAt = r.endsAt ? new Date(r.endsAt) : null;
-      if (endsAt && endsAt <= new Date() && !winnerWallet && db.drawRaffleWinner) {
+      const isEndedByTime = endsAt && endsAt <= new Date();
+      const isSoldOut = total > 0 && sold >= total;
+      const shouldDraw = !winnerWallet && db.drawRaffleWinner && (isEndedByTime || isSoldOut);
+      if (shouldDraw) {
         const drawResult = await db.drawRaffleWinner(r.id);
-        const res = drawResult && typeof drawResult === 'object' ? drawResult : { winner: drawResult, justDrawn: false };
-        winnerWallet = res.winner || r.winnerWallet;
-        if (res.justDrawn && res.winner) {
+        const draw = drawResult && typeof drawResult === 'object' ? drawResult : { winner: drawResult, justDrawn: false };
+        winnerWallet = draw.winner || r.winnerWallet;
+        if (draw.justDrawn && draw.winner) {
           const siteUrl = (process.env.SITE_URL || process.env.BASE_URL || BASE_URL).replace(/\/$/, '');
-          postRaffleToDiscord('🎉 **Raffle ended** — **' + (r.prizeNftName || 'Prize').replace(/\*/g, '') + '**\nWinner: `' + res.winner + '`\n' + siteUrl + '/raffles');
+          const winnerDisplay = await getWinnerDisplayName(draw.winner);
+          postRaffleWinnerToDiscord({ prizeNftName: r.prizeNftName, winnerWallet: draw.winner, winnerDisplay, siteUrl });
         }
       }
       return { ...r, ticketsSold: sold, winnerWallet: winnerWallet || r.winnerWallet, treasury: RAFFLE_TREASURY_WALLET || null };
@@ -393,10 +398,20 @@ app.get('/api/raffles/:id', async function (req, res) {
   let raffle = await db.getRaffleById(id);
   if (!raffle) return res.status(404).json({ error: 'Raffle not found' });
   const endsAt = raffle.endsAt ? new Date(raffle.endsAt) : null;
-  if (endsAt && endsAt <= new Date() && !raffle.winnerWallet && db.drawRaffleWinner) {
-    const winner = await db.drawRaffleWinner(id);
+  const sold = await db.getRaffleSoldCount(id);
+  const total = raffle.ticketCount || 0;
+  const isEndedByTime = endsAt && endsAt <= new Date();
+  const isSoldOut = total > 0 && sold >= total;
+  if (!raffle.winnerWallet && db.drawRaffleWinner && (isEndedByTime || isSoldOut)) {
+    const drawResult = await db.drawRaffleWinner(id);
+    const draw = drawResult && typeof drawResult === 'object' ? drawResult : { winner: drawResult, justDrawn: false };
     raffle = await db.getRaffleById(id) || raffle;
-    if (winner) raffle.winnerWallet = winner;
+    if (draw.winner) raffle.winnerWallet = draw.winner;
+    if (draw.justDrawn && draw.winner) {
+      const siteUrl = (process.env.SITE_URL || process.env.BASE_URL || BASE_URL).replace(/\/$/, '');
+      const winnerDisplay = await getWinnerDisplayName(draw.winner);
+      postRaffleWinnerToDiscord({ prizeNftName: raffle.prizeNftName, winnerWallet: draw.winner, winnerDisplay, siteUrl });
+    }
   }
   const ticketsSold = await db.getRaffleSoldCount(id);
   res.json({ ...raffle, ticketsSold, treasury: RAFFLE_TREASURY_WALLET || null });
@@ -537,6 +552,131 @@ app.post('/api/raffles/:id/buy', express.json(), async function (req, res) {
   }
 });
 
+// ——— Raffles: claim (winner only; transfers NFT from prize wallet to winner) ———
+const PRIZE_WALLET_PRIVATE_KEY = (process.env.PRIZE_WALLET_PRIVATE_KEY || '').trim();
+
+app.post('/api/raffles/:id/claim', express.json(), async function (req, res) {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) return res.status(400).json({ error: 'Invalid raffle id' });
+  const wallet = (req.body && req.body.wallet && String(req.body.wallet).trim()) || '';
+  if (!wallet) return res.status(400).json({ error: 'wallet required' });
+  if (!db.getRaffleById) return res.status(503).json({ error: 'Database not configured' });
+  const raffle = await db.getRaffleById(id);
+  if (!raffle) return res.status(404).json({ error: 'Raffle not found' });
+  const winnerWallet = (raffle.winnerWallet || '').toLowerCase();
+  if (!winnerWallet) return res.status(400).json({ error: 'No winner drawn yet' });
+  if (wallet.toLowerCase() !== winnerWallet) return res.status(403).json({ error: 'Only the winner can claim' });
+  if (!PRIZE_WALLET_PRIVATE_KEY || !HELIUS_API_KEY) {
+    return res.status(503).json({ error: 'Claim is not configured. Contact the team to receive your prize.' });
+  }
+  let Keypair, Connection, PublicKey, Transaction, TransactionInstruction;
+  try {
+    const solana = require('@solana/web3.js');
+    Keypair = solana.Keypair;
+    Connection = solana.Connection;
+    PublicKey = solana.PublicKey;
+    Transaction = solana.Transaction;
+    TransactionInstruction = solana.TransactionInstruction;
+  } catch (e) {
+    return res.status(503).json({ error: 'Claim service unavailable. Contact the team.' });
+  }
+  const TOKEN_PROGRAM_ID = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+  const ATA_PROGRAM_ID = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL';
+  let signerKeypair;
+  try {
+    const secret = bs58.decode(PRIZE_WALLET_PRIVATE_KEY);
+    if (secret.length !== 64) throw new Error('Invalid key length');
+    signerKeypair = Keypair.fromSecretKey(new Uint8Array(secret));
+  } catch (e) {
+    console.warn('[Raffles] Invalid PRIZE_WALLET_PRIVATE_KEY:', e.message);
+    return res.status(503).json({ error: 'Claim signer not configured. Contact the team.' });
+  }
+  const connection = new Connection(`${HELIUS_RPC}/?api-key=${HELIUS_API_KEY}`, 'confirmed');
+  const mintPk = new PublicKey(raffle.prizeNftMint);
+  const prizePk = new PublicKey(raffle.prizeWallet || PRIZE_WALLET);
+  const winnerPk = new PublicKey(wallet);
+
+  function findAta(owner, mint, tokenProgramId) {
+    const [ata] = PublicKey.findProgramAddressSync(
+      [owner.toBuffer(), tokenProgramId.toBuffer(), mint.toBuffer()],
+      new PublicKey(ATA_PROGRAM_ID)
+    );
+    return ata;
+  }
+
+  const tokenProgramId = new PublicKey(TOKEN_PROGRAM_ID);
+  const ataProgramId = new PublicKey(ATA_PROGRAM_ID);
+  const sysProgramId = new PublicKey('11111111111111111111111111111111');
+  const rentId = new PublicKey('SysvarRent111111111111111111111111111111111');
+
+  try {
+    const mintInfo = await connection.getAccountInfo(mintPk);
+    if (!mintInfo || !mintInfo.data) return res.status(400).json({ error: 'Prize NFT mint not found' });
+    const actualTokenProgram = new PublicKey(mintInfo.owner);
+    const decimals = mintInfo.data.length > 44 ? mintInfo.data[44] : 0;
+    const sourceAta = findAta(prizePk, mintPk, actualTokenProgram);
+    const destAta = findAta(winnerPk, mintPk, actualTokenProgram);
+
+    const sourceInfo = await connection.getAccountInfo(sourceAta);
+    if (!sourceInfo || !sourceInfo.data) return res.status(400).json({ error: 'Prize NFT not in prize wallet' });
+    const data = sourceInfo.data;
+    if (data.length < 72) return res.status(400).json({ error: 'Invalid token account' });
+    const amountView = new DataView(data.buffer, data.byteOffset + 64, 8);
+    if (amountView.getBigUint64(0, true) < 1) return res.status(400).json({ error: 'Prize NFT not in prize wallet' });
+
+    const instructions = [];
+    const destInfo = await connection.getAccountInfo(destAta);
+    if (!destInfo) {
+      instructions.push(
+        new TransactionInstruction({
+          keys: [
+            { pubkey: signerKeypair.publicKey, isSigner: true, isWritable: true },
+            { pubkey: destAta, isSigner: false, isWritable: true },
+            { pubkey: winnerPk, isSigner: false, isWritable: false },
+            { pubkey: mintPk, isSigner: false, isWritable: false },
+            { pubkey: sysProgramId, isSigner: false, isWritable: false },
+            { pubkey: actualTokenProgram, isSigner: false, isWritable: false },
+            { pubkey: ataProgramId, isSigner: false, isWritable: false },
+            { pubkey: rentId, isSigner: false, isWritable: false },
+          ],
+          programId: ataProgramId,
+          data: Buffer.from([1]),
+        })
+      );
+    }
+
+    const transferData = Buffer.alloc(10);
+    transferData[0] = 12;
+    transferData.writeBigUInt64LE(BigInt(1), 1);
+    transferData[9] = decimals;
+    instructions.push(
+      new TransactionInstruction({
+        keys: [
+          { pubkey: sourceAta, isSigner: false, isWritable: true },
+          { pubkey: mintPk, isSigner: false, isWritable: false },
+          { pubkey: destAta, isSigner: false, isWritable: true },
+          { pubkey: signerKeypair.publicKey, isSigner: true, isWritable: false },
+        ],
+        programId: actualTokenProgram,
+        data: transferData,
+      })
+    );
+
+    const tx = new Transaction().add(...instructions);
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+    tx.recentBlockhash = blockhash;
+    tx.feePayer = signerKeypair.publicKey;
+    tx.sign(signerKeypair);
+
+    const sig = await connection.sendRawTransaction(tx.serialize(), { skipPreflight: false });
+    await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
+    res.json({ ok: true, signature: sig });
+  } catch (e) {
+    console.warn('[Raffles] Claim transfer failed:', e.message);
+    res.status(500).json({ error: e.message || 'Transfer failed' });
+  }
+});
+
 // ——— Raffles: create (admin only) ———
 app.post('/api/raffles', express.json(), async function (req, res) {
   if (!req.session?.discord) return res.status(401).json({ error: 'Not logged in' });
@@ -590,16 +730,13 @@ app.post('/api/raffles', express.json(), async function (req, res) {
       ticketPriceTokenType: row.ticket_price_token_type,
       ticketPriceTokenMint: row.ticket_price_token_mint,
       ticketPriceRaw: row.ticket_price_raw,
+      ticketPriceDecimals: row.ticket_price_decimals,
       endsAt: row.ends_at,
       status: row.status,
       createdAt: row.created_at,
     };
     const siteUrl = (process.env.SITE_URL || process.env.BASE_URL || BASE_URL).replace(/\/$/, '');
-    postRaffleToDiscord(
-      '🎟️ **New raffle** — **' + (raffle.prizeNftName || 'Prize').replace(/\*/g, '') + '**\n' +
-      raffle.ticketCount + ' tickets · Ends ' + (raffle.endsAt ? new Date(raffle.endsAt).toLocaleString() : '') + '\n' +
-      siteUrl + '/raffles'
-    );
+    postRaffleNewToDiscord(raffle, siteUrl);
     res.status(201).json(raffle);
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -688,6 +825,75 @@ function postRaffleToDiscord(content) {
       { headers: { Authorization: 'Bot ' + DISCORD_BOT_TOKEN, 'Content-Type': 'application/json' }, timeout: 5000, validateStatus: () => true }
     )
     .catch((e) => console.warn('[Raffles] Discord post failed:', e.message));
+}
+
+/** Post JSON body (e.g. embeds) to the raffle channel. */
+function postRaffleMessageToDiscord(body) {
+  if (!DISCORD_BOT_TOKEN || !DISCORD_RAFFLE_CHANNEL_ID) return Promise.resolve();
+  return axios
+    .post(
+      'https://discord.com/api/v10/channels/' + encodeURIComponent(DISCORD_RAFFLE_CHANNEL_ID) + '/messages',
+      body,
+      { headers: { Authorization: 'Bot ' + DISCORD_BOT_TOKEN, 'Content-Type': 'application/json' }, timeout: 5000, validateStatus: () => true }
+    )
+    .catch((e) => console.warn('[Raffles] Discord post failed:', e.message));
+}
+
+/** Get display name for winner: Discord username if wallet linked, else truncated wallet. */
+async function getWinnerDisplayName(walletAddress) {
+  if (!walletAddress || !db.getDiscordByWallet) return null;
+  const discordId = await db.getDiscordByWallet(walletAddress);
+  if (!discordId) return null;
+  const names = await db.getDiscordUsernames([discordId]);
+  return names.get(discordId) || null;
+}
+
+/** Post new-raffle embed to Discord (prize image, name, tickets, price, link). */
+function postRaffleNewToDiscord(raffle, siteUrl) {
+  const baseUrl = (siteUrl || BASE_URL).replace(/\/$/, '');
+  const prizeName = (raffle.prizeNftName || 'Prize NFT').replace(/\*/g, '');
+  const ticketCount = raffle.ticketCount || raffle.ticket_count || 0;
+  const type = (raffle.ticketPriceTokenType || 'sol').toLowerCase();
+  const raw = String(raffle.ticketPriceRaw || '0').trim();
+  const decimals = raffle.ticketPriceDecimals != null ? Number(raffle.ticketPriceDecimals) : type === 'sol' ? 9 : 6;
+  const humanPrice = Number(raw) / Math.pow(10, decimals);
+  const symbol = type === 'sol' ? 'SOL' : type === 'aaa' ? 'AAA' : 'tokens';
+  const priceStr = (humanPrice === Math.floor(humanPrice) ? humanPrice : humanPrice.toFixed(4)) + ' ' + symbol;
+  const endsAt = raffle.endsAt || raffle.ends_at;
+  const endsStr = endsAt ? new Date(endsAt).toLocaleString() : '—';
+  const raffleUrl = baseUrl + '/raffles';
+  const rawImage = raffle.prizeNftImage && String(raffle.prizeNftImage).trim();
+  const thumbnailUrl = rawImage && (rawImage.startsWith('http') || rawImage.startsWith('//'))
+    ? baseUrl + '/api/proxy-image?url=' + encodeURIComponent(rawImage.startsWith('//') ? 'https:' + rawImage : rawImage)
+    : null;
+  const embed = {
+    title: '🎟️ New raffle',
+    description: prizeName,
+    url: raffleUrl,
+    color: 0x5865f2,
+    thumbnail: thumbnailUrl ? { url: thumbnailUrl } : undefined,
+    fields: [
+      { name: 'Tickets', value: String(ticketCount), inline: true },
+      { name: 'Cost per ticket', value: priceStr, inline: true },
+      { name: 'Ends', value: endsStr, inline: false },
+    ],
+  };
+  return postRaffleMessageToDiscord({ embeds: [embed] });
+}
+
+/** Post winner announcement to Discord (winner wallet or Discord username if known). */
+function postRaffleWinnerToDiscord(opts) {
+  const { prizeNftName, winnerWallet, winnerDisplay, siteUrl } = opts || {};
+  const baseUrl = (siteUrl || BASE_URL).replace(/\/$/, '');
+  const prizeName = (prizeNftName || 'Prize').replace(/\*/g, '');
+  const display = winnerDisplay ? `**${winnerDisplay}** (\`${winnerWallet}\`)` : `\`${winnerWallet}\``;
+  const embed = {
+    title: '🎉 Raffle ended',
+    description: `**${prizeName}**\nWinner: ${display}`,
+    url: baseUrl + '/raffles',
+    color: 0x57f287,
+  };
+  return postRaffleMessageToDiscord({ embeds: [embed] });
 }
 app.get('/api/discord/user/:id', async function (req, res) {
   const id = req.params.id;

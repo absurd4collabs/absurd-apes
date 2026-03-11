@@ -682,7 +682,36 @@
     if (entriesBtn) entriesBtn.addEventListener('click', function () { openEntriesModal(r.id); });
     var claimBtn = card.querySelector('.raffle-claim-btn');
     if (claimBtn) claimBtn.addEventListener('click', function () {
-      setMsg('You won this raffle! The prize NFT is held in the prize wallet. Contact the team to arrange transfer.', false);
+      var wallet = getWalletPublicKey();
+      if (!wallet) {
+        setMsg('Connect your wallet to claim.', true);
+        return;
+      }
+      claimBtn.disabled = true;
+      claimBtn.textContent = 'Claiming…';
+      fetchWithCreds(window.location.origin + '/api/raffles/' + r.id + '/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wallet: wallet }),
+      })
+        .then(function (res) { return res.json().then(function (body) { return { status: res.status, body: body }; }); })
+        .then(function (x) {
+          if (x.status === 200 && x.body.signature) {
+            setMsg('Prize sent to your wallet. Tx: ' + x.body.signature.slice(0, 16) + '…', false);
+            claimBtn.textContent = 'Claimed';
+            claimBtn.disabled = true;
+            initRafflesPage();
+          } else {
+            setMsg(x.body.error || 'Claim failed.', true);
+            claimBtn.disabled = false;
+            claimBtn.textContent = 'Claim';
+          }
+        })
+        .catch(function (err) {
+          setMsg(err && err.message ? err.message : 'Claim failed.', true);
+          claimBtn.disabled = false;
+          claimBtn.textContent = 'Claim';
+        });
     });
     var buyBtn = card.querySelector('.raffle-buy-btn');
     var buyInput = card.querySelector('.raffle-card__buy-input');
