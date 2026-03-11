@@ -425,6 +425,10 @@
     var section = document.getElementById('horizons');
     if (!section) return;
 
+    function isHorizonsMobilePortrait() {
+      return window.innerWidth <= 899 && window.matchMedia('(orientation: portrait)').matches;
+    }
+
     function updateHorizonsScroll() {
       var rect = section.getBoundingClientRect();
       var vh = window.innerHeight;
@@ -435,6 +439,17 @@
       } else if (rect.bottom >= vh) {
         /* Section not yet scrolled into view (bottom still at/below viewport); full-width load => arrow at top */
         progress = 0;
+      } else if (isHorizonsMobilePortrait()) {
+        /* Mobile portrait: arrow completes over image height (91vw) so it doesn't wait for full section */
+        var imageHeightPx = window.innerWidth * 91 / 100;
+        if (rect.top >= vh) {
+          progress = 0;
+        } else if (rect.top <= -imageHeightPx) {
+          progress = 1;
+        } else {
+          progress = -rect.top / imageHeightPx;
+          progress = Math.max(0, Math.min(1, progress));
+        }
       } else if (rect.top <= 0) {
         /* Section above viewport => arrow at bottom */
         progress = 1;
