@@ -20,6 +20,13 @@
     return fetch(url, options);
   }
 
+  /** Raffle API URL: use proxy with path query so Vercel (no rewrite for /api/*) still hits the one serverless function. */
+  function rafflesApiUrl(pathSegment) {
+    var base = window.location.origin + '/api/raffles-proxy';
+    if (pathSegment) return base + '?path=' + encodeURIComponent(pathSegment);
+    return base;
+  }
+
   var selectedNft = null;
   var prizeWalletForCreate = null;
   var tokenInfoCache = {};
@@ -40,7 +47,7 @@
     var listEmpty = document.getElementById('raffles-list-empty');
     if (!adminEl || !listGrid) return;
 
-    fetchWithCreds(window.location.origin + '/api/raffles/admin-check')
+    fetchWithCreds(rafflesApiUrl('admin-check'))
       .then(function (r) { return r.json(); })
       .then(function (data) {
         adminEl.hidden = !data.admin;
@@ -52,7 +59,7 @@
       })
       .catch(function () { adminEl.hidden = true; });
 
-    fetchWithCreds(window.location.origin + '/api/raffles', { cache: 'no-store' })
+    fetchWithCreds(rafflesApiUrl(), { cache: 'no-store' })
       .then(function (r) { return r.json(); })
       .then(function (data) {
         var raffles = data.raffles || [];
@@ -353,7 +360,7 @@
           endsAt: endsAtDate.toISOString(),
           nftTransferSignature: sig,
         };
-        var createUrl = window.location.origin + '/api/raffles?t=' + Date.now();
+        var createUrl = rafflesApiUrl() + '?t=' + Date.now();
         return fetchWithCreds(createUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -775,7 +782,7 @@
       }
       claimBtn.disabled = true;
       claimBtn.textContent = 'Claiming…';
-      fetchWithCreds(window.location.origin + '/api/raffles/' + r.id + '/claim', {
+      fetchWithCreds(rafflesApiUrl(r.id + '/claim'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wallet: wallet }),
@@ -821,7 +828,7 @@
         }
         buyBtn.disabled = true;
         buyBtn.textContent = 'Buying…';
-        fetchWithCreds(window.location.origin + '/api/raffles/' + r.id + '/my-tickets?wallet=' + encodeURIComponent(wallet))
+        fetchWithCreds(rafflesApiUrl(r.id + '/my-tickets') + '&wallet=' + encodeURIComponent(wallet))
           .then(function (res) { return res.json(); })
           .then(function (data) {
             var current = (data && typeof data.ticketCount === 'number') ? data.ticketCount : 0;
@@ -841,7 +848,7 @@
           })
           .then(function (pay) {
             if (!pay) return;
-            return fetchWithCreds(window.location.origin + '/api/raffles/' + r.id + '/buy', {
+            return fetchWithCreds(rafflesApiUrl(r.id + '/buy'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -939,7 +946,7 @@
     list.innerHTML = '<p class="raffles-modal__hint">Loading…</p>';
     modal.setAttribute('aria-hidden', 'false');
 
-    fetchWithCreds(window.location.origin + '/api/raffles/' + raffleId + '/entries')
+    fetchWithCreds(rafflesApiUrl(raffleId + '/entries'))
       .then(function (r) { return r.json(); })
       .then(function (data) {
         var entries = data.entries || [];

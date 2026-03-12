@@ -107,6 +107,17 @@ app.use(
   })
 );
 
+// So client can call /api/raffles-proxy?path=... (Vercel doesn't rewrite /api/*); rewrite to /api/raffles/...
+app.use(function (req, res, next) {
+  if (req.path !== '/api/raffles-proxy' && (!req.originalUrl || !req.originalUrl.startsWith('/api/raffles-proxy'))) return next();
+  const pathSeg = (req.query && req.query.path != null && String(req.query.path).trim()) ? '/' + String(req.query.path).trim() : '';
+  const params = new URLSearchParams(req.url && req.url.includes('?') ? req.url.split('?').slice(1).join('?') : '');
+  params.delete('path');
+  const qs = params.toString();
+  req.url = '/api/raffles' + pathSeg + (qs ? '?' + qs : '');
+  next();
+});
+
 app.use(express.static(path.join(__dirname)));
 
 // Avoid 404 for favicon (browsers request it automatically)
