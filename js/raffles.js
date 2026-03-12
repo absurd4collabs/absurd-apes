@@ -511,14 +511,13 @@
 
           function sendTx(txToSend) {
             var t = txToSend || tx;
-            var sendOpts = { skipPreflight: true };
             if (typeof provider.signAndSendTransaction === 'function') {
-              return Promise.resolve(provider.signAndSendTransaction(t, sendOpts)).then(normalizeSig);
+              return Promise.resolve(provider.signAndSendTransaction(t)).then(normalizeSig);
             }
             var serialized = t.serialize({ requireAllSignatures: false });
             var raw = serialized && serialized instanceof Uint8Array ? serialized : new Uint8Array(serialized);
             var base64 = typeof raw.toString === 'function' && raw.toString('base64') ? raw.toString('base64') : btoa(String.fromCharCode.apply(null, raw));
-            return provider.request({ method: 'signAndSendTransaction', params: { transaction: base64, options: sendOpts } }).then(normalizeSig);
+            return provider.request({ method: 'signAndSendTransaction', params: { transaction: base64 } }).then(normalizeSig);
           }
 
           function normalizeSig(result) {
@@ -575,9 +574,8 @@
         if (!blockhash) return Promise.reject(new Error('Could not get blockhash'));
         tx.recentBlockhash = blockhash;
         tx.feePayer = ownerPk;
-        var sendOpts = { skipPreflight: true };
         if (typeof provider.signAndSendTransaction === 'function') {
-          return Promise.resolve(provider.signAndSendTransaction(tx, sendOpts)).then(function (result) {
+          return Promise.resolve(provider.signAndSendTransaction(tx)).then(function (result) {
             var sig = (result && (typeof result === 'string' ? result : result.signature || result.hash)) || null;
             return sig ? { signature: sig, paymentDestination: treasury } : Promise.reject(new Error('No signature returned'));
           });
@@ -585,7 +583,7 @@
         var serialized = tx.serialize({ requireAllSignatures: false });
         var rawBuf = serialized && serialized instanceof Uint8Array ? serialized : new Uint8Array(serialized);
         var base64 = typeof rawBuf.toString === 'function' && rawBuf.toString('base64') ? rawBuf.toString('base64') : btoa(String.fromCharCode.apply(null, rawBuf));
-        return provider.request({ method: 'signAndSendTransaction', params: { transaction: base64, options: sendOpts } }).then(function (result) {
+        return provider.request({ method: 'signAndSendTransaction', params: { transaction: base64 } }).then(function (result) {
           var sig = (result && (typeof result === 'string' ? result : result.signature || result.hash)) || null;
           return sig ? { signature: sig, paymentDestination: treasury } : Promise.reject(new Error('No signature returned'));
         });
@@ -664,9 +662,8 @@
           if (!blockhash) return Promise.reject(new Error('Could not get blockhash'));
           tx.recentBlockhash = blockhash;
           tx.feePayer = ownerPk;
-          var sendOpts = { skipPreflight: true };
           if (typeof provider.signAndSendTransaction === 'function') {
-            return Promise.resolve(provider.signAndSendTransaction(tx, sendOpts)).then(function (result) {
+            return Promise.resolve(provider.signAndSendTransaction(tx)).then(function (result) {
               var sig = (result && (typeof result === 'string' ? result : result.signature || result.hash)) || null;
               return sig ? { signature: sig, paymentDestination: destAta.toString() } : Promise.reject(new Error('No signature returned'));
             });
@@ -674,7 +671,7 @@
           var serialized = tx.serialize({ requireAllSignatures: false });
           var rawBuf = serialized && serialized instanceof Uint8Array ? serialized : new Uint8Array(serialized);
           var base64 = typeof rawBuf.toString === 'function' && rawBuf.toString('base64') ? rawBuf.toString('base64') : btoa(String.fromCharCode.apply(null, rawBuf));
-          return provider.request({ method: 'signAndSendTransaction', params: { transaction: base64, options: sendOpts } }).then(function (result) {
+          return provider.request({ method: 'signAndSendTransaction', params: { transaction: base64 } }).then(function (result) {
             var sig = (result && (typeof result === 'string' ? result : result.signature || result.hash)) || null;
             return sig ? { signature: sig, paymentDestination: destAta.toString() } : Promise.reject(new Error('No signature returned'));
           });
