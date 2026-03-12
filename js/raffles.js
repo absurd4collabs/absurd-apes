@@ -528,7 +528,15 @@
             return null;
           }
 
-          return sendTx();
+          return connection.simulateTransaction(tx, { sigVerify: false }).then(function (sim) {
+            var err = sim && sim.value && sim.value.err;
+            var logs = sim && sim.value && sim.value.logs;
+            if (err) {
+              var logStr = Array.isArray(logs) ? logs.join(' ') : (logs || '');
+              return Promise.reject(new Error('Simulation failed. ' + (logStr || JSON.stringify(err))));
+            }
+            return sendTx();
+          });
         });
         });
       });
