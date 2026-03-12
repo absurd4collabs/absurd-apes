@@ -486,14 +486,12 @@
             instructions.push(createIx);
           }
 
-          var transferData = new Uint8Array(10);
-          transferData[0] = 3; /* SPL Token Transfer instruction */
-          new DataView(transferData.buffer, transferData.byteOffset, transferData.byteLength).setBigUint64(1, BigInt(1), true);
-          transferData[9] = decimals;
+          var transferData = new Uint8Array(9);
+          transferData[0] = 3; /* SPL Token Transfer */
+          new DataView(transferData.buffer, transferData.byteOffset, 8).setBigUint64(1, BigInt(1), true);
           var transferIx = new TransactionInstruction({
             keys: [
               { pubkey: sourceAta, isSigner: false, isWritable: true },
-              { pubkey: mintPk, isSigner: false, isWritable: false },
               { pubkey: destAta, isSigner: false, isWritable: true },
               { pubkey: ownerPk, isSigner: true, isWritable: false },
             ],
@@ -661,16 +659,14 @@
         }
         return null;
       }).then(function () {
-        var transferData = new Uint8Array(10);
-        transferData[0] = 3; /* SPL Token Transfer instruction */
-        var dv = new DataView(transferData.buffer, transferData.byteOffset, transferData.byteLength);
+        var transferData = new Uint8Array(9);
+        transferData[0] = 3; /* SPL Token Transfer */
+        var dv = new DataView(transferData.buffer, transferData.byteOffset, 8);
         var amt = amountRaw > BigInt('0xffffffffffffffff') ? BigInt('0xffffffffffffffff') : amountRaw;
         dv.setBigUint64(1, amt, true);
-        transferData[9] = decimals;
         instructions.push(new TransactionInstruction({
           keys: [
             { pubkey: sourceAta, isSigner: false, isWritable: true },
-            { pubkey: mintPk, isSigner: false, isWritable: false },
             { pubkey: destAta, isSigner: false, isWritable: true },
             { pubkey: ownerPk, isSigner: true, isWritable: false },
           ],
