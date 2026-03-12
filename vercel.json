@@ -7,6 +7,8 @@
     { "source": "/favicon.svg", "destination": "/api/favicon.svg" },
     { "source": "/pairs", "destination": "/api/pairs" },
     { "source": "/pairs/", "destination": "/api/pairs" },
+    { "source": "/api/raffles", "destination": "/api/raffles-proxy" },
+    { "source": "/api/raffles/(.*)", "destination": "/api/raffles-proxy?path=$1" },
     { "source": "/raffles", "destination": "/" },
     { "source": "/raffles/", "destination": "/" }
   ],
