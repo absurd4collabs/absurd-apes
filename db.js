@@ -3,6 +3,7 @@
  * Uses Neon PostgreSQL.
  */
 const { Pool } = require('pg');
+const crypto = require('crypto');
 
 let pool = null;
 
@@ -356,7 +357,9 @@ async function drawRaffleWinner(raffleId) {
       await client.query('COMMIT');
       return { winner: null, justDrawn: false };
     }
-    const rand = Math.random() * entriesTotal;
+    const rand = typeof crypto.randomInt === 'function'
+      ? crypto.randomInt(0, entriesTotal)
+      : Math.floor((crypto.randomBytes(4).readUInt32BE(0) / 0x100000000) * entriesTotal);
     let acc = 0;
     let winner = null;
     for (const e of rows) {

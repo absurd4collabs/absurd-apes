@@ -8,6 +8,7 @@
 require('dotenv').config();
 const path = require('path');
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const db = require('./db');
 const cookieSession = require('cookie-session');
 const cookieParser = require('cookie-parser');
@@ -17,9 +18,15 @@ const bs58 = require('bs58');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const DEFAULT_SESSION_SECRET = 'absurd-apes-session-secret-change-in-production';
+const SESSION_SECRET = process.env.SESSION_SECRET || DEFAULT_SESSION_SECRET;
+if (process.env.NODE_ENV === 'production' && SESSION_SECRET === DEFAULT_SESSION_SECRET) {
+  console.error('Fatal: Set a strong, unique SESSION_SECRET in production. Do not use the default.');
+  process.exit(1);
+}
+
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
-const SESSION_SECRET = process.env.SESSION_SECRET || 'absurd-apes-session-secret-change-in-production';
 const BASE_URL = (process.env.BASE_URL || 'http://localhost:' + PORT).replace(/\/$/, '');
 const REDIRECT_URI = BASE_URL + '/api/discord/callback';
 
@@ -52,6 +59,37 @@ const ADMIN_DISCORD_IDS = (process.env.ADMIN_DISCORD_IDS || '')
 const PRIZE_WALLET = (process.env.PRIZE_WALLET || '').trim();
 const RAFFLE_TREASURY_WALLET = (process.env.RAFFLE_TREASURY_WALLET || process.env.PRIZE_WALLET || '').trim();
 
+const MAX_TICKET_COUNT_PER_REQUEST = 1000;
+const RAFFLE_CREATE_LIMIT = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many raffle creations. Try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+const RAFFLE_BUY_LIMIT = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: { error: 'Too many requests. Try again in a minute.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+const RAFFLE_CLAIM_LIMIT = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  message: { error: 'Too many requests. Try again in a minute.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+function isValidSolanaAddress(s) {
+  if (!s || typeof s !== 'string') return false;
+  const t = s.trim();
+  if (t.length < 32 || t.length > 44) return false;
+  const base58 = /^[1-9A-HJ-NP-Za-km-z]+$/;
+  return base58.test(t);
+}
+
 if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
   console.warn('Missing DISCORD_CLIENT_ID or DISCORD_CLIENT_SECRET. Set them in .env to enable Discord login.');
 }
@@ -63,7 +101,7 @@ app.use(
     keys: [SESSION_SECRET],
     maxAge: 7 * 24 * 60 * 60 * 1000,
     httpOnly: true,
-    secure: false,
+    secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
   })
@@ -528,13 +566,14 @@ async function verifyNftTransferToPrizeWallet(signature, prizeNftMint, prizeWall
   }
 }
 
-/** Verify a Solana payment tx: transfer to paymentDestination (or its token ATA when tokenMint given) of expectedAmount. Returns { ok, error }. */
-async function verifyRafflePaymentTx(signature, paymentDestination, expectedAmountLamportsOrRaw, isSol, tokenMint) {
+/** Verify a Solana payment tx: signed by expectedPayerWallet, transfer to paymentDestination (or its token ATA when tokenMint given) of expectedAmount. Returns { ok, error }. */
+async function verifyRafflePaymentTx(signature, paymentDestination, expectedAmountLamportsOrRaw, isSol, tokenMint, expectedPayerWallet) {
   if (!HELIUS_API_KEY) return { ok: false, error: 'RPC not configured' };
   const sig = String(signature).trim();
   if (!sig) return { ok: false, error: 'Invalid signature' };
   const destWallet = String(paymentDestination || '').trim();
   if (!destWallet) return { ok: false, error: 'Invalid payment destination' };
+  const payerNorm = expectedPayerWallet ? String(expectedPayerWallet).trim().toLowerCase() : '';
   let expectedTokenDest = null;
   if (!isSol && tokenMint) {
     const expectedAtaToken = deriveAta(destWallet, String(tokenMint).trim(), TOKEN_PROGRAM_ID);
@@ -568,6 +607,15 @@ async function verifyRafflePaymentTx(signature, paymentDestination, expectedAmou
     }
     const msg = result.transaction?.message;
     if (!msg) return { ok: false, error: 'Invalid transaction' };
+    if (payerNorm) {
+      const rawKeys = msg.accountKeys || msg.staticAccountKeys || [];
+      const accountKeys = rawKeys.map((k) => String(typeof k === 'string' ? k : (k && k.pubkey) || '').toLowerCase()).filter(Boolean);
+      const numRequired = (msg.header && msg.header.numRequiredSignatures != null) ? msg.header.numRequiredSignatures : 1;
+      const signers = accountKeys.slice(0, numRequired);
+      if (!signers.length || !signers.includes(payerNorm)) {
+        return { ok: false, error: 'Payment transaction was not signed by the wallet claiming the tickets.' };
+      }
+    }
     const instructions = msg.instructions || [];
     const inner = (result.meta?.innerInstructions || []).flatMap((ii) => ii.instructions || []);
     const all = [...instructions, ...inner];
@@ -624,9 +672,9 @@ async function verifyRafflePaymentTx(signature, paymentDestination, expectedAmou
   }
 }
 
-app.post('/api/raffles/:id/buy', express.json(), async function (req, res) {
+app.post('/api/raffles/:id/buy', RAFFLE_BUY_LIMIT, express.json(), async function (req, res) {
   const id = parseInt(req.params.id, 10);
-  if (isNaN(id)) return res.status(400).json({ error: 'Invalid raffle id' });
+  if (isNaN(id) || id < 1) return res.status(400).json({ error: 'Invalid raffle id' });
   if (!db.getRaffleById) return res.status(503).json({ error: 'Database not configured' });
   const raffle = await db.getRaffleById(id);
   if (!raffle) return res.status(404).json({ error: 'Raffle not found. Refresh the page and try again.' });
@@ -637,9 +685,12 @@ app.post('/api/raffles/:id/buy', express.json(), async function (req, res) {
   const signature = (req.body && req.body.signature && String(req.body.signature).trim()) || '';
   const paymentDestination = (req.body && req.body.paymentDestination && String(req.body.paymentDestination).trim()) || '';
   if (!wallet) return res.status(400).json({ error: 'wallet required' });
+  if (!isValidSolanaAddress(wallet)) return res.status(400).json({ error: 'Invalid wallet address format' });
   if (!Number.isInteger(count) || count < 1) return res.status(400).json({ error: 'count must be a positive integer' });
+  if (count > MAX_TICKET_COUNT_PER_REQUEST) return res.status(400).json({ error: 'count too high per request' });
   if (!signature) return res.status(400).json({ error: 'Sign the payment transaction in your wallet first.' });
   if (!paymentDestination) return res.status(400).json({ error: 'paymentDestination required' });
+  if (!isValidSolanaAddress(paymentDestination)) return res.status(400).json({ error: 'Invalid paymentDestination address format' });
   const treasury = RAFFLE_TREASURY_WALLET;
   if (!treasury) return res.status(503).json({ error: 'Raffle treasury not configured. Set RAFFLE_TREASURY_WALLET or PRIZE_WALLET in .env' });
   const total = raffle.ticketCount || raffle.ticket_count || 0;
@@ -685,11 +736,11 @@ app.post('/api/raffles/:id/buy', express.json(), async function (req, res) {
   if (!isSol && !tokenMintForVerify) {
     return res.status(400).json({ error: 'Raffle ticket price token mint not set; cannot verify payment.' });
   }
-  let verification = await verifyRafflePaymentTx(signature, paymentDestination, expectedAmount, isSol, tokenMintForVerify);
+  let verification = await verifyRafflePaymentTx(signature, paymentDestination, expectedAmount, isSol, tokenMintForVerify, wallet);
   for (const delayMs of [2000, 4000]) {
     if (!verification.ok && /not found|invalid transaction/i.test(verification.error || '')) {
       await new Promise((r) => setTimeout(r, delayMs));
-      verification = await verifyRafflePaymentTx(signature, paymentDestination, expectedAmount, isSol, tokenMintForVerify);
+      verification = await verifyRafflePaymentTx(signature, paymentDestination, expectedAmount, isSol, tokenMintForVerify, wallet);
     } else break;
   }
   if (!verification.ok) {
@@ -708,11 +759,12 @@ app.post('/api/raffles/:id/buy', express.json(), async function (req, res) {
 // ——— Raffles: claim (winner only; transfers NFT from prize wallet to winner) ———
 const PRIZE_WALLET_PRIVATE_KEY = (process.env.PRIZE_WALLET_PRIVATE_KEY || '').trim();
 
-app.post('/api/raffles/:id/claim', express.json(), async function (req, res) {
+app.post('/api/raffles/:id/claim', RAFFLE_CLAIM_LIMIT, express.json(), async function (req, res) {
   const id = parseInt(req.params.id, 10);
-  if (isNaN(id)) return res.status(400).json({ error: 'Invalid raffle id' });
+  if (isNaN(id) || id < 1) return res.status(400).json({ error: 'Invalid raffle id' });
   const wallet = (req.body && req.body.wallet && String(req.body.wallet).trim()) || '';
   if (!wallet) return res.status(400).json({ error: 'wallet required' });
+  if (!isValidSolanaAddress(wallet)) return res.status(400).json({ error: 'Invalid wallet address format' });
   if (!db.getRaffleById) return res.status(503).json({ error: 'Database not configured' });
   const raffle = await db.getRaffleById(id);
   if (!raffle) return res.status(404).json({ error: 'Raffle not found' });
@@ -832,7 +884,7 @@ app.post('/api/raffles/:id/claim', express.json(), async function (req, res) {
 });
 
 // ——— Raffles: create (admin only) ———
-app.post('/api/raffles', express.json(), async function (req, res) {
+app.post('/api/raffles', RAFFLE_CREATE_LIMIT, express.json(), async function (req, res) {
   if (!req.session?.discord) return res.status(401).json({ error: 'Not logged in' });
   if (!isRaffleAdmin(req.session.discord.id)) return res.status(403).json({ error: 'Admin only' });
   const prizeWalletAddr = (PRIZE_WALLET || '').trim();
@@ -848,6 +900,8 @@ app.post('/api/raffles', express.json(), async function (req, res) {
   if (!prizeNftMint || ticketCount < 1 || !ticketPriceTokenType || ticketPriceRaw == null || !endsAt) {
     return res.status(400).json({ error: 'Missing or invalid: prizeNftMint, ticketCount, ticketPriceTokenType, ticketPriceRaw, endsAt' });
   }
+  if (!isValidSolanaAddress(prizeNftMint)) return res.status(400).json({ error: 'Invalid prizeNftMint address format' });
+  if (ticketCount > 100000) return res.status(400).json({ error: 'ticketCount too high' });
   const endsAtDate = new Date(endsAt);
   if (isNaN(endsAtDate.getTime()) || endsAtDate <= new Date()) {
     return res.status(400).json({ error: 'endsAt must be a future ISO date/time' });
