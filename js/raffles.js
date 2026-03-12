@@ -506,6 +506,14 @@
 
           function sendTx(txToSend) {
             var t = txToSend || tx;
+            if (typeof provider.signTransaction === 'function') {
+              return Promise.resolve(provider.signTransaction(t)).then(function (signed) {
+                var ser = signed.serialize ? signed.serialize() : signed;
+                if (!ser) return Promise.reject(new Error('Could not serialize signed transaction'));
+                var raw = ser instanceof Uint8Array ? ser : new Uint8Array(ser);
+                return connection.sendRawTransaction(raw, { skipPreflight: false }).then(function (sig) { return sig || null; });
+              });
+            }
             if (typeof provider.signAndSendTransaction === 'function') {
               return Promise.resolve(provider.signAndSendTransaction(t)).then(normalizeSig);
             }
@@ -569,6 +577,16 @@
         if (!blockhash) return Promise.reject(new Error('Could not get blockhash'));
         tx.recentBlockhash = blockhash;
         tx.feePayer = ownerPk;
+        if (typeof provider.signTransaction === 'function') {
+          return Promise.resolve(provider.signTransaction(tx)).then(function (signed) {
+            var ser = signed.serialize ? signed.serialize() : signed;
+            if (!ser) return Promise.reject(new Error('Could not serialize signed transaction'));
+            var raw = ser instanceof Uint8Array ? ser : new Uint8Array(ser);
+            return connection.sendRawTransaction(raw, { skipPreflight: false }).then(function (sig) {
+              return sig ? { signature: sig, paymentDestination: treasury } : Promise.reject(new Error('No signature returned'));
+            });
+          });
+        }
         if (typeof provider.signAndSendTransaction === 'function') {
           return Promise.resolve(provider.signAndSendTransaction(tx)).then(function (result) {
             var sig = (result && (typeof result === 'string' ? result : result.signature || result.hash)) || null;
@@ -659,6 +677,16 @@
           if (!blockhash) return Promise.reject(new Error('Could not get blockhash'));
           tx.recentBlockhash = blockhash;
           tx.feePayer = ownerPk;
+          if (typeof provider.signTransaction === 'function') {
+            return Promise.resolve(provider.signTransaction(tx)).then(function (signed) {
+              var ser = signed.serialize ? signed.serialize() : signed;
+              if (!ser) return Promise.reject(new Error('Could not serialize signed transaction'));
+              var raw = ser instanceof Uint8Array ? ser : new Uint8Array(ser);
+              return connection.sendRawTransaction(raw, { skipPreflight: false }).then(function (sig) {
+                return sig ? { signature: sig, paymentDestination: destAta.toString() } : Promise.reject(new Error('No signature returned'));
+              });
+            });
+          }
           if (typeof provider.signAndSendTransaction === 'function') {
             return Promise.resolve(provider.signAndSendTransaction(tx)).then(function (result) {
               var sig = (result && (typeof result === 'string' ? result : result.signature || result.hash)) || null;
