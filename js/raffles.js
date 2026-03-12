@@ -488,7 +488,7 @@
 
           var transferData = new Uint8Array(9);
           transferData[0] = 3; /* SPL Token Transfer */
-          new DataView(transferData.buffer, transferData.byteOffset, 8).setBigUint64(1, BigInt(1), true);
+          new DataView(transferData.buffer, transferData.byteOffset, transferData.byteLength).setBigUint64(1, BigInt(1), true);
           var transferIx = new TransactionInstruction({
             keys: [
               { pubkey: sourceAta, isSigner: false, isWritable: true },
@@ -661,7 +661,7 @@
       }).then(function () {
         var transferData = new Uint8Array(9);
         transferData[0] = 3; /* SPL Token Transfer */
-        var dv = new DataView(transferData.buffer, transferData.byteOffset, 8);
+        var dv = new DataView(transferData.buffer, transferData.byteOffset, transferData.byteLength);
         var amt = amountRaw > BigInt('0xffffffffffffffff') ? BigInt('0xffffffffffffffff') : amountRaw;
         dv.setBigUint64(1, amt, true);
         instructions.push(new TransactionInstruction({
