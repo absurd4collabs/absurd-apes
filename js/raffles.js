@@ -487,7 +487,7 @@
           }
 
           var transferData = new Uint8Array(10);
-          transferData[0] = 12;
+          transferData[0] = 3; /* SPL Token Transfer instruction */
           new DataView(transferData.buffer, transferData.byteOffset, transferData.byteLength).setBigUint64(1, BigInt(1), true);
           transferData[9] = decimals;
           var transferIx = new TransactionInstruction({
@@ -662,7 +662,7 @@
         return null;
       }).then(function () {
         var transferData = new Uint8Array(10);
-        transferData[0] = 12;
+        transferData[0] = 3; /* SPL Token Transfer instruction */
         var dv = new DataView(transferData.buffer, transferData.byteOffset, transferData.byteLength);
         var amt = amountRaw > BigInt('0xffffffffffffffff') ? BigInt('0xffffffffffffffff') : amountRaw;
         dv.setBigUint64(1, amt, true);
