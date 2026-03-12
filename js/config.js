@@ -38,7 +38,7 @@ window.ABSURD_APES_CONFIG = {
     title: 'ABSURD APES',
     tagline: "The Most Absurd Art you'll see in Web3",
     subtitle: "<p>The Absurd brand was introduced over 2 years ago in March 2024 with our very first NFT Collection \"Absurd Art Apes\".</p><p>We started as an art project, raising awareness for artists and now we have multiple utilities including NFT staking earning $AAA token and Trait store for ultimate customisation both provided by GOTM Labs, we also have Raffles and much more.</p><p>We are just getting started with huge plans for brand expansion including our second NFT collection \"Absurd Horizons\" MINTING NOW, Absurd Reserve airdropping $SOL on a monthly basis, token launch, Absurd Merch and the major step of bridging into Web2.</p><p>We Absurd, Expect Us.</p>",
-    solanaLogoUrl: 'https://cryptologos.cc/logos/solana-sol-logo.svg?v=040',
+    solanaLogoUrl: '/assets/solana-logo.svg',
     backgroundImage: 'assets/hero-bg.png',
   },
 
@@ -119,14 +119,6 @@ window.ABSURD_APES_CONFIG = {
     { label: '@Cap_N_Chronic', url: 'https://x.com/Cap_N_Chronic' },
   ],
   xSpacesTagline: 'Podcasting the most extraordinary minds, people and projects in Web3',
-
-  // ——— Pairs game (standalone page at /pairs) ———
-  pairs: {
-    turnsPerBuy: 5,
-    costToken: 100000,
-    gridCols: 6,
-    gridRows: 4,
-  },
 
   // ——— Team (image, name, role, xProfileUrl — no Discord fetch) ———
   team: [

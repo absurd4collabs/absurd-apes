@@ -33,7 +33,7 @@
     var heroSub = document.getElementById('hero-subtitle');
     if (heroSub && hero.subtitle) {
       if (/\s+Solana\.?\s*$/i.test(hero.subtitle)) {
-        var solanaUrl = hero.solanaLogoUrl || 'https://cryptologos.cc/logos/solana-sol-logo.svg?v=040';
+        var solanaUrl = hero.solanaLogoUrl || '/assets/solana-logo.svg';
         var beforeSolana = hero.subtitle.replace(/\s+Solana\.?\s*$/i, '');
         heroSub.innerHTML = beforeSolana + ' <img src="' + solanaUrl + '" alt="" class="hero-home__solana-icon" width="20" height="20"> Solana.';
       } else if (hero.subtitle.indexOf('<') !== -1) {
@@ -62,7 +62,7 @@
     var contractEl = document.getElementById('tokenomics-contract');
     if (contractEl && c.tokenMint) contractEl.textContent = c.tokenMint;
     var solanaLogoEl = document.getElementById('tokenomics-solana-logo');
-    if (solanaLogoEl) solanaLogoEl.src = hero.solanaLogoUrl || 'https://cryptologos.cc/logos/solana-sol-logo.svg?v=040';
+    if (solanaLogoEl) solanaLogoEl.src = hero.solanaLogoUrl || '/assets/solana-logo.svg';
     var dextoolsLink = document.getElementById('tokenomics-dextools-link');
     if (dextoolsLink && c.tokenDextoolsPairUrl) dextoolsLink.href = c.tokenDextoolsPairUrl;
     var birdeyeLink = document.getElementById('tokenomics-birdeye-link');
@@ -569,7 +569,10 @@
                 if (walletPicker._resolve) walletPicker._resolve();
                 walletPicker._resolve = null;
               })
-              .catch(function () {});
+              .catch(function (err) {
+                var msg = (err && (err.message || String(err))) || 'Connection failed';
+                alert('Wallet connect failed: ' + msg);
+              });
           });
           walletPickerList.appendChild(btn);
         });
@@ -600,7 +603,7 @@
         if (idx < delays.length) {
           setTimeout(check, delays[idx] - delays[idx - 1]);
         } else {
-          done(wallets);
+          done([]);
         }
       }
       setTimeout(check, delays[0]);

@@ -1,14 +1,6 @@
 /* Absurd Apes — NFT + Token template. Mobile-first; side nav desktop, bottom nav mobile. */
 
 @font-face {
-  font-family: 'Freckle Face';
-  src: url('../assets/fonts/FreckleFace-Regular.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
   font-family: 'Saira Stencil One';
   src: url('../assets/fonts/SairaStencilOne-Regular.ttf') format('truetype');
   font-weight: 400;
@@ -16,14 +8,7 @@
   font-display: swap;
 }
 
-@font-face {
-  font-family: 'Chakra Petch';
-  src: url('../assets/fonts/ChakraPetch-Regular.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
+/* Chakra Petch loaded via Google Fonts (index.html) to avoid local font maxp warning */
 :root {
   --bg: #0d0e12;
   --bg-elevated: #16181f;
@@ -1628,19 +1613,6 @@ body.holdings-verified #btn-verify-panel {
 .btn--outline:hover:not(:disabled) {
   background: var(--accent-dim);
   border-color: var(--accent);
-}
-
-/* Pairs page: Connect wallet button — filled, white text */
-.pairs-page .pairs-header__right .btn--outline {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
-}
-
-.pairs-page .pairs-header__right .btn--outline:hover:not(:disabled) {
-  background: var(--accent-hover);
-  color: #fff;
-  border-color: var(--accent-hover);
 }
 
 .holdings {

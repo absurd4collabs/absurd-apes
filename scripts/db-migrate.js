@@ -1,7 +1,7 @@
 /**
  * Create database tables if they don't exist.
  * Run: npm run db:migrate
- * Only users + wallets (no Pairs tables).
+ * Only users + wallets.
  */
 require('dotenv').config();
 const { Client } = require('pg');

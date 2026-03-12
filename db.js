@@ -1,5 +1,5 @@
 /**
- * Database helpers for users, wallets, pairs state.
+ * Database helpers for users, wallets.
  * Uses Neon PostgreSQL.
  */
 const { Pool } = require('pg');
@@ -89,50 +89,6 @@ async function getDiscordUsernames(discordIds) {
   const m = new Map();
   (res.rows || []).forEach((r) => m.set(r.discord_id, r.discord_username));
   return m;
-}
-
-// ——— Pairs game state ———
-async function getPairsState(discordId) {
-  const p = getPool();
-  if (!p) return null;
-  const res = await p.query(
-    'SELECT turns_remaining, deck_json, flipped_json, matched_json, prizes_won_json FROM pairs_state WHERE discord_id = $1',
-    [discordId]
-  );
-  const row = res.rows?.[0];
-  if (!row) return null;
-  return {
-    turnsRemaining: row.turns_remaining || 0,
-    deck: row.deck_json || [],
-    flipped: row.flipped_json || [],
-    matched: row.matched_json || {},
-    prizesWon: row.prizes_won_json || [],
-  };
-}
-
-async function savePairsState(discordId, state) {
-  const p = getPool();
-  if (!p) return null;
-  await p.query(
-    `INSERT INTO pairs_state (discord_id, turns_remaining, deck_json, flipped_json, matched_json, prizes_won_json, updated_at)
-     VALUES ($1, $2, $3::jsonb, $4::jsonb, $5::jsonb, $6::jsonb, NOW())
-     ON CONFLICT (discord_id) DO UPDATE SET
-       turns_remaining = EXCLUDED.turns_remaining,
-       deck_json = EXCLUDED.deck_json,
-       flipped_json = EXCLUDED.flipped_json,
-       matched_json = EXCLUDED.matched_json,
-       prizes_won_json = EXCLUDED.prizes_won_json,
-       updated_at = NOW()`,
-    [
-      discordId,
-      state.turnsRemaining ?? 0,
-      JSON.stringify(state.deck || []),
-      JSON.stringify(state.flipped || []),
-      JSON.stringify(state.matched || {}),
-      JSON.stringify(state.prizesWon || []),
-    ]
-  );
-  return state;
 }
 
 // ——— Raffles ———
@@ -391,8 +347,6 @@ module.exports = {
   getDiscordByWallet,
   getAllWalletToDiscord,
   getDiscordUsernames,
-  getPairsState,
-  savePairsState,
   createRaffle,
   getActiveRaffles,
   getRaffleById,

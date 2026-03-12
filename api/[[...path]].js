@@ -48,14 +48,12 @@ module.exports = (req, res) => {
   if (pathSegments && Array.isArray(pathSegments) && pathSegments.length > 0) {
     const first = pathSegments[0];
     const rest = pathSegments.join('/');
-    if (first === 'pairs' && !rest.includes('/')) raw = '/pairs';
-    else if (API_FIRST_SEGMENTS.includes(first)) raw = '/api/' + rest;
+    if (API_FIRST_SEGMENTS.includes(first)) raw = '/api/' + rest;
     else if (!/^\/api\//.test(raw)) raw = '/api/' + rest;
   } else if (pathSegments && !/^\/api\//.test(raw)) {
     const rest = Array.isArray(pathSegments) ? pathSegments.join('/') : String(pathSegments);
-    const normalized = (rest || '').replace(/^\/+|\/+$/, '');
-    if (normalized === 'pairs') raw = '/pairs';
-    else raw = '/api/' + (rest ? rest.replace(/^\/+/, '') : '');
+    const restNorm = (rest || '').replace(/^\/+|\/+$/, '');
+    raw = '/api/' + (restNorm ? restNorm.replace(/^\/+/, '') : '');
   }
   if (/^\/(discord|verify|collections|holders|prices|token-ohlc|wallets|raffles|nfts|proxy-image|solana-rpc|token-info)(\/|$|\?)/.test(raw)) {
     raw = '/api' + raw;
@@ -80,17 +78,6 @@ module.exports = (req, res) => {
     try {
       const body = fs.readFileSync(path.join(ROOT, 'favicon.svg'), 'utf8');
       res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
-      return res.status(200).send(body);
-    } catch (e) {
-      return res.status(404).end();
-    }
-  }
-
-  if (u === '/pairs' || u === '/pairs/') {
-    const pairsPath = path.join(ROOT, 'pairs.html');
-    try {
-      const body = fs.readFileSync(pairsPath, 'utf8');
-      res.setHeader('Content-Type', 'text/html; charset=utf-8');
       return res.status(200).send(body);
     } catch (e) {
       return res.status(404).end();

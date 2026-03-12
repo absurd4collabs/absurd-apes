@@ -107,7 +107,7 @@ app.use(
   })
 );
 
-// So client can call /api/raffles-proxy?path=... (Vercel doesn't rewrite /api/*); rewrite to /api/raffles/...
+// So client can call /api/raffles-proxy?path=... (Vercel doesn't rewrite /api/*); rewrite and re-dispatch so route matches.
 app.use(function (req, res, next) {
   if (req.path !== '/api/raffles-proxy' && (!req.originalUrl || !req.originalUrl.startsWith('/api/raffles-proxy'))) return next();
   const pathSeg = (req.query && req.query.path != null && String(req.query.path).trim()) ? '/' + String(req.query.path).trim() : '';
@@ -115,7 +115,7 @@ app.use(function (req, res, next) {
   params.delete('path');
   const qs = params.toString();
   req.url = '/api/raffles' + pathSeg + (qs ? '?' + qs : '');
-  next();
+  return app(req, res);
 });
 
 app.use(express.static(path.join(__dirname)));
@@ -196,11 +196,6 @@ app.get('/api/proxy-image', async function (req, res) {
     if (e.response?.status) return res.status(e.response.status).send('Upstream error');
     res.status(502).send('Proxy error');
   }
-});
-
-// Pairs game: standalone page
-app.get('/pairs', function (req, res) {
-  res.sendFile(path.join(__dirname, 'pairs.html'));
 });
 
 // Raffles: SPA route — serve index so client can show raffles view without reload
@@ -355,53 +350,6 @@ app.get('/api/wallets', async function (req, res) {
   res.json({ wallets });
 });
 
-// ——— Pairs: state / buy / play ———
-app.get('/api/pairs/state', async function (req, res) {
-  if (!req.session?.discord) return res.status(401).json({ error: 'Not logged in' });
-  if (!db.getPairsState) return res.json({ state: null });
-  const state = await db.getPairsState(req.session.discord.id);
-  res.json({ state });
-});
-
-app.post('/api/pairs/buy', express.json(), async function (req, res) {
-  if (!req.session?.discord) return res.status(401).json({ error: 'Not logged in' });
-  const { turns } = req.body || {};
-  const n = parseInt(turns, 10);
-  if (isNaN(n) || n < 1 || n > 100) return res.status(400).json({ error: 'turns must be 1–100' });
-  if (!db.getPairsState || !db.savePairsState) return res.status(503).json({ error: 'Database not configured' });
-  try {
-    let state = await db.getPairsState(req.session.discord.id);
-    if (!state) state = { turnsRemaining: 0, deck: [], flipped: [], matched: {}, prizesWon: [] };
-    state.turnsRemaining = (state.turnsRemaining || 0) + n;
-    await db.savePairsState(req.session.discord.id, state);
-    res.json({ ok: true, turnsRemaining: state.turnsRemaining });
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
-
-app.post('/api/pairs/play', express.json(), async function (req, res) {
-  if (!req.session?.discord) return res.status(401).json({ error: 'Not logged in' });
-  const { deck, flipped, matched, turnsRemaining, prizesWon } = req.body || {};
-  if (!db.savePairsState) return res.status(503).json({ error: 'Database not configured' });
-  if (!Array.isArray(deck) || !Array.isArray(flipped) || typeof matched !== 'object') {
-    return res.status(400).json({ error: 'deck, flipped, matched required' });
-  }
-  try {
-    const state = {
-      deck,
-      flipped: Array.isArray(flipped) ? flipped : [],
-      matched: matched || {},
-      turnsRemaining: parseInt(turnsRemaining, 10) || 0,
-      prizesWon: Array.isArray(prizesWon) ? prizesWon : [],
-    };
-    await db.savePairsState(req.session.discord.id, state);
-    res.json({ ok: true });
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-});
-
 // ——— Raffles: admin check (only admins can create raffles) ———
 function isRaffleAdmin(discordId) {
   return discordId && ADMIN_DISCORD_IDS.includes(String(discordId));
@@ -414,8 +362,75 @@ app.get('/api/raffles/admin-check', function (req, res) {
   res.json({ admin, prizeWallet: prizeWallet || undefined });
 });
 
-// ——— Raffles: list active ———
-app.get('/api/raffles', async function (req, res) {
+// ——— Raffles: simulate transaction (returns exact error logs for debugging) ———
+// Server gets a fresh blockhash, replaces it on the tx, simulates. On BlockhashNotFound retries once with a new blockhash.
+app.post('/api/raffles/simulate', express.json(), async function (req, res) {
+  const raw = req.body && req.body.transaction;
+  if (!raw || typeof raw !== 'string') return res.status(400).json({ ok: false, error: 'Missing transaction', logs: [] });
+  if (!HELIUS_API_KEY) return res.status(503).json({ ok: false, error: 'RPC not configured', logs: [] });
+  const rpcUrl = `${HELIUS_RPC}/?api-key=${HELIUS_API_KEY}`;
+  try {
+    const { Connection, Transaction } = require('@solana/web3.js');
+    const connection = new Connection(rpcUrl, 'confirmed');
+    const buf = Buffer.from(raw, 'base64');
+    const tx = Transaction.from(buf);
+
+    async function simulateWithFreshBlockhash() {
+      const { blockhash } = await connection.getLatestBlockhash('confirmed');
+      if (!blockhash) throw new Error('Could not get blockhash');
+      tx.recentBlockhash = blockhash;
+      const toSimulate = Buffer.from(tx.serialize({ requireAllSignatures: false })).toString('base64');
+      const rpcRes = await axios.post(rpcUrl, {
+        jsonrpc: '2.0',
+        id: '1',
+        method: 'simulateTransaction',
+        params: [toSimulate, { encoding: 'base64', sigVerify: false }],
+      }, { timeout: 15000, validateStatus: () => true });
+      const sim = rpcRes.data?.result?.value;
+      return { err: sim?.err || null, logs: sim?.logs || [], toSimulate };
+    }
+
+    let result = await simulateWithFreshBlockhash();
+    if (result.err && String(result.err) === 'BlockhashNotFound') {
+      await new Promise((r) => setTimeout(r, 500));
+      result = await simulateWithFreshBlockhash();
+    }
+    if (result.err) return res.json({ ok: false, err: result.err, logs: result.logs });
+    return res.json({ ok: true, logs: result.logs, transaction: result.toSimulate });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: e.message || 'Simulation request failed', logs: [] });
+  }
+});
+
+// ——— Raffles: send signed transaction (avoids Phantom's simulation; we use Helius) ———
+app.post('/api/raffles/send-raw', express.json(), async function (req, res) {
+  const raw = req.body && req.body.signedTransaction;
+  if (!raw || typeof raw !== 'string') return res.status(400).json({ error: 'Missing signedTransaction' });
+  if (!HELIUS_API_KEY) return res.status(503).json({ error: 'RPC not configured' });
+  try {
+    const buf = Buffer.from(raw, 'base64');
+    const rpcRes = await axios.post(
+      `${HELIUS_RPC}/?api-key=${HELIUS_API_KEY}`,
+      {
+        jsonrpc: '2.0',
+        id: '1',
+        method: 'sendTransaction',
+        params: [buf.toString('base64'), { encoding: 'base64', skipPreflight: true }],
+      },
+      { timeout: 20000, validateStatus: () => true }
+    );
+    const rpcErr = rpcRes.data?.error;
+    const sig = rpcRes.data?.result;
+    if (rpcErr) return res.status(400).json({ error: rpcErr.message || JSON.stringify(rpcErr), logs: rpcErr.logs || [] });
+    if (!sig || typeof sig !== 'string') return res.status(502).json({ error: 'No signature from RPC' });
+    return res.json({ signature: sig });
+  } catch (e) {
+    return res.status(500).json({ error: e.message || 'Send failed' });
+  }
+});
+
+// ——— Raffles: list active (support both /api/raffles and /api/raffles/ to avoid 301 from static middleware) ———
+async function getActiveRaffles(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (!db.getActiveRaffles) return res.json({ raffles: [] });
   const raffles = await db.getActiveRaffles();
@@ -444,7 +459,9 @@ app.get('/api/raffles', async function (req, res) {
     })
   );
   res.json({ raffles: withSold });
-});
+}
+app.get('/api/raffles', getActiveRaffles);
+app.get('/api/raffles/', getActiveRaffles);
 
 // ——— Raffles: single + entries ———
 app.get('/api/raffles/:id', async function (req, res) {

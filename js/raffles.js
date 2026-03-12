@@ -4,6 +4,7 @@
  */
 (function () {
   var TOKEN_PROGRAM_ID = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+  var TOKEN_2022_PROGRAM_ID = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
   var ATA_PROGRAM_ID = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL';
   var SOLANA_RPC = window.location.origin + '/api/solana-rpc';
 
@@ -20,9 +21,14 @@
     return fetch(url, options);
   }
 
-  /** Raffle API URL: use proxy with path query so Vercel (no rewrite for /api/*) still hits the one serverless function. */
+  /** Raffle API URL: on localhost use direct path; on Vercel use proxy (no rewrite for /api/*). */
   function rafflesApiUrl(pathSegment) {
-    var base = window.location.origin + '/api/raffles-proxy';
+    var origin = window.location.origin;
+    var isLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
+    if (isLocal) {
+      return pathSegment ? origin + '/api/raffles/' + pathSegment : origin + '/api/raffles/';
+    }
+    var base = origin + '/api/raffles-proxy';
     if (pathSegment) return base + '?path=' + encodeURIComponent(pathSegment);
     return base;
   }
@@ -459,13 +465,14 @@
               'You don’t own this NFT in the connected wallet. Use the same wallet you used when selecting the NFT, or re-open the picker and choose an NFT from the current wallet.'
             ));
           }
-          return { actualTokenProgram: actualTokenProgram, sourceAta: sourceAta, destAta: destAta, decimals: decimals };
+          return { actualTokenProgram: actualTokenProgram, sourceAta: sourceAta, destAta: destAta, decimals: decimals, mintData: mintData };
         });
       }).then(function (opts) {
         var actualTokenProgram = opts.actualTokenProgram;
         var sourceAta = opts.sourceAta;
         var destAta = opts.destAta;
         var decimals = opts.decimals != null ? opts.decimals : 0;
+        var mintData = opts.mintData;
         return connection.getAccountInfo(destAta).then(function (info) {
           var needCreate = !info;
           if (needCreate) {
@@ -486,52 +493,66 @@
             instructions.push(createIx);
           }
 
-          var transferData = new Uint8Array(9);
-          transferData[0] = 3; /* SPL Token Transfer */
-          new DataView(transferData.buffer, transferData.byteOffset, transferData.byteLength).setBigUint64(1, BigInt(1), true);
-          var transferIx = new TransactionInstruction({
-            keys: [
-              { pubkey: sourceAta, isSigner: false, isWritable: true },
-              { pubkey: destAta, isSigner: false, isWritable: true },
-              { pubkey: ownerPk, isSigner: true, isWritable: false },
-            ],
-            programId: actualTokenProgram,
-            data: transferData,
-          });
-          instructions.push(transferIx);
+          var transferKeys = [
+            { pubkey: sourceAta, isSigner: false, isWritable: true },
+            { pubkey: mintPk, isSigner: false, isWritable: false },
+            { pubkey: destAta, isSigner: false, isWritable: true },
+            { pubkey: ownerPk, isSigner: true, isWritable: false },
+          ];
 
-        var tx = new Transaction();
-        instructions.forEach(function (ix) { tx.add(ix); });
-
-        return connection.getLatestBlockhash('confirmed').then(function (bh) {
+          function addTransferAndContinue() {
+            var transferData = new Uint8Array(10);
+            transferData[0] = 12; /* SPL Token TransferChecked */
+            new DataView(transferData.buffer, transferData.byteOffset, transferData.byteLength).setBigUint64(1, BigInt(1), true);
+            transferData[9] = decimals;
+            instructions.push(new TransactionInstruction({ keys: transferKeys, programId: actualTokenProgram, data: transferData }));
+            var tx = new Transaction();
+            instructions.forEach(function (ix) { tx.add(ix); });
+            return connection.getLatestBlockhash('confirmed').then(function (bh) {
           var blockhash = (bh && bh.value && bh.value.blockhash) ? bh.value.blockhash : (bh && bh.blockhash) ? bh.blockhash : null;
           if (!blockhash) return Promise.reject(new Error('Could not get blockhash'));
           tx.recentBlockhash = blockhash;
           tx.feePayer = ownerPk;
 
-          function sendTx(txToSend) {
-            var t = txToSend || tx;
-            if (typeof provider.signAndSendTransaction === 'function') {
-              return Promise.resolve(provider.signAndSendTransaction(t)).then(normalizeSig);
-            }
-            var serialized = t.serialize({ requireAllSignatures: false });
-            var raw = serialized && serialized instanceof Uint8Array ? serialized : new Uint8Array(serialized);
-            var base64 = typeof raw.toString === 'function' && raw.toString('base64') ? raw.toString('base64') : btoa(String.fromCharCode.apply(null, raw));
-            return provider.request({ method: 'signAndSendTransaction', params: { transaction: base64 } }).then(normalizeSig);
+          function signThenSendViaServer(txToSign) {
+            var t = txToSign || tx;
+            var signPromise = typeof provider.signTransaction === 'function'
+              ? Promise.resolve(provider.signTransaction(t))
+              : Promise.resolve(t).then(function (unsigned) {
+                  var ser = unsigned.serialize({ requireAllSignatures: false });
+                  var b64 = btoa(String.fromCharCode.apply(null, (ser instanceof Uint8Array ? ser : new Uint8Array(ser))));
+                  return provider.request({ method: 'signTransaction', params: { message: b64 } }).then(function (signedB64) {
+                    if (!signedB64) return null;
+                    var decoded = typeof atob !== 'undefined' ? atob(signedB64) : Buffer.from(signedB64, 'base64').toString('binary');
+                    var arr = new Uint8Array(decoded.length);
+                    for (var i = 0; i < decoded.length; i++) arr[i] = decoded.charCodeAt(i);
+                    return { serialize: function () { return arr; } };
+                  });
+                });
+            return signPromise.then(function (signedTx) {
+              if (!signedTx) return Promise.reject(new Error('Wallet did not return signed transaction'));
+              var serialized = signedTx.serialize ? signedTx.serialize() : (signedTx instanceof Uint8Array ? signedTx : new Uint8Array(signedTx));
+              var raw = serialized instanceof Uint8Array ? serialized : new Uint8Array(serialized);
+              var base64 = typeof raw.toString === 'function' && raw.toString('base64') ? raw.toString('base64') : btoa(String.fromCharCode.apply(null, raw));
+              return fetch(rafflesApiUrl('send-raw'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ signedTransaction: base64 }),
+              }).then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }, function () { return { ok: false, data: null }; }); }).then(function (result) {
+                if (result.ok && result.data && result.data.signature) return result.data.signature;
+                var errMsg = (result.data && (result.data.error || result.data.logs)) ? (result.data.error || (Array.isArray(result.data.logs) ? result.data.logs.join('\n') : '')) : 'Send failed';
+                return Promise.reject(new Error(errMsg));
+              });
+            });
           }
 
-          function normalizeSig(result) {
-            if (!result) return null;
-            if (typeof result === 'string') return result;
-            if (result.signature) return result.signature;
-            if (result.hash) return result.hash;
-            return null;
-          }
-
-          return sendTx();
+          return signThenSendViaServer(tx);
         });
+        }
+          return addTransferAndContinue();
         });
-      });
+  });
     }
 
     return buildAndSendTx();
@@ -641,14 +662,16 @@
         }
         return null;
       }).then(function () {
-        var transferData = new Uint8Array(9);
-        transferData[0] = 3; /* SPL Token Transfer */
+        var transferData = new Uint8Array(10);
+        transferData[0] = 12; /* SPL Token TransferChecked */
         var dv = new DataView(transferData.buffer, transferData.byteOffset, transferData.byteLength);
         var amt = amountRaw > BigInt('0xffffffffffffffff') ? BigInt('0xffffffffffffffff') : amountRaw;
         dv.setBigUint64(1, amt, true);
+        transferData[9] = decimals;
         instructions.push(new TransactionInstruction({
           keys: [
             { pubkey: sourceAta, isSigner: false, isWritable: true },
+            { pubkey: mintPk, isSigner: false, isWritable: false },
             { pubkey: destAta, isSigner: false, isWritable: true },
             { pubkey: ownerPk, isSigner: true, isWritable: false },
           ],
@@ -796,7 +819,7 @@
         }
         buyBtn.disabled = true;
         buyBtn.textContent = 'Buying…';
-        fetchWithCreds(rafflesApiUrl(r.id + '/my-tickets') + '&wallet=' + encodeURIComponent(wallet))
+        fetchWithCreds(rafflesApiUrl(r.id + '/my-tickets') + '?wallet=' + encodeURIComponent(wallet))
           .then(function (res) { return res.json(); })
           .then(function (data) {
             var current = (data && typeof data.ticketCount === 'number') ? data.ticketCount : 0;
@@ -874,7 +897,7 @@
   function formatPrice(r) {
     var type = (r.ticketPriceTokenType || 'sol').toLowerCase();
     var raw = r.ticketPriceRaw || '0';
-    var solLogoUrl = (window.ABSURD_APES_CONFIG && window.ABSURD_APES_CONFIG.hero && window.ABSURD_APES_CONFIG.hero.solanaLogoUrl) || 'https://cryptologos.cc/logos/solana-sol-logo.svg?v=040';
+    var solLogoUrl = (window.ABSURD_APES_CONFIG && window.ABSURD_APES_CONFIG.hero && window.ABSURD_APES_CONFIG.hero.solanaLogoUrl) || '/assets/solana-logo.svg';
     if (type === 'sol') {
       var lamports = parseInt(raw, 10);
       if (isNaN(lamports)) return { amountStr: raw, symbol: 'SOL', imageUrl: solLogoUrl };
