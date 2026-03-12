@@ -66,6 +66,10 @@ const ADD_TICKET_PRICE_DECIMALS = `
 ALTER TABLE raffles ADD COLUMN IF NOT EXISTS ticket_price_decimals INTEGER DEFAULT 6;
 `;
 
+const ADD_CLAIM_TX_SIGNATURE = `
+ALTER TABLE raffles ADD COLUMN IF NOT EXISTS claim_tx_signature TEXT;
+`;
+
 async function run() {
   let url = process.env.DATABASE_URL;
   if (!url) {
@@ -83,6 +87,7 @@ async function run() {
     await client.query(ADD_WINNER_COLUMN);
     await client.query(RAFFLE_PAYMENT_SIGNATURES);
     await client.query(ADD_TICKET_PRICE_DECIMALS);
+    await client.query(ADD_CLAIM_TX_SIGNATURE);
     console.log('Migration complete.');
   } catch (e) {
     console.error('Migration failed:', e.message);

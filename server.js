@@ -389,7 +389,9 @@ app.get('/api/raffles', async function (req, res) {
           postRaffleWinnerToDiscord({ prizeNftName: r.prizeNftName, winnerWallet: draw.winner, winnerDisplay, siteUrl });
         }
       }
-      return { ...r, ticketsSold: sold, winnerWallet: winnerWallet || r.winnerWallet, treasury: RAFFLE_TREASURY_WALLET || null };
+      const out = { ...r, ticketsSold: sold, winnerWallet: winnerWallet || r.winnerWallet, treasury: RAFFLE_TREASURY_WALLET || null };
+      if (out.winnerWallet) out.winnerDisplay = await getWinnerDisplayName(out.winnerWallet);
+      return out;
     })
   );
   res.json({ raffles: withSold });
@@ -418,7 +420,9 @@ app.get('/api/raffles/:id', async function (req, res) {
     }
   }
   const ticketsSold = await db.getRaffleSoldCount(id);
-  res.json({ ...raffle, ticketsSold, treasury: RAFFLE_TREASURY_WALLET || null });
+  const payload = { ...raffle, ticketsSold, treasury: RAFFLE_TREASURY_WALLET || null };
+  if (payload.winnerWallet) payload.winnerDisplay = await getWinnerDisplayName(payload.winnerWallet);
+  res.json(payload);
 });
 
 app.get('/api/raffles/:id/entries', async function (req, res) {
@@ -467,8 +471,8 @@ async function verifyNftTransferToPrizeWallet(signature, prizeNftMint, prizeWall
   if (!destWallet || !mint) return { ok: false, error: 'Invalid prize wallet or mint' };
   const expectedAtaToken = deriveAta(destWallet, mint, TOKEN_PROGRAM_ID);
   const expectedAtaToken2022 = deriveAta(destWallet, mint, TOKEN_2022_PROGRAM_ID);
-  const maxAttempts = 6;
-  const delayMs = 3000;
+  const maxAttempts = 10;
+  const delayMs = 4000;
   try {
     let result = null;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -507,51 +511,111 @@ async function verifyNftTransferToPrizeWallet(signature, prizeNftMint, prizeWall
         return { ok: true };
       }
     }
+    const accountKeys = (msg.accountKeys || msg.staticAccountKeys || []).map((k) => (typeof k === 'string' ? k : k.pubkey || k.toString()));
+    const postByIndex = Object.fromEntries((result.meta?.postTokenBalances || []).map((b) => [b.accountIndex, b]));
+    const expectedAtas = [expectedAtaToken, expectedAtaToken2022];
+    for (const [idxStr, post] of Object.entries(postByIndex)) {
+      if (!post || post.mint !== mint) continue;
+      const key = accountKeys[parseInt(idxStr, 10)];
+      if (key && expectedAtas.includes(key)) {
+        const postRaw = post?.uiTokenAmount?.amount ?? post?.tokenAmount?.amount;
+        if (postRaw != null && BigInt(String(postRaw)) >= 1n) return { ok: true };
+      }
+    }
     return { ok: false, error: 'NFT transfer to prize wallet not found in transaction' };
   } catch (e) {
     return { ok: false, error: e.message || 'Verification failed' };
   }
 }
 
-/** Verify a Solana payment tx: transfer to paymentDestination of expectedAmount (lamports for SOL, raw token amount for SPL). Returns { ok, error }. */
-async function verifyRafflePaymentTx(signature, paymentDestination, expectedAmountLamportsOrRaw, isSol) {
+/** Verify a Solana payment tx: transfer to paymentDestination (or its token ATA when tokenMint given) of expectedAmount. Returns { ok, error }. */
+async function verifyRafflePaymentTx(signature, paymentDestination, expectedAmountLamportsOrRaw, isSol, tokenMint) {
   if (!HELIUS_API_KEY) return { ok: false, error: 'RPC not configured' };
   const sig = String(signature).trim();
   if (!sig) return { ok: false, error: 'Invalid signature' };
-  const dest = String(paymentDestination || '').trim();
-  if (!dest) return { ok: false, error: 'Invalid payment destination' };
+  const destWallet = String(paymentDestination || '').trim();
+  if (!destWallet) return { ok: false, error: 'Invalid payment destination' };
+  let expectedTokenDest = null;
+  if (!isSol && tokenMint) {
+    const expectedAtaToken = deriveAta(destWallet, String(tokenMint).trim(), TOKEN_PROGRAM_ID);
+    const expectedAtaToken2022 = deriveAta(destWallet, String(tokenMint).trim(), TOKEN_2022_PROGRAM_ID);
+    expectedTokenDest = [expectedAtaToken, expectedAtaToken2022, destWallet].filter((a, i, arr) => arr.indexOf(a) === i);
+  }
+  const maxAttempts = 8;
+  const delayMs = 3000;
+  let result = null;
   try {
-    const rpcRes = await axios.post(
-      `${HELIUS_RPC}/?api-key=${HELIUS_API_KEY}`,
-      {
-        jsonrpc: '2.0',
-        id: '1',
-        method: 'getTransaction',
-        params: [sig, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 }],
-      },
-      { timeout: 15000, validateStatus: () => true }
-    );
-    const result = rpcRes.data?.result;
-    if (!result || result.meta?.err) return { ok: false, error: 'Transaction not found or failed' };
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const rpcRes = await axios.post(
+        `${HELIUS_RPC}/?api-key=${HELIUS_API_KEY}`,
+        {
+          jsonrpc: '2.0',
+          id: '1',
+          method: 'getTransaction',
+          params: [sig, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0, commitment: 'confirmed' }],
+        },
+        { timeout: 15000, validateStatus: () => true }
+      );
+      result = rpcRes.data?.result;
+      if (result) {
+        if (result.meta?.err) return { ok: false, error: 'Transaction failed on-chain' };
+        break;
+      }
+      if (attempt < maxAttempts) await new Promise((r) => setTimeout(r, delayMs));
+    }
+    if (!result) {
+      return { ok: false, error: 'Transaction not found. Wait a few seconds and try again (do not send another payment).' };
+    }
     const msg = result.transaction?.message;
     if (!msg) return { ok: false, error: 'Invalid transaction' };
     const instructions = msg.instructions || [];
     const inner = (result.meta?.innerInstructions || []).flatMap((ii) => ii.instructions || []);
     const all = [...instructions, ...inner];
-    const expected = String(expectedAmountLamportsOrRaw);
+    const expected = String(expectedAmountLamportsOrRaw).replace(/^0+/, '') || '0';
+    let expectedBig = BigInt(0);
+    try { expectedBig = BigInt(expected); } catch (_) {}
+
     for (const ix of all) {
       const p = ix.parsed;
       if (!p || !p.info) continue;
       if (isSol && p.type === 'transfer') {
         const info = p.info;
-        if (info.destination === dest && String(info.lamports) === expected) return { ok: true };
+        if (info.destination === destWallet && String(info.lamports) === expected) return { ok: true };
       }
       if (!isSol && (p.type === 'transferChecked' || p.type === 'transfer')) {
         const info = p.info;
+        const destTokenAccount = (info.destination && String(info.destination).trim()) || '';
+        const isTreasuryDest = expectedTokenDest
+          ? expectedTokenDest.includes(destTokenAccount)
+          : destTokenAccount === destWallet;
+        if (!isTreasuryDest) continue;
         const amount = info.tokenAmount?.amount ?? info.amount;
         const amountStr = amount != null ? String(amount).replace(/^0+/, '') || '0' : '';
-        const expectedNorm = String(expected).replace(/^0+/, '') || '0';
-        if (info.destination === dest && amountStr === expectedNorm) return { ok: true };
+        if (amountStr === expected) return { ok: true };
+        try {
+          const amountBig = BigInt(amountStr);
+          if (expectedBig > 0n && amountBig >= expectedBig) return { ok: true };
+        } catch (_) {}
+      }
+    }
+    if (!isSol && expectedTokenDest && expectedTokenDest.length && expectedBig > 0n) {
+      const accountKeys = (msg.accountKeys || msg.staticAccountKeys || []).map((k) => (typeof k === 'string' ? k : k.pubkey || k.toString()));
+      const preByIndex = Object.fromEntries((result.meta?.preTokenBalances || []).map((b) => [b.accountIndex, b]));
+      const postByIndex = Object.fromEntries((result.meta?.postTokenBalances || []).map((b) => [b.accountIndex, b]));
+      const mintStr = String(tokenMint).trim();
+      for (const [idxStr, post] of Object.entries(postByIndex)) {
+        if (post.mint !== mintStr) continue;
+        const i = parseInt(idxStr, 10);
+        const key = accountKeys[i];
+        if (!key || !expectedTokenDest.includes(key)) continue;
+        const pre = preByIndex[i];
+        const preRaw = pre?.uiTokenAmount?.amount ?? pre?.tokenAmount?.amount;
+        const postRaw = post?.uiTokenAmount?.amount ?? post?.tokenAmount?.amount;
+        if (postRaw == null) continue;
+        const postBig = BigInt(String(postRaw));
+        const preBig = preRaw != null ? BigInt(String(preRaw)) : 0n;
+        const delta = postBig - preBig;
+        if (delta >= expectedBig) return { ok: true };
       }
     }
     return { ok: false, error: 'Payment transfer to treasury not found or amount mismatch' };
@@ -601,24 +665,31 @@ app.post('/api/raffles/:id/buy', express.json(), async function (req, res) {
       try {
         const rpcRes = await axios.post(
           `${HELIUS_RPC}/?api-key=${HELIUS_API_KEY}`,
-          { jsonrpc: '2.0', id: '1', method: 'getAsset', params: { id: mintForDecimals } },
+          { jsonrpc: '2.0', id: '1', method: 'getAccountInfo', params: [mintForDecimals, { encoding: 'base64' }] },
           { timeout: 5000, validateStatus: () => true }
         );
-        const item = rpcRes.data?.result;
-        if (item?.content?.metadata) {
-          const d = item.content.metadata.decimals;
-          if (typeof d === 'number' && d >= 0 && d <= 9) actualDecimals = d;
+        const acc = rpcRes.data?.result?.value;
+        if (acc?.data && Array.isArray(acc.data)) {
+          const buf = Buffer.from(acc.data[0], 'base64');
+          if (buf.length > 44) actualDecimals = buf[44];
+        } else if (acc?.data && typeof acc.data === 'string') {
+          const buf = Buffer.from(acc.data, 'base64');
+          if (buf.length > 44) actualDecimals = buf[44];
         }
       } catch (_) {}
     }
     const humanPrice = Number(raw) / Math.pow(10, storedDecimals);
     expectedAmount = String(BigInt(Math.round(humanPrice * Math.pow(10, actualDecimals) * count)));
   }
-  let verification = await verifyRafflePaymentTx(signature, paymentDestination, expectedAmount, isSol);
+  const tokenMintForVerify = isSol ? null : (raffle.ticketPriceTokenMint || '').trim() || null;
+  if (!isSol && !tokenMintForVerify) {
+    return res.status(400).json({ error: 'Raffle ticket price token mint not set; cannot verify payment.' });
+  }
+  let verification = await verifyRafflePaymentTx(signature, paymentDestination, expectedAmount, isSol, tokenMintForVerify);
   for (const delayMs of [2000, 4000]) {
     if (!verification.ok && /not found|invalid transaction/i.test(verification.error || '')) {
       await new Promise((r) => setTimeout(r, delayMs));
-      verification = await verifyRafflePaymentTx(signature, paymentDestination, expectedAmount, isSol);
+      verification = await verifyRafflePaymentTx(signature, paymentDestination, expectedAmount, isSol, tokenMintForVerify);
     } else break;
   }
   if (!verification.ok) {
@@ -752,6 +823,7 @@ app.post('/api/raffles/:id/claim', express.json(), async function (req, res) {
 
     const sig = await connection.sendRawTransaction(tx.serialize(), { skipPreflight: false });
     await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
+    if (db.setRaffleClaimed) await db.setRaffleClaimed(id, sig);
     res.json({ ok: true, signature: sig });
   } catch (e) {
     console.warn('[Raffles] Claim transfer failed:', e.message);
@@ -792,6 +864,7 @@ app.post('/api/raffles', express.json(), async function (req, res) {
   }
   const nftVerify = await verifyNftTransferToPrizeWallet(nftTransferSignature, prizeNftMint, prizeWalletAddr);
   if (!nftVerify.ok) {
+    console.warn('[Raffles] Create raffle: NFT verification failed:', nftVerify.error);
     return res.status(400).json({ error: nftVerify.error || 'NFT transfer verification failed' });
   }
   if (!db.createRaffle) return res.status(503).json({ error: 'Database not configured' });

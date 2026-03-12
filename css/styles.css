@@ -794,6 +794,19 @@ body {
 .raffles-entries-list__wallet { font-family: var(--font-mono, monospace); color: var(--text); word-break: break-all; }
 .raffles-entries-list__count { color: var(--text-muted); margin-left: 0.5rem; }
 
+.raffle-card__claimed { font-size: 0.875rem; color: var(--text-muted); }
+.raffle-card__tx-link { font-size: 0.875rem; margin-left: 0.5rem; }
+
+.raffles-claim-success__text { margin: 0 0 1rem; color: var(--text); }
+.raffles-claim-success__link { display: inline-block; margin-bottom: 1rem; color: var(--primary, #6366f1); text-decoration: underline; }
+.raffles-claim-success__link:hover { text-decoration: none; }
+.raffles-claim-success__btn { display: block; width: 100%; }
+
+.raffles-purchase-success__text { margin: 0 0 1rem; color: var(--text); }
+.raffles-purchase-success__link { display: inline-block; margin-bottom: 1rem; color: var(--primary, #6366f1); text-decoration: underline; }
+.raffles-purchase-success__link:hover { text-decoration: none; }
+.raffles-purchase-success__btn { display: block; width: 100%; }
+
 @media (min-width: 900px) {
   .raffles-page {
     padding: 2rem 2.5rem;

@@ -199,6 +199,7 @@ async function getActiveRaffles() {
     status: r.status,
     createdAt: r.created_at,
     winnerWallet: r.winner_wallet,
+    claimTxSignature: r.claim_tx_signature || null,
   }));
 }
 
@@ -210,12 +211,12 @@ async function getRaffleById(id) {
     res = await p.query(
       `SELECT id, prize_nft_mint, prize_nft_name, prize_nft_image, prize_wallet,
               ticket_count, ticket_price_token_type, ticket_price_token_mint, ticket_price_raw, ticket_price_decimals,
-              ends_at, status, created_at, winner_wallet
+              ends_at, status, created_at, winner_wallet, claim_tx_signature
        FROM raffles WHERE id = $1`,
       [id]
     );
   } catch (e) {
-    if (e.message && /ticket_price_decimals|column.*does not exist/i.test(e.message)) {
+    if (e.message && /ticket_price_decimals|claim_tx_signature|column.*does not exist/i.test(e.message)) {
       res = await p.query(
         `SELECT id, prize_nft_mint, prize_nft_name, prize_nft_image, prize_wallet,
                 ticket_count, ticket_price_token_type, ticket_price_token_mint, ticket_price_raw,
@@ -242,7 +243,20 @@ async function getRaffleById(id) {
     status: r.status,
     createdAt: r.created_at,
     winnerWallet: r.winner_wallet,
+    claimTxSignature: r.claim_tx_signature || null,
   };
+}
+
+async function setRaffleClaimed(raffleId, claimTxSignature) {
+  const p = getPool();
+  if (!p) return false;
+  try {
+    await p.query('UPDATE raffles SET claim_tx_signature = $1 WHERE id = $2', [claimTxSignature, raffleId]);
+    return true;
+  } catch (e) {
+    if (e.message && /claim_tx_signature|column.*does not exist/i.test(e.message)) return false;
+    throw e;
+  }
 }
 
 async function getRaffleEntries(raffleId) {
@@ -385,4 +399,5 @@ module.exports = {
   getRaffleTicketCountByWallet,
   drawRaffleWinner,
   useRafflePaymentSignature,
+  setRaffleClaimed,
 };

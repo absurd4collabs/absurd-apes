@@ -201,10 +201,41 @@
     if (modal) modal.setAttribute('aria-hidden', 'true');
   }
 
+  var TX_EXPLORER_BASE = 'https://explorer.solana.com/tx/';
+  function showClaimSuccessModal(signature) {
+    var modal = document.getElementById('raffles-claim-success-modal');
+    var link = document.getElementById('raffles-claim-success-tx-link');
+    if (link && signature) link.href = TX_EXPLORER_BASE + signature;
+    if (modal) modal.setAttribute('aria-hidden', 'false');
+  }
+  function closeClaimSuccessModal() {
+    var modal = document.getElementById('raffles-claim-success-modal');
+    if (modal) modal.setAttribute('aria-hidden', 'true');
+    initRafflesPage();
+  }
+
+  function showTicketPurchaseSuccessModal(signature) {
+    var modal = document.getElementById('raffles-purchase-success-modal');
+    var link = document.getElementById('raffles-purchase-success-tx-link');
+    if (link && signature) link.href = TX_EXPLORER_BASE + signature;
+    if (modal) modal.setAttribute('aria-hidden', 'false');
+  }
+  function closeTicketPurchaseSuccessModal() {
+    var modal = document.getElementById('raffles-purchase-success-modal');
+    if (modal) modal.setAttribute('aria-hidden', 'true');
+    initRafflesPage();
+  }
+
   document.getElementById('raffles-nft-modal-close')?.addEventListener('click', closeNftModal);
   document.getElementById('raffles-nft-modal-backdrop')?.addEventListener('click', closeNftModal);
   document.getElementById('raffles-entries-modal-close')?.addEventListener('click', closeEntriesModal);
   document.getElementById('raffles-entries-modal-backdrop')?.addEventListener('click', closeEntriesModal);
+  document.getElementById('raffles-claim-success-close')?.addEventListener('click', closeClaimSuccessModal);
+  document.getElementById('raffles-claim-success-backdrop')?.addEventListener('click', closeClaimSuccessModal);
+  document.getElementById('raffles-claim-success-done')?.addEventListener('click', closeClaimSuccessModal);
+  document.getElementById('raffles-purchase-success-close')?.addEventListener('click', closeTicketPurchaseSuccessModal);
+  document.getElementById('raffles-purchase-success-backdrop')?.addEventListener('click', closeTicketPurchaseSuccessModal);
+  document.getElementById('raffles-purchase-success-done')?.addEventListener('click', closeTicketPurchaseSuccessModal);
 
   function escapeHtml(s) {
     if (!s) return '';
@@ -381,6 +412,9 @@
     var mintPk = new PublicKey(nftMint);
     var ownerPk = new PublicKey(wallet);
     var destPk = new PublicKey(prizeWallet);
+    if (ownerPk.equals(destPk)) {
+      return Promise.reject(new Error('Prize wallet must be different from your connected wallet. Set PRIZE_WALLET to a different address in .env.'));
+    }
     var tokenProgramId = new PublicKey(TOKEN_PROGRAM_ID);
     var ataProgramId = new PublicKey(ATA_PROGRAM_ID);
 
@@ -489,23 +523,6 @@
             return null;
           }
 
-          if (typeof connection.simulateTransaction === 'function') {
-            return connection.simulateTransaction(tx).then(function (sim) {
-              var err = sim && sim.value && sim.value.err;
-              if (err) {
-                var errStr = typeof err === 'string' ? err : JSON.stringify(err);
-                if (needCreate && /InstructionError.*\[0,|Custom.*1/.test(errStr)) {
-                  var txTransferOnly = new Transaction();
-                  txTransferOnly.add(transferIx);
-                  txTransferOnly.recentBlockhash = blockhash;
-                  txTransferOnly.feePayer = ownerPk;
-                  return sendTx(txTransferOnly);
-                }
-                return Promise.reject(new Error('Transfer failed: ' + errStr));
-              }
-              return sendTx();
-            });
-          }
           return sendTx();
         });
         });
@@ -673,9 +690,19 @@
     var maxPerWallet = Math.max(0, Math.floor(total * 0.2));
     var remaining = Math.max(0, total - sold);
     var winnerWallet = (r.winnerWallet || '').toLowerCase();
+    var winnerDisplay = r.winnerDisplay || '';
+    var winnerLabel = winnerDisplay ? escapeHtml(winnerDisplay) : (winnerWallet ? (winnerWallet.slice(0, 4) + '…' + winnerWallet.slice(-4)) : '');
     var myWallet = (getWalletPublicKey() || '').toLowerCase();
-    var showClaim = isEnded && winnerWallet && myWallet && winnerWallet === myWallet;
+    var prizeClaimed = !!(r.claimTxSignature && r.claimTxSignature.trim());
+    var showClaim = isEnded && winnerWallet && myWallet && winnerWallet === myWallet && !prizeClaimed;
     var showBuy = !isEnded && remaining >= 1;
+    var txExplorerUrl = 'https://explorer.solana.com/tx/';
+    var claimStatusHtml = prizeClaimed
+      ? '<span class="raffle-card__claimed">Prize claimed</span>' +
+        (r.claimTxSignature
+          ? ' <a class="raffle-card__tx-link" href="' + escapeHtml(txExplorerUrl + r.claimTxSignature) + '" target="_blank" rel="noopener noreferrer">View transaction</a>'
+          : '')
+      : (showClaim ? '<button type="button" class="btn btn--primary raffle-card__btn raffle-claim-btn" data-id="' + r.id + '">Claim</button>' : '');
     card.innerHTML =
       '<div class="raffle-card__image-wrap">' +
         '<img class="raffle-card__image" src="' + escapeHtml(r.prizeNftImage ? proxyImageUrl(r.prizeNftImage) : '') + '" alt="" loading="lazy" onerror="this.style.display=\'none\'" />' +
@@ -691,6 +718,12 @@
           '<span class="raffle-card__meta">Ends</span>' +
           '<span class="raffle-card__meta raffle-card__time" data-ends="' + (r.endsAt || '') + '">' + (endsAt ? formatTimeLeft(endsAt) : '—') + '</span>' +
         '</div>' +
+        (isEnded && winnerWallet
+          ? '<div class="raffle-card__row raffle-card__winner">' +
+              '<span class="raffle-card__meta">Winner</span>' +
+              '<span class="raffle-card__meta raffle-card__winner-address" title="' + escapeHtml(r.winnerWallet || '') + '">' + winnerLabel + '</span>' +
+            '</div>'
+          : '') +
         (showBuy
           ? '<div class="raffle-card__buy">' +
               '<label class="raffle-card__buy-label"><span class="raffle-card__meta">Number of tickets</span></label>' +
@@ -700,7 +733,7 @@
           : '') +
         '<div class="raffle-card__actions">' +
           '<button type="button" class="btn btn--outline raffle-card__btn raffle-entries-btn" data-id="' + r.id + '">Entries</button>' +
-          (showClaim ? '<button type="button" class="btn btn--primary raffle-card__btn raffle-claim-btn" data-id="' + r.id + '">Claim</button>' : '') +
+          claimStatusHtml +
         '</div>' +
       '</div>';
     var entriesBtn = card.querySelector('.raffle-entries-btn');
@@ -722,9 +755,7 @@
         .then(function (res) { return res.json().then(function (body) { return { status: res.status, body: body }; }); })
         .then(function (x) {
           if (x.status === 200 && x.body.signature) {
-            setMsg('Prize sent to your wallet. Tx: ' + x.body.signature.slice(0, 16) + '…', false);
-            claimBtn.textContent = 'Claimed';
-            claimBtn.disabled = true;
+            showClaimSuccessModal(x.body.signature);
             initRafflesPage();
           } else {
             setMsg(x.body.error || 'Claim failed.', true);
@@ -791,11 +822,15 @@
                 signature: pay.signature,
                 paymentDestination: pay.paymentDestination,
               }),
-            }).then(function (res) { return res.json().then(function (j) { return { status: res.status, body: j }; }); });
+            }).then(function (res) {
+              return res.json().then(function (j) {
+                return { status: res.status, body: j, signature: pay.signature };
+              });
+            });
           })
           .then(function (x) {
             if (x.status !== 200) throw new Error(x.body && x.body.error ? x.body.error : 'Purchase failed');
-            setMsg('Purchased ' + count + ' ticket(s).', false);
+            showTicketPurchaseSuccessModal(x.signature);
             initRafflesPage();
           })
           .catch(function (err) {

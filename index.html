@@ -520,6 +520,38 @@
       </div>
     </div>
 
+    <!-- Claim success / congratulations modal -->
+    <div class="raffles-modal raffles-claim-success-modal" id="raffles-claim-success-modal" aria-hidden="true" role="dialog" aria-labelledby="raffles-claim-success-title">
+      <div class="raffles-modal__backdrop" id="raffles-claim-success-backdrop"></div>
+      <div class="raffles-modal__box">
+        <div class="raffles-modal__head">
+          <h3 class="raffles-modal__title" id="raffles-claim-success-title">Congratulations!</h3>
+          <button type="button" class="raffles-modal__close" id="raffles-claim-success-close" aria-label="Close">&times;</button>
+        </div>
+        <div class="raffles-modal__body">
+          <p class="raffles-claim-success__text">Your prize has been sent to your wallet.</p>
+          <a class="raffles-claim-success__link" id="raffles-claim-success-tx-link" href="#" target="_blank" rel="noopener noreferrer">View transaction</a>
+          <button type="button" class="btn btn--primary raffles-claim-success__btn" id="raffles-claim-success-done">Done</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ticket purchase success modal -->
+    <div class="raffles-modal raffles-purchase-success-modal" id="raffles-purchase-success-modal" aria-hidden="true" role="dialog" aria-labelledby="raffles-purchase-success-title">
+      <div class="raffles-modal__backdrop" id="raffles-purchase-success-backdrop"></div>
+      <div class="raffles-modal__box">
+        <div class="raffles-modal__head">
+          <h3 class="raffles-modal__title" id="raffles-purchase-success-title">Tickets purchased</h3>
+          <button type="button" class="raffles-modal__close" id="raffles-purchase-success-close" aria-label="Close">&times;</button>
+        </div>
+        <div class="raffles-modal__body">
+          <p class="raffles-purchase-success__text">Your ticket purchase was successful.</p>
+          <a class="raffles-purchase-success__link" id="raffles-purchase-success-tx-link" href="#" target="_blank" rel="noopener noreferrer">View transaction</a>
+          <button type="button" class="btn btn--primary raffles-purchase-success__btn" id="raffles-purchase-success-done">Done</button>
+        </div>
+      </div>
+    </div>
+
     <div class="main__spacer main__spacer--bottom" aria-hidden="true"></div>
   </main>
 
