@@ -8,6 +8,7 @@
     "dev": "node server.js",
     "vercel-build": "node scripts/inject-og.js && node scripts/copy-static.js",
     "db:migrate": "node scripts/db-migrate.js",
+    "db:migrate:merch-tier": "node scripts/apply-003-merch-tier.js",
     "cache-collections": "node scripts/cache-collection-images.js"
   },
   "dependencies": {
