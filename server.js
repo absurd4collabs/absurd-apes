@@ -101,6 +101,8 @@ const RAFFLE_CLAIM_LIMIT = rateLimit({
 
 /** Gravemint “Custom” webhook: POST JSON with wallet + claim code; Authorization: Bearer <secret>. */
 const GRAVEMINT_WEBHOOK_SECRET = (process.env.GRAVEMINT_WEBHOOK_SECRET || '').trim();
+/** If set, POST /api/merch/gravemint-webhook/<token> accepts requests when <token> matches (no headers required). */
+const GRAVEMINT_WEBHOOK_URL_TOKEN = (process.env.GRAVEMINT_WEBHOOK_URL_TOKEN || '').trim();
 
 function constantTimeEqual(a, b) {
   if (typeof a !== 'string' || typeof b !== 'string') return false;
@@ -222,10 +224,11 @@ function gravemintLog401(req) {
     .sort()
     .join(', ');
   console.warn(
-    '[merch/gravemint-webhook] 401 auth — incoming header names: %s | content-length=%s | queryKeys=%s',
+    '[merch/gravemint-webhook] 401 auth — incoming header names: %s | content-length=%s | queryKeys=%s | pathToken=%s',
     names || '(none)',
     req.get('content-length') || '0',
-    req.query && Object.keys(req.query).length ? Object.keys(req.query).join(',') : 'none'
+    req.query && Object.keys(req.query).length ? Object.keys(req.query).join(',') : 'none',
+    req.params && req.params.urlSecret ? 'yes' : 'no'
   );
 }
 
@@ -640,24 +643,27 @@ app.post('/api/merch/submit-claim', express.json(), async function (req, res) {
 
 /**
  * Gravemint “Claim code assigned” → upsert merch_pack_codes (use Webhook Type: Custom; URL this endpoint).
- * Auth (any one): Bearer secret; raw Authorization token; X-Webhook-Secret / X-Api-Key / …;
- * JSON body.webhookSecret; ?secret= / ?token= on URL; or HMAC-SHA256(raw JSON body) in X-Webhook-Signature.
+ * Auth (any one): secret in path GRAVEMINT_WEBHOOK_URL_TOKEN (/api/merch/gravemint-webhook/<token>);
+ * or GRAVEMINT_WEBHOOK_SECRET via Bearer / headers / query / body / HMAC (see gravemintWebhookAuthorized).
  */
-app.post(
-  '/api/merch/gravemint-webhook',
-  express.json({
-    limit: '256kb',
-    verify: function (req, res, buf) {
-      req.gravemintRawBody = buf;
-    },
-  }),
-  async function (req, res) {
+const gravemintWebhookJson = express.json({
+  limit: '256kb',
+  verify: function (req, res, buf) {
+    req.gravemintRawBody = buf;
+  },
+});
+
+async function handleGravemintWebhook(req, res) {
   try {
-    if (!GRAVEMINT_WEBHOOK_SECRET) {
-      console.warn('[merch/gravemint-webhook] Set GRAVEMINT_WEBHOOK_SECRET to enable');
+    if (!GRAVEMINT_WEBHOOK_SECRET && !GRAVEMINT_WEBHOOK_URL_TOKEN) {
+      console.warn('[merch/gravemint-webhook] Set GRAVEMINT_WEBHOOK_SECRET and/or GRAVEMINT_WEBHOOK_URL_TOKEN');
       return res.status(503).json({ error: 'Webhook not configured' });
     }
-    if (!gravemintWebhookAuthorized(req)) {
+    const urlTok = req.params && req.params.urlSecret ? String(req.params.urlSecret).trim() : '';
+    const okUrl =
+      GRAVEMINT_WEBHOOK_URL_TOKEN && urlTok && constantTimeEqual(urlTok, GRAVEMINT_WEBHOOK_URL_TOKEN);
+    const okSecret = GRAVEMINT_WEBHOOK_SECRET && gravemintWebhookAuthorized(req);
+    if (!okUrl && !okSecret) {
       gravemintLog401(req);
       return res.status(401).json({ error: 'Unauthorized' });
     }
@@ -687,8 +693,10 @@ app.post(
     console.warn('[merch/gravemint-webhook]', e.message);
     return res.status(500).json({ error: 'Server error' });
   }
-  }
-);
+}
+
+app.post('/api/merch/gravemint-webhook', gravemintWebhookJson, handleGravemintWebhook);
+app.post('/api/merch/gravemint-webhook/:urlSecret', gravemintWebhookJson, handleGravemintWebhook);
 
 // ——— Raffles: admin check (only admins can create raffles) ———
 function isRaffleAdmin(discordId) {
