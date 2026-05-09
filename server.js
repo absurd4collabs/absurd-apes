@@ -112,15 +112,68 @@ function constantTimeEqual(a, b) {
 
 function gravemintWebhookAuthorized(req) {
   if (!GRAVEMINT_WEBHOOK_SECRET) return false;
-  const auth = req.get('authorization') || '';
-  const bearer = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
-  const header = (req.get('x-webhook-secret') || req.get('x-gravemint-secret') || '').trim();
+  const secret = GRAVEMINT_WEBHOOK_SECRET;
+
+  function tryMatch(provided) {
+    if (typeof provided !== 'string') return false;
+    const p = provided.trim();
+    if (!p) return false;
+    return constantTimeEqual(p, secret);
+  }
+
+  const auth = (req.get('authorization') || '').trim();
+  const bearerM = auth.match(/^Bearer\s+(.+)$/i);
+  if (bearerM && tryMatch(bearerM[1])) return true;
+  if (auth && !/^Bearer\s+/i.test(auth) && tryMatch(auth)) return true;
+
+  const headerNames = [
+    'x-webhook-secret',
+    'x-gravemint-secret',
+    'x-api-key',
+    'x-webhook-key',
+    'gravemint-secret',
+    'webhook-secret',
+  ];
+  for (let i = 0; i < headerNames.length; i++) {
+    const v = req.get(headerNames[i]);
+    if (v && tryMatch(v)) return true;
+  }
+
   const bodySec =
     req.body && typeof req.body === 'object' && typeof req.body.webhookSecret === 'string'
       ? req.body.webhookSecret.trim()
       : '';
-  const provided = bearer || header || bodySec;
-  return constantTimeEqual(provided, GRAVEMINT_WEBHOOK_SECRET);
+  if (tryMatch(bodySec)) return true;
+
+  const q = req.query || {};
+  const qCandidates = [q.secret, q.token, q.key, q.api_key, q.webhook_secret];
+  for (let i = 0; i < qCandidates.length; i++) {
+    const qc = qCandidates[i];
+    if (qc != null && tryMatch(String(qc))) return true;
+  }
+
+  const rawBuf = req.gravemintRawBody;
+  if (Buffer.isBuffer(rawBuf) && rawBuf.length) {
+    const expectedHex = crypto.createHmac('sha256', secret).update(rawBuf).digest('hex');
+    const expectedPrefixed = 'sha256=' + expectedHex;
+    const sigHeaderNames = [
+      'x-webhook-signature',
+      'x-signature',
+      'x-gravemint-signature',
+      'x-hub-signature-256',
+      'signature',
+    ];
+    for (let i = 0; i < sigHeaderNames.length; i++) {
+      const sig = req.get(sigHeaderNames[i]);
+      if (!sig || typeof sig !== 'string') continue;
+      const s = sig.trim();
+      const stripped = s.replace(/^sha256=/i, '').trim();
+      if (constantTimeEqual(stripped.toLowerCase(), expectedHex.toLowerCase())) return true;
+      if (constantTimeEqual(s.toLowerCase(), expectedPrefixed.toLowerCase())) return true;
+    }
+  }
+
+  return false;
 }
 
 /**
@@ -143,7 +196,7 @@ function extractGravemintWalletAndCode(body, depth) {
 
   if (
     d === 0 &&
-    body.event === 'claim_code_assigned' &&
+    (body.event === 'claim_code_assigned' || body.event === 'claim_code.assigned') &&
     typeof body.wallet === 'string' &&
     (typeof body.code === 'string' || typeof body.code === 'number')
   ) {
@@ -534,15 +587,30 @@ app.post('/api/merch/submit-claim', express.json(), async function (req, res) {
 
 /**
  * Gravemint “Claim code assigned” → upsert merch_pack_codes (use Webhook Type: Custom; URL this endpoint).
- * Auth: Authorization: Bearer GRAVEMINT_WEBHOOK_SECRET, or X-Webhook-Secret / X-Gravemint-Secret, or body.webhookSecret.
+ * Auth (any one): Bearer secret; raw Authorization token; X-Webhook-Secret / X-Api-Key / …;
+ * JSON body.webhookSecret; ?secret= / ?token= on URL; or HMAC-SHA256(raw JSON body) in X-Webhook-Signature.
  */
-app.post('/api/merch/gravemint-webhook', express.json({ limit: '256kb' }), async function (req, res) {
+app.post(
+  '/api/merch/gravemint-webhook',
+  express.json({
+    limit: '256kb',
+    verify: function (req, res, buf) {
+      req.gravemintRawBody = buf;
+    },
+  }),
+  async function (req, res) {
   try {
     if (!GRAVEMINT_WEBHOOK_SECRET) {
       console.warn('[merch/gravemint-webhook] Set GRAVEMINT_WEBHOOK_SECRET to enable');
       return res.status(503).json({ error: 'Webhook not configured' });
     }
     if (!gravemintWebhookAuthorized(req)) {
+      console.warn(
+        '[merch/gravemint-webhook] 401 auth mismatch — use same value as GRAVEMINT_WEBHOOK_SECRET in Gravemint (header, URL query, or signing secret). hasAuthorization=%s hasSigHeader=%s hasQuery=%s',
+        !!(req.get('authorization') || '').trim(),
+        !!(req.get('x-webhook-signature') || req.get('x-gravemint-signature') || '').trim(),
+        !!(req.query && Object.keys(req.query).length)
+      );
       return res.status(401).json({ error: 'Unauthorized' });
     }
     if (!db.upsertMerchPackCode) return res.status(503).json({ error: 'Database not configured' });
@@ -571,7 +639,8 @@ app.post('/api/merch/gravemint-webhook', express.json({ limit: '256kb' }), async
     console.warn('[merch/gravemint-webhook]', e.message);
     return res.status(500).json({ error: 'Server error' });
   }
-});
+  }
+);
 
 // ——— Raffles: admin check (only admins can create raffles) ———
 function isRaffleAdmin(discordId) {
