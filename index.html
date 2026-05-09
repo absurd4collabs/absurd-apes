@@ -537,6 +537,7 @@
             <button type="button" class="btn merch-packs-page__waitlist-btn" id="merch-waitlist-join-btn" disabled>Join wait list</button>
             <button type="button" class="btn btn--outline merch-packs-page__claim-btn" id="merch-claim-pack-btn">Claim pack</button>
           </div>
+          <p class="merch-packs-page__claim-gate-hint" id="merch-claim-gate-hint" hidden></p>
           <p class="merch-packs-page__waitlist-hint" id="merch-waitlist-hint" hidden>Log in with Discord in the sidebar<br />to join the wait list.</p>
           <button type="button" class="btn btn--outline merch-packs-page__admin-btn" id="merch-waitlist-admin-btn" hidden>View wait list</button>
         </div>
@@ -558,6 +559,49 @@
           <div class="merch-waitlist-modal__actions">
             <button type="button" class="btn btn--outline" id="merch-claim-pack-modal-cancel">Cancel</button>
             <button type="button" class="btn btn--primary" id="merch-claim-pack-modal-submit">Continue</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Merch: shipping / claim details (after valid mint code) -->
+    <div class="raffles-modal" id="merch-shipping-modal" aria-hidden="true" role="dialog" aria-labelledby="merch-shipping-modal-title" aria-modal="true">
+      <div class="raffles-modal__backdrop" id="merch-shipping-modal-backdrop"></div>
+      <div class="raffles-modal__box raffles-modal__box--merch-shipping">
+        <div class="raffles-modal__head">
+          <h3 class="raffles-modal__title" id="merch-shipping-modal-title">Shipping details</h3>
+          <button type="button" class="raffles-modal__close" id="merch-shipping-modal-close" aria-label="Close">&times;</button>
+        </div>
+        <div class="raffles-modal__body merch-shipping-modal__body">
+          <label class="merch-waitlist-modal__label" for="merch-shipping-x">X handle</label>
+          <input type="text" id="merch-shipping-x" class="merch-waitlist-modal__input" placeholder="@yourhandle" autocomplete="off" maxlength="256" />
+          <label class="merch-waitlist-modal__label" for="merch-shipping-discord">Discord</label>
+          <input type="text" id="merch-shipping-discord" class="merch-waitlist-modal__input merch-shipping-modal__input--readonly" readonly maxlength="256" aria-describedby="merch-shipping-discord-hint" />
+          <p class="merch-shipping-modal__hint" id="merch-shipping-discord-hint">From your connected Discord account.</p>
+          <label class="merch-waitlist-modal__label" for="merch-shipping-size">Size</label>
+          <select id="merch-shipping-size" class="merch-waitlist-modal__input merch-waitlist-modal__select">
+            <option value="">Select size</option>
+            <option value="S">S</option>
+            <option value="M">M</option>
+            <option value="L">L</option>
+            <option value="XL">XL</option>
+            <option value="XXL">XXL</option>
+          </select>
+          <label class="merch-waitlist-modal__label" for="merch-shipping-color">T-shirt colour</label>
+          <select id="merch-shipping-color" class="merch-waitlist-modal__input merch-waitlist-modal__select">
+            <option value="">Select colour</option>
+            <option value="Black">Black</option>
+            <option value="White">White</option>
+            <option value="Navy">Navy</option>
+            <option value="Charcoal">Charcoal</option>
+            <option value="Red">Red</option>
+          </select>
+          <label class="merch-waitlist-modal__label" for="merch-shipping-address">Delivery address</label>
+          <textarea id="merch-shipping-address" class="merch-waitlist-modal__input merch-shipping-modal__textarea" rows="4" placeholder="Full name, street, city, postcode, country" maxlength="4000"></textarea>
+          <p class="merch-waitlist-modal__err" id="merch-shipping-modal-err" hidden></p>
+          <div class="merch-waitlist-modal__actions">
+            <button type="button" class="btn btn--outline" id="merch-shipping-modal-cancel">Cancel</button>
+            <button type="button" class="btn btn--primary" id="merch-shipping-modal-submit">Submit claim</button>
           </div>
         </div>
       </div>
@@ -671,6 +715,6 @@
   <script src="/js/config.js"></script>
   <script src="/js/app.js?v=18"></script>
   <script src="/js/raffles.js?v=16"></script>
-  <script src="/js/merch.js?v=6"></script>
+  <script src="/js/merch.js?v=8"></script>
 </body>
 </html>

@@ -19,6 +19,15 @@
     return base;
   }
 
+  function merchApiUrl(pathSegment) {
+    var origin = window.location.origin;
+    var isLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
+    if (isLocal) {
+      return origin + '/api/merch/' + pathSegment;
+    }
+    return origin + '/api/merch-proxy?path=' + encodeURIComponent(pathSegment);
+  }
+
   function rafflesAdminCheckUrl() {
     var origin = window.location.origin;
     var isLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
@@ -40,7 +49,15 @@
   var claimModal = null;
   var claimInput = null;
   var claimErr = null;
+  var shippingModal = null;
+  var shippingErr = null;
+  /** Mint code validated in step 1; submitted again with shipping form */
+  var pendingClaimCode = '';
   var eventsBound = false;
+
+  function discordMeUrl() {
+    return window.location.origin + '/api/discord/me';
+  }
 
   function setJoinModal(open) {
     if (!emailModal) return;
@@ -77,8 +94,56 @@
     }
   }
 
+  function setShippingModal(open) {
+    if (!shippingModal) return;
+    shippingModal.setAttribute('aria-hidden', open ? 'false' : 'true');
+    if (!open) {
+      pendingClaimCode = '';
+      if (shippingErr) {
+        shippingErr.hidden = true;
+        shippingErr.textContent = '';
+      }
+    }
+  }
+
+  function resetShippingForm() {
+    var xEl = document.getElementById('merch-shipping-x');
+    var sizeEl = document.getElementById('merch-shipping-size');
+    var colorEl = document.getElementById('merch-shipping-color');
+    var addrEl = document.getElementById('merch-shipping-address');
+    if (xEl) xEl.value = '';
+    if (sizeEl) sizeEl.value = '';
+    if (colorEl) colorEl.value = '';
+    if (addrEl) addrEl.value = '';
+  }
+
+  function prefillShippingModal() {
+    resetShippingForm();
+    fetchWithCreds(discordMeUrl(), { cache: 'no-store' })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (data) {
+        var el = document.getElementById('merch-shipping-discord');
+        if (!el) return;
+        if (data && data.connected && data.user) {
+          var u = data.user;
+          var gn = (u.global_name && String(u.global_name).trim()) || '';
+          var un = (u.username && String(u.username).trim()) || '';
+          el.value = gn || (un ? '@' + un : '');
+        } else {
+          el.value = '';
+        }
+      })
+      .catch(function () {
+        var el = document.getElementById('merch-shipping-discord');
+        if (el) el.value = '';
+      });
+  }
+
   function submitClaimCode() {
     var code = claimInput && claimInput.value.trim();
+    var pk = typeof window.getWalletPublicKey === 'function' ? window.getWalletPublicKey() : null;
     if (claimErr) {
       claimErr.hidden = true;
       claimErr.textContent = '';
@@ -90,8 +155,156 @@
       }
       return;
     }
-    /* Placeholder until GraveMint / API wiring — next step: validate code server-side */
-    setClaimModal(false);
+    if (!pk) {
+      if (claimErr) {
+        claimErr.textContent = 'Connect your wallet first.';
+        claimErr.hidden = false;
+      }
+      return;
+    }
+    var submitBtn = document.getElementById('merch-claim-pack-modal-submit');
+    if (submitBtn) submitBtn.disabled = true;
+    fetchWithCreds(merchApiUrl('verify-code'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code, wallet: pk }),
+    })
+      .then(function (r) {
+        return r.json().then(function (data) {
+          return { ok: r.ok, status: r.status, data: data };
+        });
+      })
+      .then(function (res) {
+        if (res.ok && res.data && res.data.ok) {
+          pendingClaimCode = code;
+          setClaimModal(false);
+          prefillShippingModal();
+          setShippingModal(true);
+          return;
+        }
+        var msg = (res.data && res.data.error) || 'Invalid code';
+        if (claimErr) {
+          claimErr.textContent = msg;
+          claimErr.hidden = false;
+        }
+      })
+      .catch(function () {
+        if (claimErr) {
+          claimErr.textContent = 'Network error. Try again.';
+          claimErr.hidden = false;
+        }
+      })
+      .finally(function () {
+        if (submitBtn) submitBtn.disabled = false;
+      });
+  }
+
+  function submitShippingClaim() {
+    var code = pendingClaimCode;
+    var pk = typeof window.getWalletPublicKey === 'function' ? window.getWalletPublicKey() : null;
+    var xEl = document.getElementById('merch-shipping-x');
+    var sizeEl = document.getElementById('merch-shipping-size');
+    var colorEl = document.getElementById('merch-shipping-color');
+    var addrEl = document.getElementById('merch-shipping-address');
+    if (shippingErr) {
+      shippingErr.hidden = true;
+      shippingErr.textContent = '';
+    }
+    if (!code) {
+      if (shippingErr) {
+        shippingErr.textContent = 'Session expired. Open Claim pack and enter your code again.';
+        shippingErr.hidden = false;
+      }
+      return;
+    }
+    if (!pk) {
+      if (shippingErr) {
+        shippingErr.textContent = 'Connect your wallet first.';
+        shippingErr.hidden = false;
+      }
+      return;
+    }
+    var xHandle = xEl && xEl.value.trim();
+    var size = sizeEl && sizeEl.value;
+    var shirtColor = colorEl && colorEl.value;
+    var delivery = addrEl && addrEl.value.trim();
+    if (!xHandle) {
+      if (shippingErr) {
+        shippingErr.textContent = 'Enter your X handle.';
+        shippingErr.hidden = false;
+      }
+      return;
+    }
+    if (!size || !shirtColor) {
+      if (shippingErr) {
+        shippingErr.textContent = 'Select size and colour.';
+        shippingErr.hidden = false;
+      }
+      return;
+    }
+    if (!delivery || delivery.length < 8) {
+      if (shippingErr) {
+        shippingErr.textContent = 'Enter a full delivery address.';
+        shippingErr.hidden = false;
+      }
+      return;
+    }
+    var submitBtn = document.getElementById('merch-shipping-modal-submit');
+    if (submitBtn) submitBtn.disabled = true;
+    fetchWithCreds(merchApiUrl('submit-claim'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: code,
+        wallet: pk,
+        x_handle: xHandle,
+        size: size,
+        shirt_color: shirtColor,
+        delivery_address: delivery,
+      }),
+    })
+      .then(function (r) {
+        return r.json().then(function (data) {
+          return { ok: r.ok, status: r.status, data: data };
+        });
+      })
+      .then(function (res) {
+        if (res.ok && res.data && res.data.ok) {
+          setShippingModal(false);
+          resetShippingForm();
+          return;
+        }
+        var msg = (res.data && res.data.error) || 'Could not submit. Try again.';
+        if (shippingErr) {
+          shippingErr.textContent = msg;
+          shippingErr.hidden = false;
+        }
+      })
+      .catch(function () {
+        if (shippingErr) {
+          shippingErr.textContent = 'Network error. Try again.';
+          shippingErr.hidden = false;
+        }
+      })
+      .finally(function () {
+        if (submitBtn) submitBtn.disabled = false;
+      });
+  }
+
+  function openClaimPackModal() {
+    var gateHint = document.getElementById('merch-claim-gate-hint');
+    var disc = document.body.classList.contains('discord-connected');
+    var pk = typeof window.getWalletPublicKey === 'function' ? window.getWalletPublicKey() : null;
+    if (gateHint) gateHint.hidden = true;
+    if (!disc || !pk) {
+      if (gateHint) {
+        gateHint.textContent =
+          'Log in with Discord and connect your wallet in the sidebar to claim a pack.';
+        gateHint.hidden = false;
+      }
+      return;
+    }
+    setClaimModal(true);
   }
 
   function refreshMerchWaitlistUI() {
@@ -294,10 +507,12 @@
     claimModal = document.getElementById('merch-claim-pack-modal');
     claimInput = document.getElementById('merch-claim-pack-code');
     claimErr = document.getElementById('merch-claim-pack-modal-err');
+    shippingModal = document.getElementById('merch-shipping-modal');
+    shippingErr = document.getElementById('merch-shipping-modal-err');
 
     if (claimBtn) {
       claimBtn.addEventListener('click', function () {
-        setClaimModal(true);
+        openClaimPackModal();
       });
     }
     document.getElementById('merch-claim-pack-modal-close')?.addEventListener('click', function () { setClaimModal(false); });
@@ -312,6 +527,17 @@
         }
       });
     }
+
+    document.getElementById('merch-shipping-modal-close')?.addEventListener('click', function () {
+      setShippingModal(false);
+    });
+    document.getElementById('merch-shipping-modal-backdrop')?.addEventListener('click', function () {
+      setShippingModal(false);
+    });
+    document.getElementById('merch-shipping-modal-cancel')?.addEventListener('click', function () {
+      setShippingModal(false);
+    });
+    document.getElementById('merch-shipping-modal-submit')?.addEventListener('click', submitShippingClaim);
 
     if (joinBtn) {
       joinBtn.addEventListener('click', function () {

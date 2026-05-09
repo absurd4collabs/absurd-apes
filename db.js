@@ -415,6 +415,193 @@ async function getAllWaitList() {
   return res.rows || [];
 }
 
+// ——— Merch pack mint codes (wallet ↔ code; GraveMint integration later) ———
+async function seedMerchPackCodesDummy() {
+  const p = getPool();
+  if (!p) return;
+  try {
+    const c = await p.query('SELECT COUNT(*)::int AS n FROM merch_pack_codes');
+    if ((c.rows[0]?.n || 0) > 0) return;
+    const pairs = [
+      ['dwtestmerchpack01absurdapesaaa11111111111111', 'DUMMY-MERCH-001'],
+      ['dwtestmerchpack02absurdapesbbb11111111111111', 'DUMMY-MERCH-002'],
+      ['dwtestmerchpack03absurdapesccc11111111111111', 'DUMMY-MERCH-003'],
+      ['dwtestmerchpack04absurdapesddd11111111111111', 'DUMMY-MERCH-004'],
+    ];
+    for (const [w, code] of pairs) {
+      await p.query(
+        'INSERT INTO merch_pack_codes (wallet_address, claim_code) VALUES ($1, $2)',
+        [String(w).toLowerCase(), code]
+      );
+    }
+  } catch (e) {
+    console.warn('[merch_pack_codes seed]', e.message);
+  }
+}
+
+async function ensureMerchPackCodesTable() {
+  const p = getPool();
+  if (!p) return false;
+  await p.query(`
+    CREATE TABLE IF NOT EXISTS merch_pack_codes (
+      id SERIAL PRIMARY KEY,
+      wallet_address VARCHAR(64) NOT NULL UNIQUE,
+      claim_code VARCHAR(128) NOT NULL UNIQUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await seedMerchPackCodesDummy();
+  return true;
+}
+
+/** Adds used_at / expires_at on codes + merch_pack_claims table. */
+async function ensureMerchPackClaimsSchema() {
+  const p = getPool();
+  if (!p) return false;
+  await ensureMerchPackCodesTable();
+  await p.query('ALTER TABLE merch_pack_codes ADD COLUMN IF NOT EXISTS used_at TIMESTAMPTZ');
+  await p.query('ALTER TABLE merch_pack_codes ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ');
+  await p.query(`
+    CREATE TABLE IF NOT EXISTS merch_pack_claims (
+      id SERIAL PRIMARY KEY,
+      merch_pack_code_id INTEGER NOT NULL UNIQUE REFERENCES merch_pack_codes(id) ON DELETE RESTRICT,
+      discord_id VARCHAR(32) NOT NULL,
+      wallet_address VARCHAR(64) NOT NULL,
+      x_handle VARCHAR(256) NOT NULL DEFAULT '',
+      discord_handle VARCHAR(256) NOT NULL,
+      size VARCHAR(16) NOT NULL,
+      shirt_color VARCHAR(64) NOT NULL,
+      delivery_address TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await p.query(
+    'CREATE INDEX IF NOT EXISTS merch_pack_claims_discord_id ON merch_pack_claims (discord_id)'
+  );
+  return true;
+}
+
+const MERCH_SIZES = new Set(['S', 'M', 'L', 'XL', 'XXL']);
+const MERCH_COLORS = new Set(['Black', 'White', 'Navy', 'Charcoal', 'Red']);
+
+function merchCodeRowChecks(row, normWallet) {
+  if (!row) return { ok: false, error: 'Invalid code' };
+  if (row.used_at) return { ok: false, error: 'This code has already been used.' };
+  if (row.expires_at && new Date(row.expires_at) <= new Date()) {
+    return { ok: false, error: 'This code has expired.' };
+  }
+  if (String(row.wallet_address).trim().toLowerCase() !== normWallet.toLowerCase()) {
+    return {
+      ok: false,
+      error: 'That code belongs to a different wallet. Connect the wallet that received this code.',
+    };
+  }
+  return { ok: true, codeId: row.id };
+}
+
+
+/**
+ * Discord session must have linked `walletAddress`; submitted code must match that wallet's row.
+ */
+async function verifyMerchPackCode(discordId, walletAddress, submittedCode) {
+  const ready = await ensureMerchPackClaimsSchema();
+  if (!ready) return { ok: false, error: 'Database unavailable' };
+  const p = getPool();
+  const normWallet = String(walletAddress || '').trim();
+  const normCode = String(submittedCode || '').trim();
+  if (!normWallet || !normCode) return { ok: false, error: 'Wallet and code are required' };
+  if (normWallet.length < 32 || normWallet.length > 64) return { ok: false, error: 'Invalid wallet address' };
+
+  const linked = await getWalletsByDiscord(discordId);
+  const linkedLower = new Set((linked || []).map((w) => String(w).trim().toLowerCase()));
+  if (!linkedLower.has(normWallet.toLowerCase())) {
+    return { ok: false, error: 'Link this wallet to Discord in the sidebar first.' };
+  }
+
+  const res = await p.query(
+    `SELECT id, wallet_address, used_at, expires_at FROM merch_pack_codes
+     WHERE LOWER(TRIM(claim_code)) = LOWER(TRIM($1))`,
+    [normCode]
+  );
+  const row = res.rows?.[0];
+  const chk = merchCodeRowChecks(row, normWallet);
+  if (!chk.ok) return chk;
+  return { ok: true };
+}
+
+/**
+ * Atomic: insert claim + mark code used. Discord display name from session applied server-side in route.
+ */
+async function submitMerchPackClaim(discordId, walletAddress, submittedCode, body, discordDisplay) {
+  const ready = await ensureMerchPackClaimsSchema();
+  if (!ready) return { ok: false, error: 'Database unavailable' };
+  const normWallet = String(walletAddress || '').trim();
+  const normCode = String(submittedCode || '').trim();
+  const xHandle = String((body && body.x_handle) || '').trim().slice(0, 256);
+  const size = String((body && body.size) || '').trim();
+  const shirtColor = String((body && body.shirt_color) || '').trim();
+  const delivery = String((body && body.delivery_address) || '').trim();
+
+  if (!normWallet || !normCode) return { ok: false, error: 'Wallet and code are required' };
+  if (!xHandle) return { ok: false, error: 'X handle is required' };
+  if (!delivery || delivery.length < 8) return { ok: false, error: 'Enter a full delivery address' };
+  if (delivery.length > 4000) return { ok: false, error: 'Address too long' };
+  if (!MERCH_SIZES.has(size)) return { ok: false, error: 'Invalid size' };
+  if (!MERCH_COLORS.has(shirtColor)) return { ok: false, error: 'Invalid colour' };
+
+  const linked = await getWalletsByDiscord(discordId);
+  const linkedLower = new Set((linked || []).map((w) => String(w).trim().toLowerCase()));
+  if (!linkedLower.has(normWallet.toLowerCase())) {
+    return { ok: false, error: 'Link this wallet to Discord in the sidebar first.' };
+  }
+
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const res = await client.query(
+      `SELECT id, wallet_address, used_at, expires_at FROM merch_pack_codes
+       WHERE LOWER(TRIM(claim_code)) = LOWER(TRIM($1))
+       FOR UPDATE`,
+      [normCode]
+    );
+    const row = res.rows?.[0];
+    const chk = merchCodeRowChecks(row, normWallet);
+    if (!chk.ok || !chk.codeId) {
+      await client.query('ROLLBACK');
+      return chk;
+    }
+
+    const disp = String(discordDisplay || '').trim().slice(0, 256) || 'Discord user';
+
+    await client.query(
+      `INSERT INTO merch_pack_claims (
+        merch_pack_code_id, discord_id, wallet_address, x_handle, discord_handle, size, shirt_color, delivery_address
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [chk.codeId, String(discordId), normWallet.toLowerCase(), xHandle, disp, size, shirtColor, delivery]
+    );
+
+    const upd = await client.query(
+      'UPDATE merch_pack_codes SET used_at = NOW() WHERE id = $1 AND used_at IS NULL',
+      [chk.codeId]
+    );
+    if ((upd.rowCount || 0) < 1) {
+      await client.query('ROLLBACK');
+      return { ok: false, error: 'This code has already been used.' };
+    }
+
+    await client.query('COMMIT');
+    return { ok: true };
+  } catch (e) {
+    await client.query('ROLLBACK');
+    if (e.code === '23505') return { ok: false, error: 'This code has already been claimed.' };
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   getPool,
   upsertUser,
@@ -438,4 +625,8 @@ module.exports = {
   addWaitListEntry,
   getWaitListByDiscordId,
   getAllWaitList,
+  ensureMerchPackCodesTable,
+  ensureMerchPackClaimsSchema,
+  verifyMerchPackCode,
+  submitMerchPackClaim,
 };

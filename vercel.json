@@ -9,6 +9,8 @@
     { "source": "/api/raffles/(.*)", "destination": "/api/raffles-proxy?path=$1" },
     { "source": "/api/wait-list", "destination": "/api/wait-list-proxy" },
     { "source": "/api/wait-list/(.*)", "destination": "/api/wait-list-proxy?path=$1" },
+    { "source": "/api/merch", "destination": "/api/merch-proxy" },
+    { "source": "/api/merch/(.*)", "destination": "/api/merch-proxy?path=$1" },
     { "source": "/raffles", "destination": "/" },
     { "source": "/raffles/", "destination": "/" },
     { "source": "/merch-packs", "destination": "/" },

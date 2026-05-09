@@ -34,7 +34,7 @@ function sendFile(res, filePath, ext) {
   }
 }
 
-const API_FIRST_SEGMENTS = ['discord', 'verify', 'collections', 'holders', 'prices', 'token-ohlc', 'wallets', 'raffles', 'wait-list', 'nfts', 'proxy-image', 'solana-rpc', 'token-info'];
+const API_FIRST_SEGMENTS = ['discord', 'verify', 'collections', 'holders', 'prices', 'token-ohlc', 'wallets', 'raffles', 'wait-list', 'merch', 'nfts', 'proxy-image', 'solana-rpc', 'token-info'];
 
 module.exports = (req, res) => {
   let raw = (req.url || req.path || '').split('?')[0];
@@ -55,12 +55,12 @@ module.exports = (req, res) => {
     const restNorm = (rest || '').replace(/^\/+|\/+$/, '');
     raw = '/api/' + (restNorm ? restNorm.replace(/^\/+/, '') : '');
   }
-  if (/^\/(discord|verify|collections|holders|prices|token-ohlc|wallets|raffles|wait-list|nfts|proxy-image|solana-rpc|token-info)(\/|$|\?)/.test(raw)) {
+  if (/^\/(discord|verify|collections|holders|prices|token-ohlc|wallets|raffles|wait-list|merch|nfts|proxy-image|solana-rpc|token-info)(\/|$|\?)/.test(raw)) {
     raw = '/api' + raw;
   }
   const q = (req.url || '').includes('?') ? '?' + (req.url || '').split('?').slice(1).join('?') : '';
 
-  const isApiRoute = /^\/api\/(discord|verify|collections|holders|prices|token-ohlc|wallets|raffles|wait-list|nfts|proxy-image|solana-rpc|token-info)(\/|$|\?)/.test(raw);
+  const isApiRoute = /^\/api\/(discord|verify|collections|holders|prices|token-ohlc|wallets|raffles|wait-list|merch|nfts|proxy-image|solana-rpc|token-info)(\/|$|\?)/.test(raw);
   if (isApiRoute) {
     req.url = raw + q;
     return app(req, res);

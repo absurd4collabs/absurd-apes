@@ -616,6 +616,17 @@ body {
 .merch-packs-page__admin-btn[hidden] {
   display: none !important;
 }
+.merch-packs-page__claim-gate-hint {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #f87171;
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 12px rgba(0, 0, 0, 0.45);
+  max-width: 22rem;
+  pointer-events: none;
+  order: 0;
+}
 .merch-packs-page__waitlist-hint {
   margin: 0;
   font-size: 0.875rem;
@@ -625,10 +636,10 @@ body {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 12px rgba(0, 0, 0, 0.45);
   max-width: 22rem;
   pointer-events: none;
-  order: 0;
+  order: 1;
 }
 .merch-packs-page__cta .merch-packs-page__admin-btn {
-  order: 1;
+  order: 2;
   margin-top: 0.25rem;
   font-size: 0.8125rem;
   padding: 0.4rem 0.75rem;
@@ -676,6 +687,32 @@ body {
   gap: 0.5rem;
   justify-content: flex-end;
   flex-wrap: wrap;
+}
+
+.raffles-modal__box--merch-shipping {
+  max-width: min(460px, 96vw);
+}
+.merch-shipping-modal__body {
+  max-height: min(72vh, 560px);
+  overflow-y: auto;
+}
+.merch-waitlist-modal__select {
+  cursor: pointer;
+  appearance: auto;
+}
+.merch-shipping-modal__textarea {
+  min-height: 6rem;
+  resize: vertical;
+  font-family: inherit;
+}
+.merch-shipping-modal__input--readonly {
+  opacity: 0.92;
+  cursor: not-allowed;
+}
+.merch-shipping-modal__hint {
+  margin: -0.35rem 0 0.65rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
 }
 
 .raffles-modal__box--merch-admin {
