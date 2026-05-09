@@ -244,7 +244,13 @@
     var path = window.location.pathname.replace(/\/$/, '') || '/';
     if (path === '/raffles') return 'raffles';
     if (path === '/merch-packs') return 'merch-packs';
+    /* Hidden draft URL: same UI as /merch-packs, not linked from nav */
+    if (path === '/merch-packs2') return 'merch-packs2';
     return 'home';
+  }
+
+  function isMerchPacksRoute(route) {
+    return route === 'merch-packs' || route === 'merch-packs2';
   }
   var mainHome = document.getElementById('main-home');
   var mainRaffles = document.getElementById('main-raffles');
@@ -266,19 +272,19 @@
   function showView(route) {
     if (mainHome) mainHome.hidden = route !== 'home';
     if (mainRaffles) mainRaffles.hidden = route !== 'raffles';
-    if (mainMerch) mainMerch.hidden = route !== 'merch-packs';
-    document.body.classList.toggle('route-merch-packs', route === 'merch-packs');
+    if (mainMerch) mainMerch.hidden = !isMerchPacksRoute(route);
+    document.body.classList.toggle('route-merch-packs', isMerchPacksRoute(route));
     document.body.classList.toggle('route-home', route === 'home');
     setRouteActive(route);
     var heroTitleInner = document.getElementById('hero-title-inner');
     if (heroTitleInner) {
       var merchCfg = CONFIG.merchPacks || {};
       if (route === 'raffles') heroTitleInner.textContent = 'ABSURD RAFFLES';
-      else if (route === 'merch-packs') heroTitleInner.textContent = merchCfg.headerTitle || 'ABSURD MERCH';
+      else if (isMerchPacksRoute(route)) heroTitleInner.textContent = merchCfg.headerTitle || 'ABSURD MERCH';
       else heroTitleInner.textContent = CONFIG.hero && CONFIG.hero.title ? CONFIG.hero.title : CONFIG.projectName || 'Project';
     }
     if (route === 'raffles' && typeof window.initRafflesPage === 'function') window.initRafflesPage();
-    if (route === 'merch-packs') {
+    if (isMerchPacksRoute(route)) {
       setTimeout(function () {
         if (typeof window.initMerchWaitlistPage === 'function') window.initMerchWaitlistPage();
       }, 0);
@@ -346,7 +352,7 @@
       const sectionId = link.getAttribute('data-section');
       if (sectionId && link.getAttribute('href')?.startsWith('#')) {
         e.preventDefault();
-        if (getRoute() === 'raffles' || getRoute() === 'merch-packs') {
+        if (getRoute() === 'raffles' || isMerchPacksRoute(getRoute())) {
           history.pushState(null, '', '/#' + sectionId);
           showView('home');
         }

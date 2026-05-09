@@ -221,6 +221,9 @@ app.get('/raffles', function (req, res) {
 app.get('/merch-packs', function (req, res) {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
+app.get('/merch-packs2', function (req, res) {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
 
 // ——— Solana RPC proxy (for NFT transfer in browser; public RPC returns 403 from browser) ———
 app.post('/api/solana-rpc', express.json(), async function (req, res) {
