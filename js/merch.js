@@ -53,6 +53,8 @@
   var shippingErr = null;
   /** Mint code validated in step 1; submitted again with shipping form */
   var pendingClaimCode = '';
+  /** Pack tier 1–4 from verify-code API (null if unknown / rules not configured) */
+  var pendingMerchTier = null;
   /** Shipping fields snapshot after validation (used for review step + API submit) */
   var pendingReviewPayload = null;
   var eventsBound = false;
@@ -154,6 +156,7 @@
     shippingModal.setAttribute('aria-hidden', open ? 'false' : 'true');
     if (!open && !opts.keepClaimSession) {
       pendingClaimCode = '';
+      pendingMerchTier = null;
       pendingReviewPayload = null;
       resetShippingForm();
     }
@@ -165,6 +168,7 @@
 
   function finishClaimSession() {
     pendingClaimCode = '';
+    pendingMerchTier = null;
     pendingReviewPayload = null;
     resetShippingForm();
   }
@@ -212,8 +216,17 @@
       '<dt>ZIP / postal code</dt><dd>' +
       escapeHtml(payload.postal_code) +
       '</dd>';
+    var tierRow = '';
+    var mt = payload.merch_tier;
+    if (mt != null && mt >= 1 && mt <= 4) {
+      tierRow =
+        '<dt>Merch pack tier</dt><dd>Tier ' +
+        escapeHtml(String(mt)) +
+        '</dd>';
+    }
     el.innerHTML =
       '<dl>' +
+      tierRow +
       '<dt>X handle</dt><dd>' +
       escapeHtml(payload.x_handle) +
       '</dd>' +
@@ -290,6 +303,7 @@
       payload: {
         x_handle: xHandle,
         discord_display: discordDisplay || '',
+        merch_tier: pendingMerchTier != null && pendingMerchTier >= 1 && pendingMerchTier <= 4 ? pendingMerchTier : null,
         size: size,
         shirt_color: shirtColor,
         street1: street1,
@@ -438,6 +452,23 @@
     if (discHint) {
       discHint.textContent = 'Optional — helps us reach you on Discord for shipping updates.';
     }
+    var tierLine = document.getElementById('merch-shipping-tier-line');
+    if (tierLine) {
+      tierLine.textContent = '';
+      tierLine.hidden = true;
+    }
+  }
+
+  function syncMerchShippingTierLine() {
+    var line = document.getElementById('merch-shipping-tier-line');
+    if (!line) return;
+    if (pendingMerchTier != null && pendingMerchTier >= 1 && pendingMerchTier <= 4) {
+      line.textContent = 'Merch pack tier: Tier ' + pendingMerchTier;
+      line.hidden = false;
+    } else {
+      line.textContent = '';
+      line.hidden = true;
+    }
   }
 
   function prefillShippingModal() {
@@ -464,6 +495,7 @@
         ? 'From your connected Discord account.'
         : 'Optional — helps us reach you on Discord for shipping updates.';
     }
+    syncMerchShippingTierLine();
     if (!isDisc) return;
     fetchWithCreds(discordMeUrl(), { cache: 'no-store' })
       .then(function (r) {
@@ -484,6 +516,9 @@
       .catch(function () {
         var dEl = document.getElementById('merch-shipping-discord');
         if (dEl) dEl.value = '';
+      })
+      .finally(function () {
+        syncMerchShippingTierLine();
       });
   }
 
@@ -523,6 +558,12 @@
       .then(function (res) {
         if (res.ok && res.data && res.data.ok) {
           pendingClaimCode = code;
+          var t = res.data.tier;
+          pendingMerchTier =
+            t != null && !isNaN(parseInt(t, 10)) ? parseInt(t, 10) : null;
+          if (pendingMerchTier != null && (pendingMerchTier < 1 || pendingMerchTier > 4)) {
+            pendingMerchTier = null;
+          }
           setClaimModal(false);
           prefillShippingModal();
           setShippingModal(true);

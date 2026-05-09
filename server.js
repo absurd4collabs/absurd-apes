@@ -626,7 +626,8 @@ app.post('/api/merch/verify-code', express.json(), async function (req, res) {
     if (!db.verifyMerchPackCode) return res.status(503).json({ error: 'Database not configured' });
     const result = await db.verifyMerchPackCode(addr, code);
     if (!result.ok) return res.status(400).json({ error: result.error || 'Could not verify code' });
-    res.json({ ok: true });
+    const tier = result.tier != null && result.tier >= 1 && result.tier <= 4 ? result.tier : null;
+    res.json({ ok: true, tier });
   } catch (e) {
     console.warn('[merch/verify-code]', e.message);
     res.status(500).json({ error: 'Server error' });

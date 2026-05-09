@@ -447,6 +447,7 @@ async function ensureMerchPackCodesTable() {
       id SERIAL PRIMARY KEY,
       wallet_address VARCHAR(64) NOT NULL UNIQUE,
       claim_code VARCHAR(128) NOT NULL UNIQUE,
+      merch_tier SMALLINT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
@@ -461,6 +462,7 @@ async function ensureMerchPackClaimsSchema() {
   await ensureMerchPackCodesTable();
   await p.query('ALTER TABLE merch_pack_codes ADD COLUMN IF NOT EXISTS used_at TIMESTAMPTZ');
   await p.query('ALTER TABLE merch_pack_codes ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ');
+  await p.query('ALTER TABLE merch_pack_codes ADD COLUMN IF NOT EXISTS merch_tier SMALLINT');
   await p.query(`
     CREATE TABLE IF NOT EXISTS merch_pack_claims (
       id SERIAL PRIMARY KEY,
@@ -472,9 +474,11 @@ async function ensureMerchPackClaimsSchema() {
       size VARCHAR(16) NOT NULL,
       shirt_color VARCHAR(64) NOT NULL,
       delivery_address TEXT NOT NULL,
+      merch_tier SMALLINT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  await p.query('ALTER TABLE merch_pack_claims ADD COLUMN IF NOT EXISTS merch_tier SMALLINT');
   await p.query(
     'CREATE INDEX IF NOT EXISTS merch_pack_claims_discord_id ON merch_pack_claims (discord_id)'
   );
@@ -483,7 +487,52 @@ async function ensureMerchPackClaimsSchema() {
   } catch (e) {
     /* ignore if already nullable */
   }
+  try {
+    await p.query(
+      `ALTER TABLE merch_pack_codes ADD CONSTRAINT merch_pack_codes_merch_tier_check CHECK (merch_tier IS NULL OR (merch_tier BETWEEN 1 AND 4))`
+    );
+  } catch (e) {
+    if (e.code !== '42710') throw e;
+  }
+  try {
+    await p.query(
+      `ALTER TABLE merch_pack_claims ADD CONSTRAINT merch_pack_claims_merch_tier_check CHECK (merch_tier IS NULL OR (merch_tier BETWEEN 1 AND 4))`
+    );
+  } catch (e) {
+    if (e.code !== '42710') throw e;
+  }
   return true;
+}
+
+/**
+ * Map claim code string → tier 1–4 using MERCH_CODE_TIER_RULES (JSON object).
+ * Keys are substrings matched case-insensitively (longest key wins). Values must be 1–4.
+ * Example: {"-T1-":1,"-T2-":2,"-T3-":3,"-T4-":4}
+ */
+function inferMerchTierFromClaimCode(claimCode) {
+  const raw = process.env.MERCH_CODE_TIER_RULES || '';
+  if (!String(raw).trim()) return null;
+  let rules;
+  try {
+    rules = JSON.parse(raw);
+  } catch (e) {
+    console.warn('[merch] MERCH_CODE_TIER_RULES invalid JSON:', e.message);
+    return null;
+  }
+  if (!rules || typeof rules !== 'object' || Array.isArray(rules)) return null;
+  const code = String(claimCode || '');
+  const upper = code.toUpperCase();
+  const entries = Object.entries(rules)
+    .map(([k, v]) => [String(k), parseInt(v, 10)])
+    .filter(([, t]) => !Number.isNaN(t) && t >= 1 && t <= 4)
+    .sort((a, b) => b[0].length - a[0].length);
+  for (let i = 0; i < entries.length; i++) {
+    const needle = entries[i][0];
+    const t = entries[i][1];
+    if (!needle) continue;
+    if (upper.includes(needle.toUpperCase())) return t;
+  }
+  return null;
 }
 
 const MERCH_SIZES = new Set(['S', 'M', 'L', 'XL', 'XXL']);
@@ -516,14 +565,24 @@ async function verifyMerchPackCode(walletAddress, submittedCode) {
   if (normWallet.length < 32 || normWallet.length > 64) return { ok: false, error: 'Invalid wallet address' };
 
   const res = await p.query(
-    `SELECT id, wallet_address, used_at, expires_at FROM merch_pack_codes
+    `SELECT id, wallet_address, used_at, expires_at, merch_tier FROM merch_pack_codes
      WHERE LOWER(TRIM(claim_code)) = LOWER(TRIM($1))`,
     [normCode]
   );
   const row = res.rows?.[0];
   const chk = merchCodeRowChecks(row, normWallet);
   if (!chk.ok) return chk;
-  return { ok: true };
+  let tier = row.merch_tier != null ? parseInt(row.merch_tier, 10) : null;
+  if (tier == null || Number.isNaN(tier) || tier < 1 || tier > 4) {
+    const inferred = inferMerchTierFromClaimCode(normCode);
+    if (inferred != null) {
+      await p.query(`UPDATE merch_pack_codes SET merch_tier = $1 WHERE id = $2`, [inferred, row.id]);
+      tier = inferred;
+    } else {
+      tier = null;
+    }
+  }
+  return { ok: true, tier };
 }
 
 /**
@@ -552,7 +611,7 @@ async function submitMerchPackClaim(discordId, walletAddress, submittedCode, bod
     await client.query('BEGIN');
 
     const res = await client.query(
-      `SELECT id, wallet_address, used_at, expires_at FROM merch_pack_codes
+      `SELECT id, wallet_address, used_at, expires_at, merch_tier FROM merch_pack_codes
        WHERE LOWER(TRIM(claim_code)) = LOWER(TRIM($1))
        FOR UPDATE`,
       [normCode]
@@ -569,11 +628,19 @@ async function submitMerchPackClaim(discordId, walletAddress, submittedCode, bod
     const storedDiscordId =
       discordId != null && String(discordId).trim() !== '' ? String(discordId).trim() : null;
 
+    let claimTier = row.merch_tier != null ? parseInt(row.merch_tier, 10) : null;
+    if (claimTier == null || Number.isNaN(claimTier) || claimTier < 1 || claimTier > 4) {
+      claimTier = inferMerchTierFromClaimCode(normCode);
+      if (claimTier != null) {
+        await client.query(`UPDATE merch_pack_codes SET merch_tier = $1 WHERE id = $2`, [claimTier, chk.codeId]);
+      }
+    }
+
     await client.query(
       `INSERT INTO merch_pack_claims (
-        merch_pack_code_id, discord_id, wallet_address, x_handle, discord_handle, size, shirt_color, delivery_address
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [chk.codeId, storedDiscordId, normWallet.toLowerCase(), xHandle, disp, size, shirtColor, delivery]
+        merch_pack_code_id, discord_id, wallet_address, x_handle, discord_handle, size, shirt_color, delivery_address, merch_tier
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [chk.codeId, storedDiscordId, normWallet.toLowerCase(), xHandle, disp, size, shirtColor, delivery, claimTier]
     );
 
     const upd = await client.query(
@@ -608,13 +675,15 @@ async function upsertMerchPackCode(walletAddress, claimCode) {
   const c = String(claimCode || '').trim().slice(0, 128);
   if (w.length < 32 || w.length > 64) return { ok: false, error: 'Invalid wallet address' };
   if (!c) return { ok: false, error: 'Claim code is required' };
+  const tier = inferMerchTierFromClaimCode(c);
   try {
     await p.query(
-      `INSERT INTO merch_pack_codes (wallet_address, claim_code)
-       VALUES ($1, $2)
+      `INSERT INTO merch_pack_codes (wallet_address, claim_code, merch_tier)
+       VALUES ($1, $2, $3)
        ON CONFLICT (wallet_address) DO UPDATE SET
-         claim_code = EXCLUDED.claim_code`,
-      [w, c]
+         claim_code = EXCLUDED.claim_code,
+         merch_tier = COALESCE(EXCLUDED.merch_tier, merch_pack_codes.merch_tier)`,
+      [w, c, tier]
     );
     return { ok: true };
   } catch (e) {
@@ -653,4 +722,5 @@ module.exports = {
   verifyMerchPackCode,
   submitMerchPackClaim,
   upsertMerchPackCode,
+  inferMerchTierFromClaimCode,
 };
