@@ -223,13 +223,32 @@ function gravemintLog401(req) {
     .filter((k) => !/^cookie$/i.test(k))
     .sort()
     .join(', ');
+  const pq = req.query && req.query.path;
+  const pathSuffix =
+    typeof pq === 'string' && pq.includes('/') ? 'gravemint-webhook/<token>' : 'gravemint-webhook-only';
   console.warn(
-    '[merch/gravemint-webhook] 401 auth — incoming header names: %s | content-length=%s | queryKeys=%s | pathToken=%s',
+    '[merch/gravemint-webhook] 401 auth — incoming header names: %s | content-length=%s | queryKeys=%s | routeToken=%s | pathQuery=%s',
     names || '(none)',
     req.get('content-length') || '0',
     req.query && Object.keys(req.query).length ? Object.keys(req.query).join(',') : 'none',
-    req.params && req.params.urlSecret ? 'yes' : 'no'
+    req.params && req.params.urlSecret ? 'yes' : 'no',
+    pathSuffix
   );
+}
+
+/** URL token from route param or from merch-proxy ?path=gravemint-webhook/<token> (after Vercel rewrite). */
+function gravemintUrlTokenOk(req) {
+  if (!GRAVEMINT_WEBHOOK_URL_TOKEN) return false;
+  const want = GRAVEMINT_WEBHOOK_URL_TOKEN;
+  const seg = req.params && req.params.urlSecret != null ? String(req.params.urlSecret).trim() : '';
+  if (seg && constantTimeEqual(seg, want)) return true;
+  const pq = req.query && req.query.path;
+  if (typeof pq === 'string' && pq.includes('/')) {
+    const parts = pq.split('/').filter(Boolean);
+    const last = parts[parts.length - 1];
+    if (last && constantTimeEqual(last.trim(), want)) return true;
+  }
+  return false;
 }
 
 /**
@@ -695,8 +714,8 @@ async function handleGravemintWebhook(req, res) {
   }
 }
 
-app.post('/api/merch/gravemint-webhook', gravemintWebhookJson, handleGravemintWebhook);
 app.post('/api/merch/gravemint-webhook/:urlSecret', gravemintWebhookJson, handleGravemintWebhook);
+app.post('/api/merch/gravemint-webhook', gravemintWebhookJson, handleGravemintWebhook);
 
 // ——— Raffles: admin check (only admins can create raffles) ———
 function isRaffleAdmin(discordId) {
