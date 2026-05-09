@@ -392,10 +392,9 @@ app.post('/api/wallets/unlink', express.json(), async function (req, res) {
   }
 });
 
-// ——— Merch pack: verify mint code matches linked wallet ———
+// ——— Merch pack: verify mint code for wallet (Discord optional) ———
 app.post('/api/merch/verify-code', express.json(), async function (req, res) {
   try {
-    if (!req.session?.discord) return res.status(401).json({ error: 'Log in with Discord first' });
     const code = req.body && req.body.code;
     let wallet = req.body && req.body.wallet;
     if (wallet && typeof wallet !== 'string') wallet = null;
@@ -403,7 +402,7 @@ app.post('/api/merch/verify-code', express.json(), async function (req, res) {
     const addr = String(wallet).trim();
     if (addr.length < 32 || addr.length > 64) return res.status(400).json({ error: 'Invalid wallet address' });
     if (!db.verifyMerchPackCode) return res.status(503).json({ error: 'Database not configured' });
-    const result = await db.verifyMerchPackCode(req.session.discord.id, addr, code);
+    const result = await db.verifyMerchPackCode(addr, code);
     if (!result.ok) return res.status(400).json({ error: result.error || 'Could not verify code' });
     res.json({ ok: true });
   } catch (e) {
@@ -414,7 +413,6 @@ app.post('/api/merch/verify-code', express.json(), async function (req, res) {
 
 app.post('/api/merch/submit-claim', express.json(), async function (req, res) {
   try {
-    if (!req.session?.discord) return res.status(401).json({ error: 'Log in with Discord first' });
     const code = req.body && req.body.code;
     let wallet = req.body && req.body.wallet;
     if (wallet && typeof wallet !== 'string') wallet = null;
@@ -422,9 +420,16 @@ app.post('/api/merch/submit-claim', express.json(), async function (req, res) {
     const addr = String(wallet).trim();
     if (addr.length < 32 || addr.length > 64) return res.status(400).json({ error: 'Invalid wallet address' });
     if (!db.submitMerchPackClaim) return res.status(503).json({ error: 'Database not configured' });
-    const u = req.session.discord;
-    const discordDisplay = (u.global_name || u.username || '').trim() || String(u.username || '');
-    const result = await db.submitMerchPackClaim(req.session.discord.id, addr, code, req.body, discordDisplay);
+    const u = req.session && req.session.discord;
+    let discordDisplay = '';
+    let discordId = null;
+    if (u && u.id) {
+      discordId = u.id;
+      discordDisplay = (u.global_name || u.username || '').trim() || String(u.username || '');
+    } else {
+      discordDisplay = String((req.body && req.body.discord_handle) || '').trim().slice(0, 256);
+    }
+    const result = await db.submitMerchPackClaim(discordId, addr, code, req.body, discordDisplay);
     if (!result.ok) return res.status(400).json({ error: result.error || 'Could not submit claim' });
     res.json({ ok: true });
   } catch (e) {

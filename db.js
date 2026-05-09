@@ -478,6 +478,11 @@ async function ensureMerchPackClaimsSchema() {
   await p.query(
     'CREATE INDEX IF NOT EXISTS merch_pack_claims_discord_id ON merch_pack_claims (discord_id)'
   );
+  try {
+    await p.query('ALTER TABLE merch_pack_claims ALTER COLUMN discord_id DROP NOT NULL');
+  } catch (e) {
+    /* ignore if already nullable */
+  }
   return true;
 }
 
@@ -500,10 +505,8 @@ function merchCodeRowChecks(row, normWallet) {
 }
 
 
-/**
- * Discord session must have linked `walletAddress`; submitted code must match that wallet's row.
- */
-async function verifyMerchPackCode(discordId, walletAddress, submittedCode) {
+/** Submitted code must match the wallet row in `merch_pack_codes` (no Discord link required). */
+async function verifyMerchPackCode(walletAddress, submittedCode) {
   const ready = await ensureMerchPackClaimsSchema();
   if (!ready) return { ok: false, error: 'Database unavailable' };
   const p = getPool();
@@ -511,12 +514,6 @@ async function verifyMerchPackCode(discordId, walletAddress, submittedCode) {
   const normCode = String(submittedCode || '').trim();
   if (!normWallet || !normCode) return { ok: false, error: 'Wallet and code are required' };
   if (normWallet.length < 32 || normWallet.length > 64) return { ok: false, error: 'Invalid wallet address' };
-
-  const linked = await getWalletsByDiscord(discordId);
-  const linkedLower = new Set((linked || []).map((w) => String(w).trim().toLowerCase()));
-  if (!linkedLower.has(normWallet.toLowerCase())) {
-    return { ok: false, error: 'Link this wallet to Discord in the sidebar first.' };
-  }
 
   const res = await p.query(
     `SELECT id, wallet_address, used_at, expires_at FROM merch_pack_codes
@@ -530,7 +527,7 @@ async function verifyMerchPackCode(discordId, walletAddress, submittedCode) {
 }
 
 /**
- * Atomic: insert claim + mark code used. Discord display name from session applied server-side in route.
+ * Atomic: insert claim + mark code used. `discordId` null when claiming wallet-only; display name from session or body.
  */
 async function submitMerchPackClaim(discordId, walletAddress, submittedCode, body, discordDisplay) {
   const ready = await ensureMerchPackClaimsSchema();
@@ -548,12 +545,6 @@ async function submitMerchPackClaim(discordId, walletAddress, submittedCode, bod
   if (delivery.length > 4000) return { ok: false, error: 'Address too long' };
   if (!MERCH_SIZES.has(size)) return { ok: false, error: 'Invalid size' };
   if (!MERCH_COLORS.has(shirtColor)) return { ok: false, error: 'Invalid colour' };
-
-  const linked = await getWalletsByDiscord(discordId);
-  const linkedLower = new Set((linked || []).map((w) => String(w).trim().toLowerCase()));
-  if (!linkedLower.has(normWallet.toLowerCase())) {
-    return { ok: false, error: 'Link this wallet to Discord in the sidebar first.' };
-  }
 
   const pool = getPool();
   const client = await pool.connect();
@@ -573,13 +564,16 @@ async function submitMerchPackClaim(discordId, walletAddress, submittedCode, bod
       return chk;
     }
 
-    const disp = String(discordDisplay || '').trim().slice(0, 256) || 'Discord user';
+    const disp = String(discordDisplay || '').trim().slice(0, 256);
+
+    const storedDiscordId =
+      discordId != null && String(discordId).trim() !== '' ? String(discordId).trim() : null;
 
     await client.query(
       `INSERT INTO merch_pack_claims (
         merch_pack_code_id, discord_id, wallet_address, x_handle, discord_handle, size, shirt_color, delivery_address
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [chk.codeId, String(discordId), normWallet.toLowerCase(), xHandle, disp, size, shirtColor, delivery]
+      [chk.codeId, storedDiscordId, normWallet.toLowerCase(), xHandle, disp, size, shirtColor, delivery]
     );
 
     const upd = await client.query(

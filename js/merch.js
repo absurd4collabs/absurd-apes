@@ -374,6 +374,7 @@
         code: code,
         wallet: pk,
         x_handle: payload.x_handle,
+        discord_handle: payload.discord_display || '',
         size: payload.size,
         shirt_color: payload.shirt_color,
         delivery_address: payload.delivery_address,
@@ -425,29 +426,64 @@
     if (cityEl) cityEl.value = '';
     if (countryEl) countryEl.value = '';
     if (postEl) postEl.value = '';
+    var discEl = document.getElementById('merch-shipping-discord');
+    var discHint = document.getElementById('merch-shipping-discord-hint');
+    if (discEl) {
+      discEl.value = '';
+      discEl.placeholder = '';
+      discEl.readOnly = false;
+      discEl.classList.remove('merch-shipping-modal__input--readonly');
+      discEl.removeAttribute('readonly');
+    }
+    if (discHint) {
+      discHint.textContent = 'Optional — helps us reach you on Discord for shipping updates.';
+    }
   }
 
   function prefillShippingModal() {
     resetShippingForm();
+    var el = document.getElementById('merch-shipping-discord');
+    var discHint = document.getElementById('merch-shipping-discord-hint');
+    var isDisc = document.body.classList.contains('discord-connected');
+    if (el) {
+      if (isDisc) {
+        el.readOnly = true;
+        el.setAttribute('readonly', 'readonly');
+        el.classList.add('merch-shipping-modal__input--readonly');
+        el.placeholder = '';
+      } else {
+        el.readOnly = false;
+        el.removeAttribute('readonly');
+        el.classList.remove('merch-shipping-modal__input--readonly');
+        el.value = '';
+        el.placeholder = 'e.g. @username (optional)';
+      }
+    }
+    if (discHint) {
+      discHint.textContent = isDisc
+        ? 'From your connected Discord account.'
+        : 'Optional — helps us reach you on Discord for shipping updates.';
+    }
+    if (!isDisc) return;
     fetchWithCreds(discordMeUrl(), { cache: 'no-store' })
       .then(function (r) {
         return r.json();
       })
       .then(function (data) {
-        var el = document.getElementById('merch-shipping-discord');
-        if (!el) return;
+        var dEl = document.getElementById('merch-shipping-discord');
+        if (!dEl) return;
         if (data && data.connected && data.user) {
           var u = data.user;
           var gn = (u.global_name && String(u.global_name).trim()) || '';
           var un = (u.username && String(u.username).trim()) || '';
-          el.value = gn || (un ? '@' + un : '');
+          dEl.value = gn || (un ? '@' + un : '');
         } else {
-          el.value = '';
+          dEl.value = '';
         }
       })
       .catch(function () {
-        var el = document.getElementById('merch-shipping-discord');
-        if (el) el.value = '';
+        var dEl = document.getElementById('merch-shipping-discord');
+        if (dEl) dEl.value = '';
       });
   }
 
@@ -511,13 +547,11 @@
 
   function openClaimPackModal() {
     var gateHint = document.getElementById('merch-claim-gate-hint');
-    var disc = document.body.classList.contains('discord-connected');
     var pk = typeof window.getWalletPublicKey === 'function' ? window.getWalletPublicKey() : null;
     if (gateHint) gateHint.hidden = true;
-    if (!disc || !pk) {
+    if (!pk) {
       if (gateHint) {
-        gateHint.textContent =
-          'Log in with Discord and connect your wallet in the sidebar to claim a pack.';
+        gateHint.textContent = 'Connect your wallet in the sidebar to claim a pack.';
         gateHint.hidden = false;
       }
       return;

@@ -1046,7 +1046,7 @@
     }
 
     if (verifyModalBtnWallet) {
-      verifyModalBtnWallet.disabled = !discordOk;
+      verifyModalBtnWallet.disabled = false;
       verifyModalBtnWallet.hidden = !!walletOk;
     }
     if (verifyModalWalletConnected) {
