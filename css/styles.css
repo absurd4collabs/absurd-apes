@@ -714,6 +714,72 @@ body {
   font-size: 0.75rem;
   color: var(--text-muted);
 }
+.merch-shipping-modal__section-label {
+  margin: 0.75rem 0 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+.merch-shipping-modal__optional {
+  font-weight: 400;
+  font-size: 0.85em;
+  opacity: 0.85;
+  text-transform: none;
+}
+
+.raffles-modal__box--merch-review {
+  max-width: min(460px, 96vw);
+}
+.merch-claim-review-intro {
+  margin: 0 0 1rem;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+.merch-claim-review-modal__body {
+  max-height: min(72vh, 540px);
+  overflow-y: auto;
+}
+.merch-claim-review-summary {
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.2);
+}
+.merch-claim-review-summary dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: minmax(6rem, 38%) 1fr;
+  gap: 0.5rem 1rem;
+  font-size: 0.9rem;
+}
+.merch-claim-review-summary dt {
+  margin: 0;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.merch-claim-review-summary dd {
+  margin: 0;
+  color: var(--text);
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+.merch-claim-review-modal__actions {
+  justify-content: stretch;
+}
+.merch-claim-review-modal__actions .btn {
+  flex: 1;
+  min-width: 8rem;
+}
+.merch-claim-success-modal__text {
+  margin: 0 0 1rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
 
 .raffles-modal__box--merch-admin {
   max-width: min(520px, 96vw);

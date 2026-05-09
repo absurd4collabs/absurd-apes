@@ -596,12 +596,60 @@
             <option value="Charcoal">Charcoal</option>
             <option value="Red">Red</option>
           </select>
-          <label class="merch-waitlist-modal__label" for="merch-shipping-address">Delivery address</label>
-          <textarea id="merch-shipping-address" class="merch-waitlist-modal__input merch-shipping-modal__textarea" rows="4" placeholder="Full name, street, city, postcode, country" maxlength="4000"></textarea>
+          <p class="merch-shipping-modal__section-label">Delivery address</p>
+          <label class="merch-waitlist-modal__label" for="merch-shipping-street1">Street address line 1</label>
+          <input type="text" id="merch-shipping-street1" class="merch-waitlist-modal__input" autocomplete="address-line1" maxlength="200" />
+          <label class="merch-waitlist-modal__label" for="merch-shipping-street2">Street address line 2 <span class="merch-shipping-modal__optional">(optional)</span></label>
+          <input type="text" id="merch-shipping-street2" class="merch-waitlist-modal__input" autocomplete="address-line2" maxlength="200" />
+          <label class="merch-waitlist-modal__label" for="merch-shipping-city">Town / city</label>
+          <input type="text" id="merch-shipping-city" class="merch-waitlist-modal__input" autocomplete="address-level2" maxlength="120" />
+          <label class="merch-waitlist-modal__label" for="merch-shipping-country">Country</label>
+          <select id="merch-shipping-country" class="merch-waitlist-modal__input merch-waitlist-modal__select" autocomplete="country-name">
+            <option value="">Select country</option>
+          </select>
+          <label class="merch-waitlist-modal__label" for="merch-shipping-postal">ZIP / postal code</label>
+          <input type="text" id="merch-shipping-postal" class="merch-waitlist-modal__input" autocomplete="postal-code" maxlength="32" />
           <p class="merch-waitlist-modal__err" id="merch-shipping-modal-err" hidden></p>
           <div class="merch-waitlist-modal__actions">
             <button type="button" class="btn btn--outline" id="merch-shipping-modal-cancel">Cancel</button>
-            <button type="button" class="btn btn--primary" id="merch-shipping-modal-submit">Submit claim</button>
+            <button type="button" class="btn btn--primary" id="merch-shipping-modal-submit">Review &amp; confirm</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Merch: review details before final submit -->
+    <div class="raffles-modal" id="merch-claim-review-modal" aria-hidden="true" role="dialog" aria-labelledby="merch-claim-review-modal-title" aria-modal="true">
+      <div class="raffles-modal__backdrop" id="merch-claim-review-modal-backdrop"></div>
+      <div class="raffles-modal__box raffles-modal__box--merch-review">
+        <div class="raffles-modal__head">
+          <h3 class="raffles-modal__title" id="merch-claim-review-modal-title">Confirm your details</h3>
+          <button type="button" class="raffles-modal__close" id="merch-claim-review-modal-close" aria-label="Close">&times;</button>
+        </div>
+        <div class="raffles-modal__body merch-claim-review-modal__body">
+          <p class="merch-claim-review-intro">Thanks — double-check everything below. You can edit if something looks wrong.</p>
+          <div id="merch-claim-review-summary" class="merch-claim-review-summary" aria-live="polite"></div>
+          <p class="merch-waitlist-modal__err" id="merch-claim-review-err" hidden></p>
+          <div class="merch-waitlist-modal__actions merch-claim-review-modal__actions">
+            <button type="button" class="btn btn--outline" id="merch-claim-review-edit">Edit details</button>
+            <button type="button" class="btn btn--primary" id="merch-claim-review-confirm">Confirm &amp; submit</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Merch: claim submitted -->
+    <div class="raffles-modal raffles-modal--merch-success" id="merch-claim-success-modal" aria-hidden="true" role="dialog" aria-labelledby="merch-claim-success-modal-title" aria-modal="true">
+      <div class="raffles-modal__backdrop" id="merch-claim-success-modal-backdrop"></div>
+      <div class="raffles-modal__box">
+        <div class="raffles-modal__head">
+          <h3 class="raffles-modal__title" id="merch-claim-success-modal-title">You&apos;re all set!</h3>
+          <button type="button" class="raffles-modal__close" id="merch-claim-success-modal-close" aria-label="Close">&times;</button>
+        </div>
+        <div class="raffles-modal__body">
+          <p class="merch-claim-success-modal__text">Your merch claim has been submitted. If you need to change anything, contact the team on Discord.</p>
+          <div class="merch-waitlist-modal__actions">
+            <button type="button" class="btn btn--primary" id="merch-claim-success-done">Done</button>
           </div>
         </div>
       </div>
@@ -715,6 +763,6 @@
   <script src="/js/config.js"></script>
   <script src="/js/app.js?v=18"></script>
   <script src="/js/raffles.js?v=16"></script>
-  <script src="/js/merch.js?v=8"></script>
+  <script src="/js/merch.js?v=10"></script>
 </body>
 </html>
