@@ -110,13 +110,21 @@ function constantTimeEqual(a, b) {
   return crypto.timingSafeEqual(ba, bb);
 }
 
+function gravemintNormalizeToken(s) {
+  if (typeof s !== 'string') return '';
+  let p = s.trim();
+  if ((p.startsWith('"') && p.endsWith('"')) || (p.startsWith("'") && p.endsWith("'"))) {
+    p = p.slice(1, -1).trim();
+  }
+  return p;
+}
+
 function gravemintWebhookAuthorized(req) {
   if (!GRAVEMINT_WEBHOOK_SECRET) return false;
   const secret = GRAVEMINT_WEBHOOK_SECRET;
 
   function tryMatch(provided) {
-    if (typeof provided !== 'string') return false;
-    const p = provided.trim();
+    const p = gravemintNormalizeToken(provided);
     if (!p) return false;
     return constantTimeEqual(p, secret);
   }
@@ -124,7 +132,19 @@ function gravemintWebhookAuthorized(req) {
   const auth = (req.get('authorization') || '').trim();
   const bearerM = auth.match(/^Bearer\s+(.+)$/i);
   if (bearerM && tryMatch(bearerM[1])) return true;
-  if (auth && !/^Bearer\s+/i.test(auth) && tryMatch(auth)) return true;
+
+  if (/^Basic\s+/i.test(auth)) {
+    try {
+      const b64 = auth.replace(/^Basic\s+/i, '').trim();
+      const decoded = Buffer.from(b64, 'base64').toString('utf8');
+      const colon = decoded.indexOf(':');
+      const user = colon >= 0 ? decoded.slice(0, colon) : decoded;
+      const pass = colon >= 0 ? decoded.slice(colon + 1) : '';
+      if (tryMatch(pass) || tryMatch(user)) return true;
+    } catch (_) {}
+  }
+
+  if (auth && !/^Bearer\s+/i.test(auth) && !/^Basic\s+/i.test(auth) && tryMatch(auth)) return true;
 
   const headerNames = [
     'x-webhook-secret',
@@ -133,17 +153,33 @@ function gravemintWebhookAuthorized(req) {
     'x-webhook-key',
     'gravemint-secret',
     'webhook-secret',
+    'secret',
   ];
   for (let i = 0; i < headerNames.length; i++) {
     const v = req.get(headerNames[i]);
     if (v && tryMatch(v)) return true;
   }
 
-  const bodySec =
-    req.body && typeof req.body === 'object' && typeof req.body.webhookSecret === 'string'
-      ? req.body.webhookSecret.trim()
-      : '';
-  if (tryMatch(bodySec)) return true;
+  if (req.headers && typeof req.headers === 'object') {
+    for (const [key, val] of Object.entries(req.headers)) {
+      const kl = key.toLowerCase();
+      if (/^cookie$/i.test(kl) || kl === 'host' || kl === 'content-length' || kl === 'content-type') continue;
+      if (!(kl.includes('secret') || kl.includes('signature') || kl.endsWith('api-key'))) continue;
+      if (typeof val !== 'string') continue;
+      const parts = val.includes(',') ? val.split(',').map((x) => x.trim()) : [val];
+      for (let j = 0; j < parts.length; j++) {
+        if (tryMatch(parts[j])) return true;
+      }
+    }
+  }
+
+  if (req.body && typeof req.body === 'object') {
+    const bodyKeys = ['webhookSecret', 'secret', 'apiSecret', 'signing_secret', 'signingSecret', 'webhook_secret'];
+    for (let i = 0; i < bodyKeys.length; i++) {
+      const v = req.body[bodyKeys[i]];
+      if (typeof v === 'string' && tryMatch(v)) return true;
+    }
+  }
 
   const q = req.query || {};
   const qCandidates = [q.secret, q.token, q.key, q.api_key, q.webhook_secret];
@@ -155,12 +191,14 @@ function gravemintWebhookAuthorized(req) {
   const rawBuf = req.gravemintRawBody;
   if (Buffer.isBuffer(rawBuf) && rawBuf.length) {
     const expectedHex = crypto.createHmac('sha256', secret).update(rawBuf).digest('hex');
+    const expectedB64 = crypto.createHmac('sha256', secret).update(rawBuf).digest('base64');
     const expectedPrefixed = 'sha256=' + expectedHex;
     const sigHeaderNames = [
       'x-webhook-signature',
       'x-signature',
       'x-gravemint-signature',
       'x-hub-signature-256',
+      'x-gravemint-signature-256',
       'signature',
     ];
     for (let i = 0; i < sigHeaderNames.length; i++) {
@@ -170,10 +208,25 @@ function gravemintWebhookAuthorized(req) {
       const stripped = s.replace(/^sha256=/i, '').trim();
       if (constantTimeEqual(stripped.toLowerCase(), expectedHex.toLowerCase())) return true;
       if (constantTimeEqual(s.toLowerCase(), expectedPrefixed.toLowerCase())) return true;
+      if (constantTimeEqual(stripped, expectedB64)) return true;
+      if (constantTimeEqual(s, expectedB64)) return true;
     }
   }
 
   return false;
+}
+
+function gravemintLog401(req) {
+  const names = Object.keys(req.headers || {})
+    .filter((k) => !/^cookie$/i.test(k))
+    .sort()
+    .join(', ');
+  console.warn(
+    '[merch/gravemint-webhook] 401 auth — incoming header names: %s | content-length=%s | queryKeys=%s',
+    names || '(none)',
+    req.get('content-length') || '0',
+    req.query && Object.keys(req.query).length ? Object.keys(req.query).join(',') : 'none'
+  );
 }
 
 /**
@@ -605,12 +658,7 @@ app.post(
       return res.status(503).json({ error: 'Webhook not configured' });
     }
     if (!gravemintWebhookAuthorized(req)) {
-      console.warn(
-        '[merch/gravemint-webhook] 401 auth mismatch — use same value as GRAVEMINT_WEBHOOK_SECRET in Gravemint (header, URL query, or signing secret). hasAuthorization=%s hasSigHeader=%s hasQuery=%s',
-        !!(req.get('authorization') || '').trim(),
-        !!(req.get('x-webhook-signature') || req.get('x-gravemint-signature') || '').trim(),
-        !!(req.query && Object.keys(req.query).length)
-      );
+      gravemintLog401(req);
       return res.status(401).json({ error: 'Unauthorized' });
     }
     if (!db.upsertMerchPackCode) return res.status(503).json({ error: 'Database not configured' });
