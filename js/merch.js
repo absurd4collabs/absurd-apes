@@ -36,6 +36,10 @@
   var adminListEl = null;
   var adminLoading = null;
   var adminEmpty = null;
+  var claimBtn = null;
+  var claimModal = null;
+  var claimInput = null;
+  var claimErr = null;
   var eventsBound = false;
 
   function setJoinModal(open) {
@@ -56,6 +60,38 @@
   function setAdminModal(open) {
     if (!adminModal) return;
     adminModal.setAttribute('aria-hidden', open ? 'false' : 'true');
+  }
+
+  function setClaimModal(open) {
+    if (!claimModal) return;
+    claimModal.setAttribute('aria-hidden', open ? 'false' : 'true');
+    if (open) {
+      if (claimErr) {
+        claimErr.hidden = true;
+        claimErr.textContent = '';
+      }
+      if (claimInput) {
+        claimInput.value = '';
+        setTimeout(function () { claimInput.focus(); }, 50);
+      }
+    }
+  }
+
+  function submitClaimCode() {
+    var code = claimInput && claimInput.value.trim();
+    if (claimErr) {
+      claimErr.hidden = true;
+      claimErr.textContent = '';
+    }
+    if (!code) {
+      if (claimErr) {
+        claimErr.textContent = 'Enter your mint code.';
+        claimErr.hidden = false;
+      }
+      return;
+    }
+    /* Placeholder until GraveMint / API wiring — next step: validate code server-side */
+    setClaimModal(false);
   }
 
   function refreshMerchWaitlistUI() {
@@ -254,6 +290,28 @@
     adminListEl = document.getElementById('merch-waitlist-admin-list');
     adminLoading = document.getElementById('merch-waitlist-admin-loading');
     adminEmpty = document.getElementById('merch-waitlist-admin-empty');
+    claimBtn = document.getElementById('merch-claim-pack-btn');
+    claimModal = document.getElementById('merch-claim-pack-modal');
+    claimInput = document.getElementById('merch-claim-pack-code');
+    claimErr = document.getElementById('merch-claim-pack-modal-err');
+
+    if (claimBtn) {
+      claimBtn.addEventListener('click', function () {
+        setClaimModal(true);
+      });
+    }
+    document.getElementById('merch-claim-pack-modal-close')?.addEventListener('click', function () { setClaimModal(false); });
+    document.getElementById('merch-claim-pack-modal-backdrop')?.addEventListener('click', function () { setClaimModal(false); });
+    document.getElementById('merch-claim-pack-modal-cancel')?.addEventListener('click', function () { setClaimModal(false); });
+    document.getElementById('merch-claim-pack-modal-submit')?.addEventListener('click', submitClaimCode);
+    if (claimInput) {
+      claimInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          submitClaimCode();
+        }
+      });
+    }
 
     if (joinBtn) {
       joinBtn.addEventListener('click', function () {

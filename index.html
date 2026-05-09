@@ -533,9 +533,32 @@
           <p class="merch-packs-page__lead" id="merch-packs-lead"></p>
         </div>
         <div class="merch-packs-page__cta" id="merch-packs-cta">
-          <button type="button" class="btn merch-packs-page__waitlist-btn" id="merch-waitlist-join-btn" disabled>Join wait list</button>
+          <div class="merch-packs-page__cta-row">
+            <button type="button" class="btn merch-packs-page__waitlist-btn" id="merch-waitlist-join-btn" disabled>Join wait list</button>
+            <button type="button" class="btn btn--outline merch-packs-page__claim-btn" id="merch-claim-pack-btn">Claim pack</button>
+          </div>
           <p class="merch-packs-page__waitlist-hint" id="merch-waitlist-hint" hidden>Log in with Discord in the sidebar<br />to join the wait list.</p>
           <button type="button" class="btn btn--outline merch-packs-page__admin-btn" id="merch-waitlist-admin-btn" hidden>View wait list</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Merch: claim pack (mint code) — modal -->
+    <div class="raffles-modal" id="merch-claim-pack-modal" aria-hidden="true" role="dialog" aria-labelledby="merch-claim-pack-modal-title" aria-modal="true">
+      <div class="raffles-modal__backdrop" id="merch-claim-pack-modal-backdrop"></div>
+      <div class="raffles-modal__box">
+        <div class="raffles-modal__head">
+          <h3 class="raffles-modal__title" id="merch-claim-pack-modal-title">Claim merch pack</h3>
+          <button type="button" class="raffles-modal__close" id="merch-claim-pack-modal-close" aria-label="Close">&times;</button>
+        </div>
+        <div class="raffles-modal__body">
+          <label class="merch-waitlist-modal__label" for="merch-claim-pack-code">Mint code</label>
+          <input type="text" id="merch-claim-pack-code" class="merch-waitlist-modal__input" placeholder="Enter your unique code" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+          <p class="merch-waitlist-modal__err" id="merch-claim-pack-modal-err" hidden></p>
+          <div class="merch-waitlist-modal__actions">
+            <button type="button" class="btn btn--outline" id="merch-claim-pack-modal-cancel">Cancel</button>
+            <button type="button" class="btn btn--primary" id="merch-claim-pack-modal-submit">Continue</button>
+          </div>
         </div>
       </div>
     </div>
@@ -648,6 +671,6 @@
   <script src="/js/config.js"></script>
   <script src="/js/app.js?v=18"></script>
   <script src="/js/raffles.js?v=16"></script>
-  <script src="/js/merch.js?v=5"></script>
+  <script src="/js/merch.js?v=6"></script>
 </body>
 </html>
