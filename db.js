@@ -596,6 +596,35 @@ async function submitMerchPackClaim(discordId, walletAddress, submittedCode, bod
   }
 }
 
+/**
+ * Insert or update merch_pack_codes by wallet (Gravemint / admin ingest).
+ * Does not clear used_at; unique violation if claim_code exists on another wallet.
+ */
+async function upsertMerchPackCode(walletAddress, claimCode) {
+  const ready = await ensureMerchPackCodesTable();
+  if (!ready) return { ok: false, error: 'Database unavailable' };
+  const p = getPool();
+  const w = String(walletAddress || '').trim().toLowerCase();
+  const c = String(claimCode || '').trim().slice(0, 128);
+  if (w.length < 32 || w.length > 64) return { ok: false, error: 'Invalid wallet address' };
+  if (!c) return { ok: false, error: 'Claim code is required' };
+  try {
+    await p.query(
+      `INSERT INTO merch_pack_codes (wallet_address, claim_code)
+       VALUES ($1, $2)
+       ON CONFLICT (wallet_address) DO UPDATE SET
+         claim_code = EXCLUDED.claim_code`,
+      [w, c]
+    );
+    return { ok: true };
+  } catch (e) {
+    if (e.code === '23505') {
+      return { ok: false, error: 'That claim code is already assigned to another wallet' };
+    }
+    throw e;
+  }
+}
+
 module.exports = {
   getPool,
   upsertUser,
@@ -623,4 +652,5 @@ module.exports = {
   ensureMerchPackClaimsSchema,
   verifyMerchPackCode,
   submitMerchPackClaim,
+  upsertMerchPackCode,
 };

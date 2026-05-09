@@ -6,6 +6,7 @@
  */
 
 require('dotenv').config();
+const crypto = require('crypto');
 const path = require('path');
 const express = require('express');
 const rateLimit = require('express-rate-limit');
@@ -97,6 +98,99 @@ const RAFFLE_CLAIM_LIMIT = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+/** Gravemint “Custom” webhook: POST JSON with wallet + claim code; Authorization: Bearer <secret>. */
+const GRAVEMINT_WEBHOOK_SECRET = (process.env.GRAVEMINT_WEBHOOK_SECRET || '').trim();
+
+function constantTimeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const ba = Buffer.from(a, 'utf8');
+  const bb = Buffer.from(b, 'utf8');
+  if (ba.length !== bb.length) return false;
+  return crypto.timingSafeEqual(ba, bb);
+}
+
+function gravemintWebhookAuthorized(req) {
+  if (!GRAVEMINT_WEBHOOK_SECRET) return false;
+  const auth = req.get('authorization') || '';
+  const bearer = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
+  const header = (req.get('x-webhook-secret') || req.get('x-gravemint-secret') || '').trim();
+  const bodySec =
+    req.body && typeof req.body === 'object' && typeof req.body.webhookSecret === 'string'
+      ? req.body.webhookSecret.trim()
+      : '';
+  const provided = bearer || header || bodySec;
+  return constantTimeEqual(provided, GRAVEMINT_WEBHOOK_SECRET);
+}
+
+/**
+ * Extract wallet + code from Gravemint webhook bodies (shape may vary).
+ * Official claim_code_assigned: top-level wallet + code (recipient wallet + redeem string).
+ * Recurses shallowly through payload/data/body/record/meta/context.
+ */
+function extractGravemintWalletAndCode(body, depth) {
+  const d = depth == null ? 0 : depth;
+  if (d > 6 || body == null) return null;
+  if (typeof body === 'string') return null;
+  if (Array.isArray(body)) {
+    for (let i = 0; i < body.length; i++) {
+      const r = extractGravemintWalletAndCode(body[i], d + 1);
+      if (r) return r;
+    }
+    return null;
+  }
+  if (typeof body !== 'object') return null;
+
+  if (
+    d === 0 &&
+    body.event === 'claim_code_assigned' &&
+    typeof body.wallet === 'string' &&
+    (typeof body.code === 'string' || typeof body.code === 'number')
+  ) {
+    const w = body.wallet.trim();
+    const c = String(body.code).trim().slice(0, 128);
+    if (isValidSolanaAddress(w) && c.length >= 1) {
+      return { wallet: w, code: c };
+    }
+  }
+
+  const walletKeys = ['wallet', 'walletAddress', 'wallet_address', 'owner', 'minter', 'recipient', 'address'];
+  const codeKeys = ['code', 'claimCode', 'claim_code', 'mintCode'];
+  let w;
+  let c;
+  for (let i = 0; i < walletKeys.length; i++) {
+    const k = walletKeys[i];
+    const v = body[k];
+    if (v != null && typeof v === 'string' && v.trim()) {
+      w = v.trim();
+      break;
+    }
+  }
+  for (let i = 0; i < codeKeys.length; i++) {
+    const k = codeKeys[i];
+    const v = body[k];
+    if (v != null && (typeof v === 'string' || typeof v === 'number')) {
+      const s = String(v).trim();
+      if (s) {
+        c = s;
+        break;
+      }
+    }
+  }
+  if (w && c && isValidSolanaAddress(w) && c.length >= 1) {
+    return { wallet: w, code: c.slice(0, 128) };
+  }
+
+  const nested = ['payload', 'data', 'body', 'record', 'meta', 'context'];
+  for (let i = 0; i < nested.length; i++) {
+    const k = nested[i];
+    if (body[k] != null) {
+      const r = extractGravemintWalletAndCode(body[k], d + 1);
+      if (r) return r;
+    }
+  }
+  return null;
+}
 
 function isValidSolanaAddress(s) {
   if (!s || typeof s !== 'string') return false;
@@ -435,6 +529,47 @@ app.post('/api/merch/submit-claim', express.json(), async function (req, res) {
   } catch (e) {
     console.warn('[merch/submit-claim]', e.message);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+/**
+ * Gravemint “Claim code assigned” → upsert merch_pack_codes (use Webhook Type: Custom; URL this endpoint).
+ * Auth: Authorization: Bearer GRAVEMINT_WEBHOOK_SECRET, or X-Webhook-Secret / X-Gravemint-Secret, or body.webhookSecret.
+ */
+app.post('/api/merch/gravemint-webhook', express.json({ limit: '256kb' }), async function (req, res) {
+  try {
+    if (!GRAVEMINT_WEBHOOK_SECRET) {
+      console.warn('[merch/gravemint-webhook] Set GRAVEMINT_WEBHOOK_SECRET to enable');
+      return res.status(503).json({ error: 'Webhook not configured' });
+    }
+    if (!gravemintWebhookAuthorized(req)) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    if (!db.upsertMerchPackCode) return res.status(503).json({ error: 'Database not configured' });
+    const extracted = extractGravemintWalletAndCode(req.body);
+    if (!extracted) {
+      const preview = JSON.stringify(req.body == null ? null : req.body).slice(0, 800);
+      console.warn('[merch/gravemint-webhook] Unrecognized payload (first 800 chars):', preview);
+      return res.status(400).json({
+        error: 'Could not find wallet and claim code in payload',
+        hint: 'Expected JSON with a Solana address and code (e.g. wallet + claim_code), possibly nested under payload/data.',
+      });
+    }
+    const result = await db.upsertMerchPackCode(extracted.wallet, extracted.code);
+    if (!result.ok) return res.status(400).json({ error: result.error || 'Upsert failed' });
+    const short =
+      extracted.code.length > 6
+        ? extracted.code.slice(0, 3) + '…' + extracted.code.slice(-2)
+        : '(short)';
+    console.log(
+      '[merch/gravemint-webhook] ok wallet=%s code=%s',
+      extracted.wallet.slice(0, 6) + '…' + extracted.wallet.slice(-4),
+      short
+    );
+    return res.json({ ok: true });
+  } catch (e) {
+    console.warn('[merch/gravemint-webhook]', e.message);
+    return res.status(500).json({ error: 'Server error' });
   }
 });
 
