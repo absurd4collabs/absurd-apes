@@ -689,23 +689,36 @@ body {
   flex-wrap: wrap;
 }
 
-.raffles-modal__box--merch-congrats {
-  max-width: min(420px, 96vw);
+/* Must beat later .raffles-modal__box { max-width: 90vw } — keep congrats compact */
+#merch-congrats-modal .raffles-modal__box--merch-congrats {
+  max-width: min(300px, 88vw);
+  width: 100%;
+  z-index: 1;
+}
+#merch-congrats-modal .merch-congrats-modal__confetti {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
 }
 .merch-congrats-modal__body {
   text-align: center;
+  padding: 1rem 1rem 1.1rem;
 }
 .merch-congrats-modal__tier-line {
-  margin: 0 0 1rem;
-  font-size: 1.05rem;
+  margin: 0 0 0.65rem;
+  font-size: 0.95rem;
   font-weight: 600;
   color: var(--text);
   line-height: 1.35;
 }
 .merch-congrats-modal__figure {
-  margin: 0 0 1.25rem;
+  margin: 0 auto 1rem;
   padding: 0;
-  border-radius: 12px;
+  max-width: 220px;
+  border-radius: 10px;
   overflow: hidden;
   border: 1px solid var(--border);
   background: rgba(0, 0, 0, 0.25);
@@ -713,7 +726,11 @@ body {
 .merch-congrats-modal__figure img {
   display: block;
   width: 100%;
+  max-width: 220px;
+  max-height: min(200px, 32vh);
   height: auto;
+  margin: 0 auto;
+  object-fit: contain;
   vertical-align: middle;
 }
 

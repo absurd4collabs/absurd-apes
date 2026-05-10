@@ -198,10 +198,70 @@
     }
   }
 
+  function clearMerchCongratsConfettiCanvas() {
+    var canvas = document.getElementById('merch-congrats-confetti-canvas');
+    if (!canvas || !canvas.getContext) return;
+    var ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  }
+
+  function fireMerchCongratsConfetti() {
+    if (typeof confetti !== 'function') return;
+    var modal = document.getElementById('merch-congrats-modal');
+    var canvas = document.getElementById('merch-congrats-confetti-canvas');
+    if (!modal || !canvas) return;
+    var myConfetti = confetti.create(canvas, { resize: true, useWorker: true });
+    var box = modal.querySelector('.raffles-modal__box--merch-congrats');
+    var rect = box ? box.getBoundingClientRect() : modal.getBoundingClientRect();
+    var origin = {
+      x: (rect.left + rect.width / 2) / window.innerWidth,
+      y: (rect.top + rect.height * 0.42) / window.innerHeight,
+    };
+    var colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#a855f7', '#ffffff'];
+    myConfetti({
+      particleCount: 110,
+      spread: 76,
+      origin: origin,
+      startVelocity: 34,
+      ticks: 240,
+      colors: colors,
+      scalar: 0.9,
+    });
+    setTimeout(function () {
+      myConfetti({
+        particleCount: 75,
+        angle: 58,
+        spread: 52,
+        origin: { x: Math.max(0.06, origin.x - 0.14), y: origin.y },
+        colors: colors,
+      });
+    }, 200);
+    setTimeout(function () {
+      myConfetti({
+        particleCount: 75,
+        angle: 122,
+        spread: 52,
+        origin: { x: Math.min(0.94, origin.x + 0.14), y: origin.y },
+        colors: colors,
+      });
+    }, 360);
+  }
+
   function setMerchCongratsModal(open) {
     var m = document.getElementById('merch-congrats-modal');
     if (!m) return;
     m.setAttribute('aria-hidden', open ? 'false' : 'true');
+    if (open) {
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          fireMerchCongratsConfetti();
+        });
+      });
+    } else {
+      clearMerchCongratsConfettiCanvas();
+    }
   }
 
   function abandonMerchCongrats() {

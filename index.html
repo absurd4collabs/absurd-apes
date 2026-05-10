@@ -24,7 +24,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/styles.css?v=20" />
+  <link rel="stylesheet" href="/css/styles.css?v=21" />
 </head>
 <body>
   <!-- Header: title (left) + social links (right) -->
@@ -575,7 +575,7 @@
         <div class="raffles-modal__body merch-congrats-modal__body">
           <p class="merch-congrats-modal__tier-line" id="merch-congrats-tier-label"></p>
           <figure class="merch-congrats-modal__figure" id="merch-congrats-figure" hidden>
-            <img id="merch-congrats-pack-img" src="" alt="" width="520" height="520" decoding="async" />
+            <img id="merch-congrats-pack-img" src="" alt="" width="240" height="240" decoding="async" />
           </figure>
           <div class="merch-waitlist-modal__actions">
             <button type="button" class="btn btn--outline" id="merch-congrats-modal-cancel">Cancel</button>
@@ -583,6 +583,7 @@
           </div>
         </div>
       </div>
+      <canvas class="merch-congrats-modal__confetti" id="merch-congrats-confetti-canvas" aria-hidden="true"></canvas>
     </div>
 
     <!-- Merch: shipping / claim details (after valid mint code) -->
@@ -785,6 +786,7 @@
   <script src="/js/config.js"></script>
   <script src="/js/app.js?v=19"></script>
   <script src="/js/raffles.js?v=16"></script>
-  <script src="/js/merch.js?v=15"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <script src="/js/merch.js?v=16"></script>
 </body>
 </html>
