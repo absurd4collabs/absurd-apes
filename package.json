@@ -10,6 +10,7 @@
     "db:migrate": "node scripts/db-migrate.js",
     "db:migrate:merch-tier": "node scripts/apply-003-merch-tier.js",
     "db:migrate:merch-claim-details": "node scripts/apply-004-merch-claim-details.js",
+    "db:migrate:merch-drop-legacy-columns": "node scripts/apply-005-drop-merch-legacy-columns.js",
     "cache-collections": "node scripts/cache-collection-images.js"
   },
   "dependencies": {

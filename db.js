@@ -467,14 +467,13 @@ async function ensureMerchPackClaimsSchema() {
     CREATE TABLE IF NOT EXISTS merch_pack_claims (
       id SERIAL PRIMARY KEY,
       merch_pack_code_id INTEGER NOT NULL UNIQUE REFERENCES merch_pack_codes(id) ON DELETE RESTRICT,
-      discord_id VARCHAR(32) NOT NULL,
+      discord_id VARCHAR(32),
       wallet_address VARCHAR(64) NOT NULL,
       x_handle VARCHAR(256) NOT NULL DEFAULT '',
       discord_handle VARCHAR(256) NOT NULL,
-      size VARCHAR(16) NOT NULL,
-      shirt_color VARCHAR(64) NOT NULL,
       delivery_address TEXT NOT NULL,
       merch_tier SMALLINT,
+      merch_claim_details JSONB,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
@@ -503,19 +502,14 @@ async function ensureMerchPackClaimsSchema() {
   }
   await p.query('ALTER TABLE merch_pack_claims ADD COLUMN IF NOT EXISTS merch_claim_details JSONB');
   try {
-    await p.query('ALTER TABLE merch_pack_claims ALTER COLUMN size DROP NOT NULL');
+    await p.query('ALTER TABLE merch_pack_claims DROP COLUMN IF EXISTS size');
   } catch (e) {
     /* ignore */
   }
   try {
-    await p.query('ALTER TABLE merch_pack_claims ALTER COLUMN shirt_color DROP NOT NULL');
+    await p.query('ALTER TABLE merch_pack_claims DROP COLUMN IF EXISTS shirt_color');
   } catch (e) {
     /* ignore */
-  }
-  try {
-    await p.query('ALTER TABLE merch_pack_claims ALTER COLUMN size TYPE VARCHAR(512)');
-  } catch (e) {
-    /* ignore if unsupported */
   }
   return true;
 }
@@ -652,30 +646,6 @@ function validateMerchClaimDetailsForTier(tier, d) {
   return { ok: false, error: 'Invalid tier' };
 }
 
-function legacyMerchSummaryColumns(tier, details) {
-  if (!details) return { size: '', shirt_color: '' };
-  let sizeSummary = '';
-  let colorSummary = '';
-  if (tier === 1) {
-    sizeSummary = `${details.shirt.size} / ${details.shirt.color}`;
-    colorSummary = details.shirt.color;
-  } else if (tier === 2) {
-    sizeSummary = `T1 ${details.shirt1.size} ${details.shirt1.color}; T2 design ${details.shirt2.design} ${details.shirt2.size}`;
-    if (details.shirt2.color) sizeSummary += ` ${details.shirt2.color}`;
-    colorSummary = details.shirt2.color || details.shirt1.color;
-  } else if (tier === 3) {
-    sizeSummary = `Shirt ${details.shirt.size}; Hoodie ${details.hoodie.size}; NFT ${details.nft_customization.collection} #${details.nft_customization.nft_number}`;
-    colorSummary = '—';
-  } else if (tier === 4) {
-    sizeSummary = `T1 ${details.shirt1.size}; T2 ${details.shirt2.size}; Zip ${details.zip_hoodie.size}`;
-    colorSummary = '—';
-  }
-  return {
-    size: sizeSummary.slice(0, 512),
-    shirt_color: colorSummary.slice(0, 128),
-  };
-}
-
 function merchCodeRowChecks(row, normWallet) {
   if (!row) return { ok: false, error: 'Invalid code' };
   if (row.used_at) return { ok: false, error: 'This code has already been used.' };
@@ -790,20 +760,16 @@ async function submitMerchPackClaim(discordId, walletAddress, submittedCode, bod
       return { ok: false, error: validated.error || 'Invalid merch choices' };
     }
 
-    const leg = legacyMerchSummaryColumns(claimTier, validated.details);
-
     await client.query(
       `INSERT INTO merch_pack_claims (
-        merch_pack_code_id, discord_id, wallet_address, x_handle, discord_handle, size, shirt_color, delivery_address, merch_tier, merch_claim_details
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)`,
+        merch_pack_code_id, discord_id, wallet_address, x_handle, discord_handle, delivery_address, merch_tier, merch_claim_details
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)`,
       [
         chk.codeId,
         storedDiscordId,
         normWallet.toLowerCase(),
         xHandle,
         disp,
-        leg.size || null,
-        leg.shirt_color || null,
         delivery,
         claimTier,
         JSON.stringify(validated.details),
