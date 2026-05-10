@@ -152,8 +152,10 @@
 
   function setShippingModal(open, opts) {
     opts = opts || {};
-    if (!shippingModal) return;
-    shippingModal.setAttribute('aria-hidden', open ? 'false' : 'true');
+    var sm = shippingModal || document.getElementById('merch-shipping-modal');
+    if (!sm) return;
+    shippingModal = sm;
+    sm.setAttribute('aria-hidden', open ? 'false' : 'true');
     if (!open && !opts.keepClaimSession) {
       pendingClaimCode = '';
       pendingMerchTier = null;
@@ -270,8 +272,13 @@
 
   function continueMerchCongratsToShipping() {
     setMerchCongratsModal(false);
-    prefillShippingModal();
-    setShippingModal(true);
+    /* Defer until congrats layer commits (visibility/stacking); ensures shipping appears above */
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        prefillShippingModal();
+        setShippingModal(true);
+      });
+    });
   }
 
   function finishClaimSession() {

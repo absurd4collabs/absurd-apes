@@ -689,6 +689,17 @@ body {
   flex-wrap: wrap;
 }
 
+/* Claim flow: shipping must stack above congrats (same .raffles-modal z-index otherwise) */
+#merch-congrats-modal.raffles-modal {
+  z-index: 1000;
+}
+#merch-shipping-modal.raffles-modal {
+  z-index: 1001;
+}
+#merch-congrats-modal[aria-hidden='true'] {
+  pointer-events: none;
+}
+
 /* Must beat later .raffles-modal__box { max-width: 90vw } — keep congrats compact */
 #merch-congrats-modal .raffles-modal__box--merch-congrats {
   max-width: min(300px, 88vw);
