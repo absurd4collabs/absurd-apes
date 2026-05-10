@@ -58,6 +58,277 @@
   /** Shipping fields snapshot after validation (used for review step + API submit) */
   var pendingReviewPayload = null;
   var eventsBound = false;
+  var MERCH_OPT_IMG_V = '1';
+
+  function merchSizeSelectHtml(id, label, extraClass) {
+    extraClass = extraClass || '';
+    return (
+      '<label class="merch-waitlist-modal__label" for="' +
+      id +
+      '">' +
+      escapeHtml(label) +
+      '</label>' +
+      '<select id="' +
+      id +
+      '" class="merch-waitlist-modal__input merch-waitlist-modal__select ' +
+      extraClass +
+      '">' +
+      '<option value="">Select size</option>' +
+      '<option value="S">S</option>' +
+      '<option value="M">M</option>' +
+      '<option value="L">L</option>' +
+      '<option value="XL">XL</option>' +
+      '<option value="XXL">XXL</option>' +
+      '</select>'
+    );
+  }
+
+  function merchColorSelectHtml(id, label) {
+    return (
+      '<label class="merch-waitlist-modal__label" for="' +
+      id +
+      '">' +
+      escapeHtml(label) +
+      '</label>' +
+      '<select id="' +
+      id +
+      '" class="merch-waitlist-modal__input merch-waitlist-modal__select">' +
+      '<option value="">Select colour</option>' +
+      '<option value="Black">Black</option>' +
+      '<option value="White">White</option>' +
+      '</select>'
+    );
+  }
+
+  function onTier2DesignChange() {
+    var d = document.getElementById('merch-fld-t2-s2-design');
+    var wrap = document.getElementById('merch-fld-t2-s2-color-wrap');
+    var colorSel = document.getElementById('merch-fld-t2-s2-color');
+    if (!d || !wrap) return;
+    var hide = d.value === '2';
+    wrap.hidden = hide;
+    if (colorSel && hide) colorSel.value = '';
+  }
+
+  function renderMerchTierShippingFields(tier) {
+    var wrap = document.getElementById('merch-shipping-tier-fields');
+    if (!wrap) return;
+    if (tier == null || tier < 1 || tier > 4) {
+      wrap.innerHTML =
+        '<p class="merch-shipping-modal__hint">Merch options will appear once your pack tier is confirmed.</p>';
+      return;
+    }
+    var html = '';
+    if (tier === 1) {
+      html +=
+        '<p class="merch-shipping-modal__section-label">T-shirt</p>' +
+        merchSizeSelectHtml('merch-fld-t1-shirt-size', 'Size') +
+        merchColorSelectHtml('merch-fld-t1-shirt-color', 'Colour');
+    } else if (tier === 2) {
+      html +=
+        '<p class="merch-shipping-modal__section-label">T-shirt 1</p>' +
+        merchSizeSelectHtml('merch-fld-t2-s1-size', 'Size') +
+        merchColorSelectHtml('merch-fld-t2-s1-color', 'Colour') +
+        '<p class="merch-shipping-modal__section-label">T-shirt 2</p>' +
+        '<label class="merch-waitlist-modal__label" for="merch-fld-t2-s2-design">Design</label>' +
+        '<select id="merch-fld-t2-s2-design" class="merch-waitlist-modal__input merch-waitlist-modal__select">' +
+        '<option value="">Select design</option>' +
+        '<option value="1">1</option>' +
+        '<option value="2">2</option>' +
+        '</select>' +
+        merchSizeSelectHtml('merch-fld-t2-s2-size', 'Size') +
+        '<div id="merch-fld-t2-s2-color-wrap">' +
+        merchColorSelectHtml('merch-fld-t2-s2-color', 'Colour') +
+        '</div>';
+    } else if (tier === 3) {
+      html +=
+        '<p class="merch-shipping-modal__section-label">T-shirt</p>' +
+        merchSizeSelectHtml('merch-fld-t3-shirt-size', 'Size') +
+        '<p class="merch-shipping-modal__section-label">Customise with your NFT</p>' +
+        '<label class="merch-waitlist-modal__label" for="merch-fld-t3-nft-collection">Collection</label>' +
+        '<select id="merch-fld-t3-nft-collection" class="merch-waitlist-modal__input merch-waitlist-modal__select">' +
+        '<option value="">Select collection</option>' +
+        '<option value="Absurd Apes">Absurd Apes</option>' +
+        '<option value="Absurd Horizons">Absurd Horizons</option>' +
+        '</select>' +
+        '<label class="merch-waitlist-modal__label" for="merch-fld-t3-nft-number">NFT #</label>' +
+        '<input type="text" id="merch-fld-t3-nft-number" class="merch-waitlist-modal__input" inputmode="numeric" pattern="[0-9]*" placeholder="e.g. 1234" maxlength="12" autocomplete="off" />' +
+        '<p class="merch-shipping-modal__section-label">Hoodie</p>' +
+        merchSizeSelectHtml('merch-fld-t3-hoodie-size', 'Size');
+    } else if (tier === 4) {
+      html +=
+        '<p class="merch-shipping-modal__section-label">T-shirt 1</p>' +
+        merchSizeSelectHtml('merch-fld-t4-t1-size', 'Size') +
+        '<p class="merch-shipping-modal__section-label">T-shirt 2</p>' +
+        merchSizeSelectHtml('merch-fld-t4-t2-size', 'Size') +
+        '<p class="merch-shipping-modal__section-label">Zip up hoodie</p>' +
+        merchSizeSelectHtml('merch-fld-t4-zip-size', 'Size');
+    }
+    wrap.innerHTML = html;
+    if (tier === 2) {
+      var dEl = document.getElementById('merch-fld-t2-s2-design');
+      if (dEl) {
+        dEl.addEventListener('change', onTier2DesignChange);
+        onTier2DesignChange();
+      }
+    }
+  }
+
+  function syncMerchRefRow() {
+    var row = document.getElementById('merch-shipping-ref-row');
+    if (!row) return;
+    row.hidden = !(pendingMerchTier != null && pendingMerchTier >= 1 && pendingMerchTier <= 4);
+  }
+
+  function setMerchReferenceModal(open) {
+    var m = document.getElementById('merch-reference-modal');
+    if (!m) return;
+    m.setAttribute('aria-hidden', open ? 'false' : 'true');
+  }
+
+  function openMerchPackOptionsReference() {
+    var tier = pendingMerchTier;
+    if (tier == null || tier < 1 || tier > 4) return;
+    var img = document.getElementById('merch-reference-modal-img');
+    if (img) {
+      img.src = '/assets/merch-options-' + tier + '.png?v=' + MERCH_OPT_IMG_V;
+      img.alt = 'Merch pack ' + tier + ' options reference';
+    }
+    setMerchReferenceModal(true);
+  }
+
+  function collectMerchClaimDetails() {
+    var t = pendingMerchTier;
+    if (t === 1) {
+      var zs = document.getElementById('merch-fld-t1-shirt-size');
+      var zc = document.getElementById('merch-fld-t1-shirt-color');
+      return { shirt: { size: zs ? zs.value : '', color: zc ? zc.value : '' } };
+    }
+    if (t === 2) {
+      var s1s = document.getElementById('merch-fld-t2-s1-size');
+      var s1c = document.getElementById('merch-fld-t2-s1-color');
+      var des = document.getElementById('merch-fld-t2-s2-design');
+      var s2s = document.getElementById('merch-fld-t2-s2-size');
+      var s2c = document.getElementById('merch-fld-t2-s2-color');
+      var out = {
+        shirt1: {
+          size: s1s ? s1s.value : '',
+          color: s1c ? s1c.value : '',
+        },
+        shirt2: {
+          design: des ? des.value : '',
+          size: s2s ? s2s.value : '',
+        },
+      };
+      if (des && des.value === '1' && s2c) out.shirt2.color = s2c.value;
+      return out;
+    }
+    if (t === 3) {
+      var ss = document.getElementById('merch-fld-t3-shirt-size');
+      var coll = document.getElementById('merch-fld-t3-nft-collection');
+      var num = document.getElementById('merch-fld-t3-nft-number');
+      var hs = document.getElementById('merch-fld-t3-hoodie-size');
+      return {
+        shirt: { size: ss ? ss.value : '' },
+        nft_customization: {
+          collection: coll ? coll.value : '',
+          nft_number: num ? num.value.trim() : '',
+        },
+        hoodie: { size: hs ? hs.value : '' },
+      };
+    }
+    if (t === 4) {
+      var t1 = document.getElementById('merch-fld-t4-t1-size');
+      var t2 = document.getElementById('merch-fld-t4-t2-size');
+      var hz = document.getElementById('merch-fld-t4-zip-size');
+      return {
+        shirt1: { size: t1 ? t1.value : '' },
+        shirt2: { size: t2 ? t2.value : '' },
+        zip_hoodie: { size: hz ? hz.value : '' },
+      };
+    }
+    return {};
+  }
+
+  function validateMerchChoicesForTier() {
+    var t = pendingMerchTier;
+    if (t == null || t < 1 || t > 4) {
+      return { ok: false, message: 'Merch pack tier is missing. Start again from Claim pack.' };
+    }
+    var d = collectMerchClaimDetails();
+    if (t === 1) {
+      if (!d.shirt || !d.shirt.size || !d.shirt.color) return { ok: false, message: 'Select T-shirt size and colour.' };
+      return { ok: true };
+    }
+    if (t === 2) {
+      if (!d.shirt1 || !d.shirt1.size || !d.shirt1.color) return { ok: false, message: 'Complete T-shirt 1.' };
+      if (!d.shirt2 || !d.shirt2.design || !d.shirt2.size) return { ok: false, message: 'Complete T-shirt 2 design and size.' };
+      if (d.shirt2.design === '1' && !d.shirt2.color) return { ok: false, message: 'Select T-shirt 2 colour (design 1).' };
+      return { ok: true };
+    }
+    if (t === 3) {
+      if (!d.shirt || !d.shirt.size) return { ok: false, message: 'Select T-shirt size.' };
+      if (!d.nft_customization || !d.nft_customization.collection) return { ok: false, message: 'Select NFT collection.' };
+      var num = String(d.nft_customization.nft_number || '').trim();
+      if (!/^\d+$/.test(num)) return { ok: false, message: 'Enter a valid NFT #.' };
+      if (!d.hoodie || !d.hoodie.size) return { ok: false, message: 'Select hoodie size.' };
+      return { ok: true };
+    }
+    if (t === 4) {
+      if (!d.shirt1 || !d.shirt2 || !d.zip_hoodie || !d.shirt1.size || !d.shirt2.size || !d.zip_hoodie.size) {
+        return { ok: false, message: 'Select sizes for both T-shirts and the zip hoodie.' };
+      }
+      return { ok: true };
+    }
+    return { ok: false, message: 'Invalid pack tier.' };
+  }
+
+  function formatMerchClaimDetailsReviewHtml(tier, det) {
+    if (!det) return '';
+    var rows = '';
+    if (tier === 1 && det.shirt) {
+      rows +=
+        '<dt>T-shirt size</dt><dd>' +
+        escapeHtml(det.shirt.size) +
+        '</dd><dt>T-shirt colour</dt><dd>' +
+        escapeHtml(det.shirt.color) +
+        '</dd>';
+    } else if (tier === 2 && det.shirt1 && det.shirt2) {
+      rows +=
+        '<dt>T-shirt 1</dt><dd>' +
+        escapeHtml(det.shirt1.size + ', ' + det.shirt1.color) +
+        '</dd><dt>T-shirt 2</dt><dd>' +
+        escapeHtml(
+          'Design ' +
+            det.shirt2.design +
+            ', size ' +
+            det.shirt2.size +
+            (det.shirt2.color ? ', ' + det.shirt2.color : '')
+        ) +
+        '</dd>';
+    } else if (tier === 3 && det.shirt && det.nft_customization && det.hoodie) {
+      rows +=
+        '<dt>T-shirt size</dt><dd>' +
+        escapeHtml(det.shirt.size) +
+        '</dd><dt>NFT collection</dt><dd>' +
+        escapeHtml(det.nft_customization.collection) +
+        '</dd><dt>NFT #</dt><dd>' +
+        escapeHtml(String(det.nft_customization.nft_number)) +
+        '</dd><dt>Hoodie size</dt><dd>' +
+        escapeHtml(det.hoodie.size) +
+        '</dd>';
+    } else if (tier === 4 && det.shirt1 && det.shirt2 && det.zip_hoodie) {
+      rows +=
+        '<dt>T-shirt 1 size</dt><dd>' +
+        escapeHtml(det.shirt1.size) +
+        '</dd><dt>T-shirt 2 size</dt><dd>' +
+        escapeHtml(det.shirt2.size) +
+        '</dd><dt>Zip hoodie size</dt><dd>' +
+        escapeHtml(det.zip_hoodie.size) +
+        '</dd>';
+    }
+    return rows;
+  }
 
   function escapeHtml(text) {
     var s = String(text == null ? '' : text);
@@ -353,20 +624,16 @@
         escapeHtml(String(mt)) +
         '</dd>';
     }
+    var merchRows = formatMerchClaimDetailsReviewHtml(mt, payload.merch_claim_details);
     el.innerHTML =
       '<dl>' +
       tierRow +
+      merchRows +
       '<dt>X handle</dt><dd>' +
       escapeHtml(payload.x_handle) +
       '</dd>' +
       '<dt>Discord</dt><dd>' +
       escapeHtml(payload.discord_display) +
-      '</dd>' +
-      '<dt>Size</dt><dd>' +
-      escapeHtml(payload.size) +
-      '</dd>' +
-      '<dt>T-shirt colour</dt><dd>' +
-      escapeHtml(payload.shirt_color) +
       '</dd>' +
       addrExtra +
       '</dl>';
@@ -376,8 +643,6 @@
     if (!p) return;
     var xEl = document.getElementById('merch-shipping-x');
     var discEl = document.getElementById('merch-shipping-discord');
-    var sizeEl = document.getElementById('merch-shipping-size');
-    var colorEl = document.getElementById('merch-shipping-color');
     var st1 = document.getElementById('merch-shipping-street1');
     var st2 = document.getElementById('merch-shipping-street2');
     var cityEl = document.getElementById('merch-shipping-city');
@@ -385,20 +650,55 @@
     var postEl = document.getElementById('merch-shipping-postal');
     if (xEl) xEl.value = p.x_handle || '';
     if (discEl) discEl.value = p.discord_display || '';
-    if (sizeEl) sizeEl.value = p.size || '';
-    if (colorEl) colorEl.value = p.shirt_color || '';
     if (st1) st1.value = p.street1 || '';
     if (st2) st2.value = p.street2 || '';
     if (cityEl) cityEl.value = p.city || '';
     if (postEl) postEl.value = p.postal_code || '';
     if (countryEl && p.country) ensureCountryOption(countryEl, p.country);
+
+    var tier = p.merch_tier != null ? p.merch_tier : pendingMerchTier;
+    renderMerchTierShippingFields(tier);
+    var det = p.merch_claim_details;
+    if (!det || tier == null) return;
+    if (tier === 1 && det.shirt) {
+      var z1 = document.getElementById('merch-fld-t1-shirt-size');
+      var z2 = document.getElementById('merch-fld-t1-shirt-color');
+      if (z1) z1.value = det.shirt.size || '';
+      if (z2) z2.value = det.shirt.color || '';
+    } else if (tier === 2 && det.shirt1 && det.shirt2) {
+      var a = document.getElementById('merch-fld-t2-s1-size');
+      var b = document.getElementById('merch-fld-t2-s1-color');
+      var c = document.getElementById('merch-fld-t2-s2-design');
+      var d = document.getElementById('merch-fld-t2-s2-size');
+      var e = document.getElementById('merch-fld-t2-s2-color');
+      if (a) a.value = det.shirt1.size || '';
+      if (b) b.value = det.shirt1.color || '';
+      if (c) c.value = det.shirt2.design || '';
+      if (d) d.value = det.shirt2.size || '';
+      if (e) e.value = det.shirt2.color || '';
+      onTier2DesignChange();
+    } else if (tier === 3 && det.shirt && det.nft_customization && det.hoodie) {
+      var s = document.getElementById('merch-fld-t3-shirt-size');
+      var col = document.getElementById('merch-fld-t3-nft-collection');
+      var num = document.getElementById('merch-fld-t3-nft-number');
+      var h = document.getElementById('merch-fld-t3-hoodie-size');
+      if (s) s.value = det.shirt.size || '';
+      if (col) col.value = det.nft_customization.collection || '';
+      if (num) num.value = det.nft_customization.nft_number != null ? String(det.nft_customization.nft_number) : '';
+      if (h) h.value = det.hoodie.size || '';
+    } else if (tier === 4 && det.shirt1 && det.shirt2 && det.zip_hoodie) {
+      var u = document.getElementById('merch-fld-t4-t1-size');
+      var v = document.getElementById('merch-fld-t4-t2-size');
+      var w = document.getElementById('merch-fld-t4-zip-size');
+      if (u) u.value = det.shirt1.size || '';
+      if (v) v.value = det.shirt2.size || '';
+      if (w) w.value = det.zip_hoodie.size || '';
+    }
   }
 
   function validateShippingForm() {
     var xEl = document.getElementById('merch-shipping-x');
     var discEl = document.getElementById('merch-shipping-discord');
-    var sizeEl = document.getElementById('merch-shipping-size');
-    var colorEl = document.getElementById('merch-shipping-color');
     var st1 = document.getElementById('merch-shipping-street1');
     var st2 = document.getElementById('merch-shipping-street2');
     var cityEl = document.getElementById('merch-shipping-city');
@@ -406,15 +706,14 @@
     var postEl = document.getElementById('merch-shipping-postal');
     var xHandle = xEl && xEl.value.trim();
     var discordDisplay = discEl && discEl.value.trim();
-    var size = sizeEl && sizeEl.value;
-    var shirtColor = colorEl && colorEl.value;
     var street1 = st1 && st1.value.trim();
     var street2 = st2 && st2.value.trim();
     var city = cityEl && cityEl.value.trim();
     var country = countryEl && countryEl.value.trim();
     var postal = postEl && postEl.value.trim();
     if (!xHandle) return { ok: false, message: 'Enter your X handle.' };
-    if (!size || !shirtColor) return { ok: false, message: 'Select size and colour.' };
+    var mv = validateMerchChoicesForTier();
+    if (!mv.ok) return mv;
     if (!street1 || street1.length < 2) return { ok: false, message: 'Enter street address line 1.' };
     if (!city || city.length < 2) return { ok: false, message: 'Enter town or city.' };
     if (!country) return { ok: false, message: 'Select country.' };
@@ -427,14 +726,14 @@
       postal_code: postal,
     });
     if (deliveryAddress.length < 8) return { ok: false, message: 'Complete your delivery address.' };
+    var mt = pendingMerchTier != null && pendingMerchTier >= 1 && pendingMerchTier <= 4 ? pendingMerchTier : null;
     return {
       ok: true,
       payload: {
         x_handle: xHandle,
         discord_display: discordDisplay || '',
-        merch_tier: pendingMerchTier != null && pendingMerchTier >= 1 && pendingMerchTier <= 4 ? pendingMerchTier : null,
-        size: size,
-        shirt_color: shirtColor,
+        merch_tier: mt,
+        merch_claim_details: collectMerchClaimDetails(),
         street1: street1,
         street2: street2,
         city: city,
@@ -518,8 +817,7 @@
         wallet: pk,
         x_handle: payload.x_handle,
         discord_handle: payload.discord_display || '',
-        size: payload.size,
-        shirt_color: payload.shirt_color,
+        merch_claim_details: payload.merch_claim_details,
         delivery_address: payload.delivery_address,
       }),
     })
@@ -554,16 +852,12 @@
 
   function resetShippingForm() {
     var xEl = document.getElementById('merch-shipping-x');
-    var sizeEl = document.getElementById('merch-shipping-size');
-    var colorEl = document.getElementById('merch-shipping-color');
     var st1 = document.getElementById('merch-shipping-street1');
     var st2 = document.getElementById('merch-shipping-street2');
     var cityEl = document.getElementById('merch-shipping-city');
     var countryEl = document.getElementById('merch-shipping-country');
     var postEl = document.getElementById('merch-shipping-postal');
     if (xEl) xEl.value = '';
-    if (sizeEl) sizeEl.value = '';
-    if (colorEl) colorEl.value = '';
     if (st1) st1.value = '';
     if (st2) st2.value = '';
     if (cityEl) cityEl.value = '';
@@ -581,11 +875,9 @@
     if (discHint) {
       discHint.textContent = 'Optional — helps us reach you on Discord for shipping updates.';
     }
-    var tierLine = document.getElementById('merch-shipping-tier-line');
-    if (tierLine) {
-      tierLine.textContent = '';
-      tierLine.hidden = true;
-    }
+    renderMerchTierShippingFields(pendingMerchTier);
+    syncMerchShippingTierLine();
+    syncMerchRefRow();
   }
 
   function syncMerchShippingTierLine() {
@@ -625,6 +917,7 @@
         : 'Optional — helps us reach you on Discord for shipping updates.';
     }
     syncMerchShippingTierLine();
+    syncMerchRefRow();
     if (!isDisc) return;
     fetchWithCreds(discordMeUrl(), { cache: 'no-store' })
       .then(function (r) {
@@ -964,6 +1257,13 @@
       setShippingModal(false);
     });
     document.getElementById('merch-shipping-modal-submit')?.addEventListener('click', openReviewFromShipping);
+    document.getElementById('merch-shipping-view-options-btn')?.addEventListener('click', openMerchPackOptionsReference);
+    document.getElementById('merch-reference-modal-close')?.addEventListener('click', function () {
+      setMerchReferenceModal(false);
+    });
+    document.getElementById('merch-reference-modal-backdrop')?.addEventListener('click', function () {
+      setMerchReferenceModal(false);
+    });
 
     document.getElementById('merch-claim-review-modal-close')?.addEventListener('click', editFromReview);
     document.getElementById('merch-claim-review-modal-backdrop')?.addEventListener('click', editFromReview);

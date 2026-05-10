@@ -501,6 +501,22 @@ async function ensureMerchPackClaimsSchema() {
   } catch (e) {
     if (e.code !== '42710') throw e;
   }
+  await p.query('ALTER TABLE merch_pack_claims ADD COLUMN IF NOT EXISTS merch_claim_details JSONB');
+  try {
+    await p.query('ALTER TABLE merch_pack_claims ALTER COLUMN size DROP NOT NULL');
+  } catch (e) {
+    /* ignore */
+  }
+  try {
+    await p.query('ALTER TABLE merch_pack_claims ALTER COLUMN shirt_color DROP NOT NULL');
+  } catch (e) {
+    /* ignore */
+  }
+  try {
+    await p.query('ALTER TABLE merch_pack_claims ALTER COLUMN size TYPE VARCHAR(512)');
+  } catch (e) {
+    /* ignore if unsupported */
+  }
   return true;
 }
 
@@ -536,7 +552,129 @@ function inferMerchTierFromClaimCode(claimCode) {
 }
 
 const MERCH_SIZES = new Set(['S', 'M', 'L', 'XL', 'XXL']);
-const MERCH_COLORS = new Set(['Black', 'White', 'Navy', 'Charcoal', 'Red']);
+const MERCH_SHIRT_COLORS = new Set(['Black', 'White']);
+const NFT_COLLECTIONS = new Set(['Absurd Apes', 'Absurd Horizons']);
+
+function validateMerchClaimDetailsForTier(tier, d) {
+  if (tier == null || tier < 1 || tier > 4) return { ok: false, error: 'Invalid merch tier' };
+  if (!d || typeof d !== 'object' || Array.isArray(d)) return { ok: false, error: 'Merch choices are required' };
+
+  if (tier === 1) {
+    const shirt = d.shirt;
+    if (!shirt || typeof shirt !== 'object') return { ok: false, error: 'T-shirt details required' };
+    const sz = String(shirt.size || '').trim();
+    const col = String(shirt.color || '').trim();
+    if (!MERCH_SIZES.has(sz)) return { ok: false, error: 'Invalid T-shirt size' };
+    if (!MERCH_SHIRT_COLORS.has(col)) return { ok: false, error: 'Invalid T-shirt colour' };
+    return { ok: true, details: { tier: 1, shirt: { size: sz, color: col } } };
+  }
+
+  if (tier === 2) {
+    const s1 = d.shirt1;
+    const s2 = d.shirt2;
+    if (!s1 || !s2 || typeof s1 !== 'object' || typeof s2 !== 'object') {
+      return { ok: false, error: 'Both T-shirt sections required' };
+    }
+    if (!MERCH_SIZES.has(String(s1.size || '').trim()) || !MERCH_SHIRT_COLORS.has(String(s1.color || '').trim())) {
+      return { ok: false, error: 'Invalid T-shirt 1 options' };
+    }
+    const design = String(s2.design || '').trim();
+    if (design !== '1' && design !== '2') return { ok: false, error: 'Select T-shirt 2 design' };
+    if (!MERCH_SIZES.has(String(s2.size || '').trim())) return { ok: false, error: 'Invalid T-shirt 2 size' };
+    const sz1 = String(s1.size || '').trim();
+    const c1 = String(s1.color || '').trim();
+    const sz2 = String(s2.size || '').trim();
+    if (design === '1') {
+      if (!MERCH_SHIRT_COLORS.has(String(s2.color || '').trim())) return { ok: false, error: 'Select T-shirt 2 colour' };
+      const c2 = String(s2.color || '').trim();
+      return {
+        ok: true,
+        details: {
+          tier: 2,
+          shirt1: { size: sz1, color: c1 },
+          shirt2: { design: '1', size: sz2, color: c2 },
+        },
+      };
+    }
+    return {
+      ok: true,
+      details: {
+        tier: 2,
+        shirt1: { size: sz1, color: c1 },
+        shirt2: { design: '2', size: sz2 },
+      },
+    };
+  }
+
+  if (tier === 3) {
+    const shirt = d.shirt;
+    const nft = d.nft_customization;
+    const hoodie = d.hoodie;
+    if (!shirt || !nft || !hoodie) return { ok: false, error: 'Shirt, NFT customization and hoodie details required' };
+    if (!MERCH_SIZES.has(String(shirt.size || '').trim())) return { ok: false, error: 'Invalid T-shirt size' };
+    const coll = String(nft.collection || '').trim();
+    if (!NFT_COLLECTIONS.has(coll)) return { ok: false, error: 'Select NFT collection' };
+    const numRaw = String(nft.nft_number != null ? nft.nft_number : '').trim();
+    if (!/^\d+$/.test(numRaw) || parseInt(numRaw, 10) < 0 || parseInt(numRaw, 10) > 10000000) {
+      return { ok: false, error: 'Enter a valid NFT #' };
+    }
+    if (!MERCH_SIZES.has(String(hoodie.size || '').trim())) return { ok: false, error: 'Invalid hoodie size' };
+    return {
+      ok: true,
+      details: {
+        tier: 3,
+        shirt: { size: String(shirt.size || '').trim() },
+        nft_customization: { collection: coll, nft_number: numRaw },
+        hoodie: { size: String(hoodie.size || '').trim() },
+      },
+    };
+  }
+
+  if (tier === 4) {
+    const t1 = d.shirt1;
+    const t2 = d.shirt2;
+    const hz = d.zip_hoodie;
+    if (!t1 || !t2 || !hz) return { ok: false, error: 'All apparel sizes required' };
+    if (!MERCH_SIZES.has(String(t1.size || '').trim())) return { ok: false, error: 'Invalid T-shirt 1 size' };
+    if (!MERCH_SIZES.has(String(t2.size || '').trim())) return { ok: false, error: 'Invalid T-shirt 2 size' };
+    if (!MERCH_SIZES.has(String(hz.size || '').trim())) return { ok: false, error: 'Invalid zip hoodie size' };
+    return {
+      ok: true,
+      details: {
+        tier: 4,
+        shirt1: { size: String(t1.size || '').trim() },
+        shirt2: { size: String(t2.size || '').trim() },
+        zip_hoodie: { size: String(hz.size || '').trim() },
+      },
+    };
+  }
+
+  return { ok: false, error: 'Invalid tier' };
+}
+
+function legacyMerchSummaryColumns(tier, details) {
+  if (!details) return { size: '', shirt_color: '' };
+  let sizeSummary = '';
+  let colorSummary = '';
+  if (tier === 1) {
+    sizeSummary = `${details.shirt.size} / ${details.shirt.color}`;
+    colorSummary = details.shirt.color;
+  } else if (tier === 2) {
+    sizeSummary = `T1 ${details.shirt1.size} ${details.shirt1.color}; T2 design ${details.shirt2.design} ${details.shirt2.size}`;
+    if (details.shirt2.color) sizeSummary += ` ${details.shirt2.color}`;
+    colorSummary = details.shirt2.color || details.shirt1.color;
+  } else if (tier === 3) {
+    sizeSummary = `Shirt ${details.shirt.size}; Hoodie ${details.hoodie.size}; NFT ${details.nft_customization.collection} #${details.nft_customization.nft_number}`;
+    colorSummary = '—';
+  } else if (tier === 4) {
+    sizeSummary = `T1 ${details.shirt1.size}; T2 ${details.shirt2.size}; Zip ${details.zip_hoodie.size}`;
+    colorSummary = '—';
+  }
+  return {
+    size: sizeSummary.slice(0, 512),
+    shirt_color: colorSummary.slice(0, 128),
+  };
+}
 
 function merchCodeRowChecks(row, normWallet) {
   if (!row) return { ok: false, error: 'Invalid code' };
@@ -594,16 +732,21 @@ async function submitMerchPackClaim(discordId, walletAddress, submittedCode, bod
   const normWallet = String(walletAddress || '').trim();
   const normCode = String(submittedCode || '').trim();
   const xHandle = String((body && body.x_handle) || '').trim().slice(0, 256);
-  const size = String((body && body.size) || '').trim();
-  const shirtColor = String((body && body.shirt_color) || '').trim();
   const delivery = String((body && body.delivery_address) || '').trim();
+
+  let rawDetails = body && body.merch_claim_details;
+  if (typeof rawDetails === 'string') {
+    try {
+      rawDetails = JSON.parse(rawDetails);
+    } catch (e) {
+      return { ok: false, error: 'Invalid merch_claim_details' };
+    }
+  }
 
   if (!normWallet || !normCode) return { ok: false, error: 'Wallet and code are required' };
   if (!xHandle) return { ok: false, error: 'X handle is required' };
   if (!delivery || delivery.length < 8) return { ok: false, error: 'Enter a full delivery address' };
   if (delivery.length > 4000) return { ok: false, error: 'Address too long' };
-  if (!MERCH_SIZES.has(size)) return { ok: false, error: 'Invalid size' };
-  if (!MERCH_COLORS.has(shirtColor)) return { ok: false, error: 'Invalid colour' };
 
   const pool = getPool();
   const client = await pool.connect();
@@ -636,11 +779,35 @@ async function submitMerchPackClaim(discordId, walletAddress, submittedCode, bod
       }
     }
 
+    if (claimTier == null || claimTier < 1 || claimTier > 4) {
+      await client.query('ROLLBACK');
+      return { ok: false, error: 'Could not determine merch pack tier for this code.' };
+    }
+
+    const validated = validateMerchClaimDetailsForTier(claimTier, rawDetails);
+    if (!validated.ok || !validated.details) {
+      await client.query('ROLLBACK');
+      return { ok: false, error: validated.error || 'Invalid merch choices' };
+    }
+
+    const leg = legacyMerchSummaryColumns(claimTier, validated.details);
+
     await client.query(
       `INSERT INTO merch_pack_claims (
-        merch_pack_code_id, discord_id, wallet_address, x_handle, discord_handle, size, shirt_color, delivery_address, merch_tier
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-      [chk.codeId, storedDiscordId, normWallet.toLowerCase(), xHandle, disp, size, shirtColor, delivery, claimTier]
+        merch_pack_code_id, discord_id, wallet_address, x_handle, discord_handle, size, shirt_color, delivery_address, merch_tier, merch_claim_details
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)`,
+      [
+        chk.codeId,
+        storedDiscordId,
+        normWallet.toLowerCase(),
+        xHandle,
+        disp,
+        leg.size || null,
+        leg.shirt_color || null,
+        delivery,
+        claimTier,
+        JSON.stringify(validated.details),
+      ]
     );
 
     const upd = await client.query(

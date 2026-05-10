@@ -746,6 +746,34 @@ body {
   vertical-align: middle;
 }
 
+.merch-shipping-modal__ref-row {
+  margin: 0 0 0.75rem;
+}
+.merch-shipping-modal__ref-btn {
+  width: 100%;
+  font-size: 0.8125rem;
+}
+
+#merch-reference-modal.raffles-modal {
+  z-index: 1002;
+}
+.raffles-modal__box--merch-reference {
+  max-width: min(920px, 96vw);
+  max-height: min(92vh, 1200px);
+}
+.merch-reference-modal__body {
+  padding: 0.75rem 1rem 1rem;
+  overflow: auto;
+  max-height: min(78vh, 900px);
+  text-align: center;
+}
+.merch-reference-modal__img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
 .raffles-modal__box--merch-shipping {
   max-width: min(460px, 96vw);
 }
