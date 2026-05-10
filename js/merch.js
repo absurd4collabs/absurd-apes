@@ -166,7 +166,56 @@
     }
   }
 
+  function merchPackTierLabel(tier) {
+    var labels = {
+      1: 'Merch pack 1',
+      2: 'Merch pack 2 — Black',
+      3: 'Merch pack 3 — Red',
+      4: 'Merch pack 4 — Gold',
+    };
+    return labels[tier] || 'Your merch pack';
+  }
+
+  function populateMerchCongratsModal() {
+    var labelEl = document.getElementById('merch-congrats-tier-label');
+    var figureEl = document.getElementById('merch-congrats-figure');
+    var imgEl = document.getElementById('merch-congrats-pack-img');
+    var t = pendingMerchTier;
+    if (labelEl) {
+      labelEl.textContent =
+        t != null && t >= 1 && t <= 4 ? merchPackTierLabel(t) : 'Your pack is ready.';
+    }
+    if (figureEl && imgEl) {
+      if (t != null && t >= 1 && t <= 4) {
+        figureEl.hidden = false;
+        imgEl.src = '/assets/merch-tier-' + t + '.png?v=1';
+        imgEl.alt = merchPackTierLabel(t);
+      } else {
+        figureEl.hidden = true;
+        imgEl.src = '';
+        imgEl.alt = '';
+      }
+    }
+  }
+
+  function setMerchCongratsModal(open) {
+    var m = document.getElementById('merch-congrats-modal');
+    if (!m) return;
+    m.setAttribute('aria-hidden', open ? 'false' : 'true');
+  }
+
+  function abandonMerchCongrats() {
+    finishClaimSession();
+  }
+
+  function continueMerchCongratsToShipping() {
+    setMerchCongratsModal(false);
+    prefillShippingModal();
+    setShippingModal(true);
+  }
+
   function finishClaimSession() {
+    setMerchCongratsModal(false);
     pendingClaimCode = '';
     pendingMerchTier = null;
     pendingReviewPayload = null;
@@ -565,8 +614,8 @@
             pendingMerchTier = null;
           }
           setClaimModal(false);
-          prefillShippingModal();
-          setShippingModal(true);
+          populateMerchCongratsModal();
+          setMerchCongratsModal(true);
           return;
         }
         var msg = (res.data && res.data.error) || 'Invalid code';
