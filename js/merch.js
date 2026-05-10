@@ -812,6 +812,10 @@
     document.getElementById('merch-claim-pack-modal-backdrop')?.addEventListener('click', function () { setClaimModal(false); });
     document.getElementById('merch-claim-pack-modal-cancel')?.addEventListener('click', function () { setClaimModal(false); });
     document.getElementById('merch-claim-pack-modal-submit')?.addEventListener('click', submitClaimCode);
+    document.getElementById('merch-congrats-modal-close')?.addEventListener('click', abandonMerchCongrats);
+    document.getElementById('merch-congrats-modal-backdrop')?.addEventListener('click', abandonMerchCongrats);
+    document.getElementById('merch-congrats-modal-cancel')?.addEventListener('click', abandonMerchCongrats);
+    document.getElementById('merch-congrats-modal-continue')?.addEventListener('click', continueMerchCongratsToShipping);
     if (claimInput) {
       claimInput.addEventListener('keydown', function (e) {
         if (e.key === 'Enter') {

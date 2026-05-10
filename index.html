@@ -24,7 +24,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/styles.css?v=19" />
+  <link rel="stylesheet" href="/css/styles.css?v=20" />
 </head>
 <body>
   <!-- Header: title (left) + social links (right) -->
@@ -535,7 +535,7 @@
         <div class="merch-packs-page__cta" id="merch-packs-cta">
           <div class="merch-packs-page__cta-row">
             <button type="button" class="btn merch-packs-page__waitlist-btn" id="merch-waitlist-join-btn" disabled>Join wait list</button>
-            <button type="button" class="btn btn--outline merch-packs-page__claim-btn" id="merch-claim-pack-btn">Claim pack</button>
+            <button type="button" class="btn btn--outline merch-packs-page__claim-btn" id="merch-claim-pack-btn">Claim merch pack</button>
           </div>
           <p class="merch-packs-page__claim-gate-hint" id="merch-claim-gate-hint" hidden></p>
           <p class="merch-packs-page__waitlist-hint" id="merch-waitlist-hint" hidden>Log in with Discord in the sidebar<br />to join the wait list.</p>
@@ -559,6 +559,27 @@
           <div class="merch-waitlist-modal__actions">
             <button type="button" class="btn btn--outline" id="merch-claim-pack-modal-cancel">Cancel</button>
             <button type="button" class="btn btn--primary" id="merch-claim-pack-modal-submit">Continue</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Merch: congrats + tier image (after valid mint code, before shipping) -->
+    <div class="raffles-modal" id="merch-congrats-modal" aria-hidden="true" role="dialog" aria-labelledby="merch-congrats-modal-title" aria-modal="true">
+      <div class="raffles-modal__backdrop" id="merch-congrats-modal-backdrop"></div>
+      <div class="raffles-modal__box raffles-modal__box--merch-congrats">
+        <div class="raffles-modal__head">
+          <h3 class="raffles-modal__title" id="merch-congrats-modal-title">Congrats</h3>
+          <button type="button" class="raffles-modal__close" id="merch-congrats-modal-close" aria-label="Close">&times;</button>
+        </div>
+        <div class="raffles-modal__body merch-congrats-modal__body">
+          <p class="merch-congrats-modal__tier-line" id="merch-congrats-tier-label"></p>
+          <figure class="merch-congrats-modal__figure" id="merch-congrats-figure" hidden>
+            <img id="merch-congrats-pack-img" src="" alt="" width="520" height="520" decoding="async" />
+          </figure>
+          <div class="merch-waitlist-modal__actions">
+            <button type="button" class="btn btn--outline" id="merch-congrats-modal-cancel">Cancel</button>
+            <button type="button" class="btn btn--primary" id="merch-congrats-modal-continue">Continue</button>
           </div>
         </div>
       </div>
@@ -764,6 +785,6 @@
   <script src="/js/config.js"></script>
   <script src="/js/app.js?v=19"></script>
   <script src="/js/raffles.js?v=16"></script>
-  <script src="/js/merch.js?v=13"></script>
+  <script src="/js/merch.js?v=14"></script>
 </body>
 </html>

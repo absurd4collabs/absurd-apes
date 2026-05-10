@@ -689,6 +689,34 @@ body {
   flex-wrap: wrap;
 }
 
+.raffles-modal__box--merch-congrats {
+  max-width: min(420px, 96vw);
+}
+.merch-congrats-modal__body {
+  text-align: center;
+}
+.merch-congrats-modal__tier-line {
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.35;
+}
+.merch-congrats-modal__figure {
+  margin: 0 0 1.25rem;
+  padding: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.25);
+}
+.merch-congrats-modal__figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  vertical-align: middle;
+}
+
 .raffles-modal__box--merch-shipping {
   max-width: min(460px, 96vw);
 }
