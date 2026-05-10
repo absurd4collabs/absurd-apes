@@ -423,10 +423,10 @@ async function seedMerchPackCodesDummy() {
     const c = await p.query('SELECT COUNT(*)::int AS n FROM merch_pack_codes');
     if ((c.rows[0]?.n || 0) > 0) return;
     const pairs = [
-      ['dwtestmerchpack01absurdapesaaa11111111111111', 'DUMMY-MERCH-001'],
-      ['dwtestmerchpack02absurdapesbbb11111111111111', 'DUMMY-MERCH-002'],
-      ['dwtestmerchpack03absurdapesccc11111111111111', 'DUMMY-MERCH-003'],
-      ['dwtestmerchpack04absurdapesddd11111111111111', 'DUMMY-MERCH-004'],
+      ['dwtestmerchpack01absurdapesaaa11111111111111', 'ABSURD1-DUMMY-001'],
+      ['dwtestmerchpack02absurdapesbbb11111111111111', 'ABSURD2-DUMMY-002'],
+      ['dwtestmerchpack03absurdapesccc11111111111111', 'ABSURD3-DUMMY-003'],
+      ['dwtestmerchpack04absurdapesddd11111111111111', 'ABSURD4-DUMMY-004'],
     ];
     for (const [w, code] of pairs) {
       await p.query(
@@ -514,42 +514,11 @@ async function ensureMerchPackClaimsSchema() {
   return true;
 }
 
-/**
- * Map claim code → tier 1–4.
- * 1) Gravemint: codes start with ABSURD1 … ABSURD4 (case-insensitive); tier digit must be 1–4
- *    immediately after "ABSURD" (see Gravemint webhook codes).
- * 2) Optional MERCH_CODE_TIER_RULES env: JSON object; keys are substrings matched case-insensitively
- *    (longest key wins). Used when prefix does not match or for legacy formats.
- */
+/** Gravemint codes always start with ABSURD1 … ABSURD4 (case-insensitive). */
 function inferMerchTierFromClaimCode(claimCode) {
-  const code = String(claimCode || '').trim();
-  const upper = code.toUpperCase();
-  const gravemint = upper.match(/^ABSURD([1-4])/);
-  if (gravemint) {
-    return parseInt(gravemint[1], 10);
-  }
-
-  const raw = process.env.MERCH_CODE_TIER_RULES || '';
-  if (!String(raw).trim()) return null;
-  let rules;
-  try {
-    rules = JSON.parse(raw);
-  } catch (e) {
-    console.warn('[merch] MERCH_CODE_TIER_RULES invalid JSON:', e.message);
-    return null;
-  }
-  if (!rules || typeof rules !== 'object' || Array.isArray(rules)) return null;
-  const entries = Object.entries(rules)
-    .map(([k, v]) => [String(k), parseInt(v, 10)])
-    .filter(([, t]) => !Number.isNaN(t) && t >= 1 && t <= 4)
-    .sort((a, b) => b[0].length - a[0].length);
-  for (let i = 0; i < entries.length; i++) {
-    const needle = entries[i][0];
-    const t = entries[i][1];
-    if (!needle) continue;
-    if (upper.includes(needle.toUpperCase())) return t;
-  }
-  return null;
+  const upper = String(claimCode || '').trim().toUpperCase();
+  const m = upper.match(/^ABSURD([1-4])/);
+  return m ? parseInt(m[1], 10) : null;
 }
 
 const MERCH_SIZES = new Set(['S', 'M', 'L', 'XL', 'XXL']);
@@ -818,6 +787,12 @@ async function upsertMerchPackCode(walletAddress, claimCode) {
   if (w.length < 32 || w.length > 64) return { ok: false, error: 'Invalid wallet address' };
   if (!c) return { ok: false, error: 'Claim code is required' };
   const tier = inferMerchTierFromClaimCode(c);
+  if (tier == null) {
+    return {
+      ok: false,
+      error: 'Claim code must start with ABSURD1, ABSURD2, ABSURD3, or ABSURD4',
+    };
+  }
   try {
     await p.query(
       `INSERT INTO merch_pack_codes (wallet_address, claim_code, merch_tier)
