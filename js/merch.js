@@ -201,11 +201,15 @@
   }
 
   function clearMerchCongratsConfettiCanvas() {
-    var canvas = document.getElementById('merch-congrats-confetti-canvas');
-    if (!canvas || !canvas.getContext) return;
-    var ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    try {
+      var canvas = document.getElementById('merch-congrats-confetti-canvas');
+      if (!canvas || !canvas.getContext) return;
+      var ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    } catch (e) {
+      /* canvas-confetti / worker canvas can throw; must not block opening shipping */
     }
   }
 
@@ -271,14 +275,23 @@
   }
 
   function continueMerchCongratsToShipping() {
-    setMerchCongratsModal(false);
-    /* Defer until congrats layer commits (visibility/stacking); ensures shipping appears above */
-    requestAnimationFrame(function () {
-      requestAnimationFrame(function () {
-        prefillShippingModal();
-        setShippingModal(true);
-      });
-    });
+    try {
+      setMerchCongratsModal(false);
+    } catch (e) {
+      /* congrats close must not block shipping */
+    }
+    try {
+      prefillShippingModal();
+    } catch (e) {
+      /* still open shipping */
+    }
+    setShippingModal(true);
+    /* Belt-and-suspenders if cached shippingModal ref was stale */
+    var shipEl = document.getElementById('merch-shipping-modal');
+    if (shipEl && shipEl.getAttribute('aria-hidden') !== 'false') {
+      shipEl.setAttribute('aria-hidden', 'false');
+      shippingModal = shipEl;
+    }
   }
 
   function finishClaimSession() {
@@ -1006,4 +1019,5 @@
 
   window.initMerchWaitlistPage = initMerchWaitlistPage;
   window.refreshMerchWaitlistUI = refreshMerchWaitlistUI;
+  window.openMerchShippingAfterCongrats = continueMerchCongratsToShipping;
 })();

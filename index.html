@@ -573,17 +573,20 @@
           <button type="button" class="raffles-modal__close" id="merch-congrats-modal-close" aria-label="Close">&times;</button>
         </div>
         <div class="raffles-modal__body merch-congrats-modal__body">
-          <p class="merch-congrats-modal__tier-line" id="merch-congrats-tier-label"></p>
-          <figure class="merch-congrats-modal__figure" id="merch-congrats-figure" hidden>
-            <img id="merch-congrats-pack-img" src="" alt="" width="240" height="240" decoding="async" />
-          </figure>
+          <!-- Canvas only over art area — full-modal canvas blocked Continue on some browsers -->
+          <div class="merch-congrats-modal__celebrate">
+            <canvas class="merch-congrats-modal__confetti" id="merch-congrats-confetti-canvas" aria-hidden="true"></canvas>
+            <p class="merch-congrats-modal__tier-line" id="merch-congrats-tier-label"></p>
+            <figure class="merch-congrats-modal__figure" id="merch-congrats-figure" hidden>
+              <img id="merch-congrats-pack-img" src="" alt="" width="240" height="240" decoding="async" />
+            </figure>
+          </div>
           <div class="merch-waitlist-modal__actions">
             <button type="button" class="btn btn--outline" id="merch-congrats-modal-cancel">Cancel</button>
             <button type="button" class="btn btn--primary" id="merch-congrats-modal-continue">Continue</button>
           </div>
         </div>
       </div>
-      <canvas class="merch-congrats-modal__confetti" id="merch-congrats-confetti-canvas" aria-hidden="true"></canvas>
     </div>
 
     <!-- Merch: shipping / claim details (after valid mint code) -->
@@ -787,6 +790,6 @@
   <script src="/js/app.js?v=19"></script>
   <script src="/js/raffles.js?v=16"></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
-  <script src="/js/merch.js?v=17"></script>
+  <script src="/js/merch.js?v=18"></script>
 </body>
 </html>
