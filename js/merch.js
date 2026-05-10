@@ -359,8 +359,12 @@
 
   function populateCountriesSelect() {
     var sel = document.getElementById('merch-shipping-country');
-    if (!sel || sel.getAttribute('data-loaded') === '1') return;
-    if (!MERCH_COUNTRY_NAMES || !MERCH_COUNTRY_NAMES.length) return;
+    if (!sel || !MERCH_COUNTRY_NAMES || !MERCH_COUNTRY_NAMES.length) return;
+    /* Normally once per load; repopulate if only placeholder (init skipped or list never filled). */
+    if (sel.getAttribute('data-loaded') === '1' && sel.options && sel.options.length > 1) return;
+    while (sel.options.length > 1) {
+      sel.remove(1);
+    }
     MERCH_COUNTRY_NAMES.forEach(function (name) {
       var opt = document.createElement('option');
       opt.value = name;
@@ -428,6 +432,9 @@
     var sm = shippingModal || document.getElementById('merch-shipping-modal');
     if (!sm) return;
     shippingModal = sm;
+    if (open) {
+      populateCountriesSelect();
+    }
     sm.setAttribute('aria-hidden', open ? 'false' : 'true');
     if (!open && !opts.keepClaimSession) {
       pendingClaimCode = '';
@@ -1030,6 +1037,7 @@
 
   function refreshMerchWaitlistUI() {
     bindEvents();
+    populateCountriesSelect();
     if (!joinBtn || !document.getElementById('main-merch') || document.getElementById('main-merch').hidden) {
       return;
     }
