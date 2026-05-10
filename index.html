@@ -24,7 +24,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/styles.css?v=24" />
+  <link rel="stylesheet" href="/css/styles.css?v=25" />
 </head>
 <body>
   <!-- Header: title (left) + social links (right) -->
@@ -595,10 +595,20 @@
           <button type="button" class="raffles-modal__close" id="merch-shipping-modal-close" aria-label="Close">&times;</button>
         </div>
         <div class="raffles-modal__body merch-shipping-modal__body">
-          <p class="merch-shipping-modal__hint" id="merch-shipping-tier-line" hidden></p>
-          <div class="merch-shipping-modal__ref-row" id="merch-shipping-ref-row" hidden>
-            <button type="button" class="btn btn--outline merch-shipping-modal__ref-btn" id="merch-shipping-view-options-btn">
-              View pack options (reference images)
+          <div class="merch-shipping-modal__pack-row" id="merch-shipping-pack-row" hidden>
+            <span class="merch-shipping-modal__pack-label" id="merch-shipping-tier-line"></span>
+            <button
+              type="button"
+              class="merch-shipping-modal__ref-icon-btn"
+              id="merch-shipping-view-options-btn"
+              aria-label="View pack options reference images"
+              title="Pack options reference"
+            >
+              <svg class="merch-shipping-modal__ref-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
             </button>
           </div>
           <label class="merch-waitlist-modal__label" for="merch-shipping-x">X handle</label>
@@ -638,7 +648,7 @@
           <button type="button" class="raffles-modal__close" id="merch-reference-modal-close" aria-label="Close">&times;</button>
         </div>
         <div class="raffles-modal__body merch-reference-modal__body">
-          <img id="merch-reference-modal-img" class="merch-reference-modal__img" src="" alt="Merch pack options reference" width="1200" height="1600" decoding="async" />
+          <img id="merch-reference-modal-img" class="merch-reference-modal__img" src="" alt="Merch pack options reference" width="640" height="853" decoding="async" />
         </div>
       </div>
     </div>
@@ -789,6 +799,6 @@
   <script src="/js/app.js?v=19"></script>
   <script src="/js/raffles.js?v=16"></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
-  <script src="/js/merch.js?v=20"></script>
+  <script src="/js/merch.js?v=21"></script>
 </body>
 </html>

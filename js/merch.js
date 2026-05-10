@@ -174,12 +174,6 @@
     }
   }
 
-  function syncMerchRefRow() {
-    var row = document.getElementById('merch-shipping-ref-row');
-    if (!row) return;
-    row.hidden = !(pendingMerchTier != null && pendingMerchTier >= 1 && pendingMerchTier <= 4);
-  }
-
   function setMerchReferenceModal(open) {
     var m = document.getElementById('merch-reference-modal');
     if (!m) return;
@@ -450,9 +444,9 @@
   function merchPackTierLabel(tier) {
     var labels = {
       1: 'Merch pack 1',
-      2: 'Merch pack 2 — Black',
-      3: 'Merch pack 3 — Red',
-      4: 'Merch pack 4 — Gold',
+      2: 'Merch pack 2 (black)',
+      3: 'Merch pack 3 (red)',
+      4: 'Merch pack 4 (gold)',
     };
     return labels[tier] || 'Your merch pack';
   }
@@ -628,8 +622,8 @@
     var mt = payload.merch_tier;
     if (mt != null && mt >= 1 && mt <= 4) {
       tierRow =
-        '<dt>Merch pack tier</dt><dd>Tier ' +
-        escapeHtml(String(mt)) +
+        '<dt>Pack</dt><dd>' +
+        escapeHtml(merchPackTierLabel(mt)) +
         '</dd>';
     }
     var merchRows = formatMerchClaimDetailsReviewHtml(mt, payload.merch_claim_details);
@@ -890,18 +884,18 @@
     }
     renderMerchTierShippingFields(pendingMerchTier);
     syncMerchShippingTierLine();
-    syncMerchRefRow();
   }
 
   function syncMerchShippingTierLine() {
+    var row = document.getElementById('merch-shipping-pack-row');
     var line = document.getElementById('merch-shipping-tier-line');
     if (!line) return;
     if (pendingMerchTier != null && pendingMerchTier >= 1 && pendingMerchTier <= 4) {
-      line.textContent = 'Merch pack tier: Tier ' + pendingMerchTier;
-      line.hidden = false;
+      line.textContent = merchPackTierLabel(pendingMerchTier);
+      if (row) row.hidden = false;
     } else {
       line.textContent = '';
-      line.hidden = true;
+      if (row) row.hidden = true;
     }
   }
 
@@ -930,7 +924,6 @@
         : 'Optional — helps us reach you on Discord for shipping updates.';
     }
     syncMerchShippingTierLine();
-    syncMerchRefRow();
     if (!isDisc) return;
     fetchWithCreds(discordMeUrl(), { cache: 'no-store' })
       .then(function (r) {

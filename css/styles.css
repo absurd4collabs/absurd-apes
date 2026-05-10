@@ -746,29 +746,67 @@ body {
   vertical-align: middle;
 }
 
-.merch-shipping-modal__ref-row {
-  margin: 0 0 0.75rem;
+.merch-shipping-modal__pack-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: -0.35rem 0 0.65rem;
+  min-height: 2.25rem;
 }
-.merch-shipping-modal__ref-btn {
-  width: 100%;
-  font-size: 0.8125rem;
+.merch-shipping-modal__pack-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+.merch-shipping-modal__ref-icon-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  margin: 0;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition: opacity 0.15s ease, border-color 0.15s ease;
+}
+.merch-shipping-modal__ref-icon-btn:hover {
+  opacity: 0.92;
+  border-color: var(--text-muted);
+}
+.merch-shipping-modal__ref-icon-btn:focus-visible {
+  outline: 2px solid var(--accent, currentColor);
+  outline-offset: 2px;
+}
+.merch-shipping-modal__ref-icon {
+  display: block;
 }
 
 #merch-reference-modal.raffles-modal {
   z-index: 1002;
 }
 .raffles-modal__box--merch-reference {
-  max-width: min(920px, 96vw);
-  max-height: min(92vh, 1200px);
+  max-width: min(520px, 94vw);
+  max-height: min(88vh, 720px);
 }
 .merch-reference-modal__body {
-  padding: 0.75rem 1rem 1rem;
+  padding: 0.5rem 0.75rem 0.75rem;
   overflow: auto;
-  max-height: min(78vh, 900px);
+  max-height: min(62vh, 560px);
   text-align: center;
 }
 .merch-reference-modal__img {
+  display: block;
+  margin: 0 auto;
   max-width: 100%;
+  max-height: min(56vh, 480px);
+  width: auto;
   height: auto;
   border-radius: 8px;
   border: 1px solid var(--border);
