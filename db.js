@@ -515,11 +515,20 @@ async function ensureMerchPackClaimsSchema() {
 }
 
 /**
- * Map claim code string → tier 1–4 using MERCH_CODE_TIER_RULES (JSON object).
- * Keys are substrings matched case-insensitively (longest key wins). Values must be 1–4.
- * Example: {"-T1-":1,"-T2-":2,"-T3-":3,"-T4-":4}
+ * Map claim code → tier 1–4.
+ * 1) Gravemint: codes start with ABSURD1 … ABSURD4 (case-insensitive); tier digit must be 1–4
+ *    immediately after "ABSURD" (see Gravemint webhook codes).
+ * 2) Optional MERCH_CODE_TIER_RULES env: JSON object; keys are substrings matched case-insensitively
+ *    (longest key wins). Used when prefix does not match or for legacy formats.
  */
 function inferMerchTierFromClaimCode(claimCode) {
+  const code = String(claimCode || '').trim();
+  const upper = code.toUpperCase();
+  const gravemint = upper.match(/^ABSURD([1-4])/);
+  if (gravemint) {
+    return parseInt(gravemint[1], 10);
+  }
+
   const raw = process.env.MERCH_CODE_TIER_RULES || '';
   if (!String(raw).trim()) return null;
   let rules;
@@ -530,8 +539,6 @@ function inferMerchTierFromClaimCode(claimCode) {
     return null;
   }
   if (!rules || typeof rules !== 'object' || Array.isArray(rules)) return null;
-  const code = String(claimCode || '');
-  const upper = code.toUpperCase();
   const entries = Object.entries(rules)
     .map(([k, v]) => [String(k), parseInt(v, 10)])
     .filter(([, t]) => !Number.isNaN(t) && t >= 1 && t <= 4)
@@ -820,7 +827,7 @@ async function upsertMerchPackCode(walletAddress, claimCode) {
          merch_tier = COALESCE(EXCLUDED.merch_tier, merch_pack_codes.merch_tier)`,
       [w, c, tier]
     );
-    return { ok: true };
+    return { ok: true, tier };
   } catch (e) {
     if (e.code === '23505') {
       return { ok: false, error: 'That claim code is already assigned to another wallet' };

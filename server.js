@@ -699,14 +699,16 @@ async function handleGravemintWebhook(req, res) {
     }
     const result = await db.upsertMerchPackCode(extracted.wallet, extracted.code);
     if (!result.ok) return res.status(400).json({ error: result.error || 'Upsert failed' });
+    const tier = result.tier != null ? result.tier : null;
     const short =
       extracted.code.length > 6
         ? extracted.code.slice(0, 3) + '…' + extracted.code.slice(-2)
         : '(short)';
     console.log(
-      '[merch/gravemint-webhook] ok wallet=%s code=%s',
+      '[merch/gravemint-webhook] ok wallet=%s code=%s tier=%s',
       extracted.wallet.slice(0, 6) + '…' + extracted.wallet.slice(-4),
-      short
+      short,
+      tier != null ? String(tier) : '—'
     );
     return res.json({ ok: true });
   } catch (e) {
