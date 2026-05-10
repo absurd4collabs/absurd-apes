@@ -105,7 +105,7 @@
     var wrap = document.getElementById('merch-fld-t2-s2-color-wrap');
     var colorSel = document.getElementById('merch-fld-t2-s2-color');
     if (!d || !wrap) return;
-    var hide = d.value === '2';
+    var hide = d.value === 'dark_mode';
     wrap.hidden = hide;
     if (colorSel && hide) colorSel.value = '';
   }
@@ -133,8 +133,8 @@
         '<label class="merch-waitlist-modal__label" for="merch-fld-t2-s2-design">Design</label>' +
         '<select id="merch-fld-t2-s2-design" class="merch-waitlist-modal__input merch-waitlist-modal__select">' +
         '<option value="">Select design</option>' +
-        '<option value="1">1</option>' +
-        '<option value="2">2</option>' +
+        '<option value="collective">Collective</option>' +
+        '<option value="dark_mode">Dark mode</option>' +
         '</select>' +
         merchSizeSelectHtml('merch-fld-t2-s2-size', 'Size') +
         '<div id="merch-fld-t2-s2-color-wrap">' +
@@ -220,7 +220,7 @@
           size: s2s ? s2s.value : '',
         },
       };
-      if (des && des.value === '1' && s2c) out.shirt2.color = s2c.value;
+      if (des && des.value === 'collective' && s2c) out.shirt2.color = s2c.value;
       return out;
     }
     if (t === 3) {
@@ -263,7 +263,9 @@
     if (t === 2) {
       if (!d.shirt1 || !d.shirt1.size || !d.shirt1.color) return { ok: false, message: 'Complete T-shirt 1.' };
       if (!d.shirt2 || !d.shirt2.design || !d.shirt2.size) return { ok: false, message: 'Complete T-shirt 2 design and size.' };
-      if (d.shirt2.design === '1' && !d.shirt2.color) return { ok: false, message: 'Select T-shirt 2 colour (design 1).' };
+      if (d.shirt2.design === 'collective' && !d.shirt2.color) {
+        return { ok: false, message: 'Select T-shirt 2 colour (Collective).' };
+      }
       return { ok: true };
     }
     if (t === 3) {
@@ -283,6 +285,13 @@
     return { ok: false, message: 'Invalid pack tier.' };
   }
 
+  function formatTier2DesignLabel(v) {
+    if (v === 'collective' || v === '1') return 'Collective';
+    if (v === 'dark_mode' || v === '2') return 'Dark mode';
+    var s = String(v || '').trim();
+    return s || '—';
+  }
+
   function formatMerchClaimDetailsReviewHtml(tier, det) {
     if (!det) return '';
     var rows = '';
@@ -299,8 +308,7 @@
         escapeHtml(det.shirt1.size + ', ' + det.shirt1.color) +
         '</dd><dt>T-shirt 2</dt><dd>' +
         escapeHtml(
-          'Design ' +
-            det.shirt2.design +
+          formatTier2DesignLabel(det.shirt2.design) +
             ', size ' +
             det.shirt2.size +
             (det.shirt2.color ? ', ' + det.shirt2.color : '')
@@ -673,7 +681,12 @@
       var e = document.getElementById('merch-fld-t2-s2-color');
       if (a) a.value = det.shirt1.size || '';
       if (b) b.value = det.shirt1.color || '';
-      if (c) c.value = det.shirt2.design || '';
+      if (c) {
+        var dv = det.shirt2.design || '';
+        if (dv === '1') dv = 'collective';
+        if (dv === '2') dv = 'dark_mode';
+        c.value = dv;
+      }
       if (d) d.value = det.shirt2.size || '';
       if (e) e.value = det.shirt2.color || '';
       onTier2DesignChange();

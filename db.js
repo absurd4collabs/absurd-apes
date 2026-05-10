@@ -572,13 +572,15 @@ function validateMerchClaimDetailsForTier(tier, d) {
     if (!MERCH_SIZES.has(String(s1.size || '').trim()) || !MERCH_SHIRT_COLORS.has(String(s1.color || '').trim())) {
       return { ok: false, error: 'Invalid T-shirt 1 options' };
     }
-    const design = String(s2.design || '').trim();
-    if (design !== '1' && design !== '2') return { ok: false, error: 'Select T-shirt 2 design' };
+    let design = String(s2.design || '').trim();
+    if (design === '1') design = 'collective';
+    else if (design === '2') design = 'dark_mode';
+    if (design !== 'collective' && design !== 'dark_mode') return { ok: false, error: 'Select T-shirt 2 design' };
     if (!MERCH_SIZES.has(String(s2.size || '').trim())) return { ok: false, error: 'Invalid T-shirt 2 size' };
     const sz1 = String(s1.size || '').trim();
     const c1 = String(s1.color || '').trim();
     const sz2 = String(s2.size || '').trim();
-    if (design === '1') {
+    if (design === 'collective') {
       if (!MERCH_SHIRT_COLORS.has(String(s2.color || '').trim())) return { ok: false, error: 'Select T-shirt 2 colour' };
       const c2 = String(s2.color || '').trim();
       return {
@@ -586,7 +588,7 @@ function validateMerchClaimDetailsForTier(tier, d) {
         details: {
           tier: 2,
           shirt1: { size: sz1, color: c1 },
-          shirt2: { design: '1', size: sz2, color: c2 },
+          shirt2: { design: 'collective', size: sz2, color: c2 },
         },
       };
     }
@@ -595,7 +597,7 @@ function validateMerchClaimDetailsForTier(tier, d) {
       details: {
         tier: 2,
         shirt1: { size: sz1, color: c1 },
-        shirt2: { design: '2', size: sz2 },
+        shirt2: { design: 'dark_mode', size: sz2 },
       },
     };
   }
