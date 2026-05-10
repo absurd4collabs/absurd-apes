@@ -26,7 +26,8 @@ async function main() {
     try {
       await client.query(STATEMENTS[i]);
     } catch (e) {
-      if (e.code === '42701' || e.code === '42703') continue;
+      /* 42701 = duplicate_column on ADD IF NOT EXISTS edge cases */
+      if (e.code === '42701') continue;
       throw e;
     }
   }
@@ -35,7 +36,31 @@ async function main() {
   } catch (e) {
     if (e.code !== '42804' && e.code !== '0A000') console.warn('[004]', e.message);
   }
-  console.log('merch_claim_details migration applied.');
+
+  const cols = await client.query(
+    `SELECT column_name, data_type
+     FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = 'merch_pack_claims'
+     ORDER BY ordinal_position`
+  );
+  console.log('');
+  console.log('Table: public.merch_pack_claims (not merch_pack_codes)');
+  console.log(
+    'Columns:',
+    cols.rows.map(function (r) {
+      return r.column_name + '(' + r.data_type + ')';
+    }).join(', ')
+  );
+  var hasJson = cols.rows.some(function (r) {
+    return r.column_name === 'merch_claim_details';
+  });
+  if (!hasJson) {
+    console.error('');
+    console.error('WARNING: merch_claim_details is missing. Wrong DATABASE_URL or DB user lacks ALTER?');
+    process.exit(1);
+  }
+  console.log('');
+  console.log('merch_claim_details migration OK.');
   await client.end();
 }
 
