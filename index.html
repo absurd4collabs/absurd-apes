@@ -24,7 +24,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/styles.css?v=22" />
+  <link rel="stylesheet" href="/css/styles.css?v=23" />
 </head>
 <body>
   <!-- Header: title (left) + social links (right) -->
@@ -573,20 +573,17 @@
           <button type="button" class="raffles-modal__close" id="merch-congrats-modal-close" aria-label="Close">&times;</button>
         </div>
         <div class="raffles-modal__body merch-congrats-modal__body">
-          <!-- Canvas only over art area — full-modal canvas blocked Continue on some browsers -->
-          <div class="merch-congrats-modal__celebrate">
-            <canvas class="merch-congrats-modal__confetti" id="merch-congrats-confetti-canvas" aria-hidden="true"></canvas>
-            <p class="merch-congrats-modal__tier-line" id="merch-congrats-tier-label"></p>
-            <figure class="merch-congrats-modal__figure" id="merch-congrats-figure" hidden>
-              <img id="merch-congrats-pack-img" src="" alt="" width="240" height="240" decoding="async" />
-            </figure>
-          </div>
+          <p class="merch-congrats-modal__tier-line" id="merch-congrats-tier-label"></p>
+          <figure class="merch-congrats-modal__figure" id="merch-congrats-figure" hidden>
+            <img id="merch-congrats-pack-img" src="" alt="" width="240" height="240" decoding="async" />
+          </figure>
           <div class="merch-waitlist-modal__actions">
             <button type="button" class="btn btn--outline" id="merch-congrats-modal-cancel">Cancel</button>
             <button type="button" class="btn btn--primary" id="merch-congrats-modal-continue">Continue</button>
           </div>
         </div>
       </div>
+      <canvas class="merch-congrats-modal__confetti" id="merch-congrats-confetti-canvas" aria-hidden="true"></canvas>
     </div>
 
     <!-- Merch: shipping / claim details (after valid mint code) -->
