@@ -36,7 +36,14 @@
     var wallet = typeof window.getWalletPublicKey === 'function' ? window.getWalletPublicKey() : null;
     if (!provider || !wallet) return Promise.reject(new Error('Wallet not connected'));
     var solanaWeb3 = window.solanaWeb3;
-    if (!solanaWeb3 || !solanaWeb3.Connection || !solanaWeb3.PublicKey || !solanaWeb3.Transaction || !solanaWeb3.SystemProgram) {
+    if (
+      !solanaWeb3 ||
+      !solanaWeb3.Connection ||
+      !solanaWeb3.PublicKey ||
+      !solanaWeb3.Transaction ||
+      !solanaWeb3.TransactionInstruction ||
+      !solanaWeb3.SystemProgram
+    ) {
       return Promise.reject(new Error('Solana web3 not loaded. Refresh the page.'));
     }
     var lamportsRaw = String(lamportsStr || '').trim().replace(/\s/g, '');
@@ -51,15 +58,24 @@
     var Connection = solanaWeb3.Connection;
     var PublicKey = solanaWeb3.PublicKey;
     var Transaction = solanaWeb3.Transaction;
+    var TransactionInstruction = solanaWeb3.TransactionInstruction;
     var SystemProgram = solanaWeb3.SystemProgram;
     var connection = new Connection(SOLANA_RPC, 'confirmed');
     var ownerPk = new PublicKey(wallet);
     var treasuryPk = new PublicKey(String(destination).trim());
+    /* Raw System Program transfer (u32 Transfer=2 + u64 lamports LE). Avoids Blob.encode bugs in some web3 IIFE builds. */
+    var ixData = new Uint8Array(12);
+    var dv = new DataView(ixData.buffer, ixData.byteOffset, 12);
+    dv.setUint32(0, 2, true);
+    dv.setBigUint64(4, lamportsBI, true);
     var tx = new Transaction().add(
-      SystemProgram.transfer({
-        fromPubkey: ownerPk,
-        toPubkey: treasuryPk,
-        lamports: lamportsBI,
+      new TransactionInstruction({
+        keys: [
+          { pubkey: ownerPk, isSigner: true, isWritable: true },
+          { pubkey: treasuryPk, isSigner: false, isWritable: true },
+        ],
+        programId: SystemProgram.programId,
+        data: ixData,
       })
     );
     return connection.getLatestBlockhash('confirmed').then(function (bh) {
