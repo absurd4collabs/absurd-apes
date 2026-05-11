@@ -2867,7 +2867,7 @@ body.holdings-verified #btn-verify-panel {
   position: relative;
   overflow: hidden;
   min-height: 0; /* allow aspect-ratio to set height */
-  aspect-ratio: 1024 / 680; /* match horizons-bg.png (1024×680) */
+  aspect-ratio: 1024 / 512; /* match horizons-bg.png (1024×512) */
   --horizons-scroll: 0; /* arrow at top until JS runs (avoids production flash) */
 }
 #horizons::before {
@@ -3082,12 +3082,13 @@ body.holdings-verified #btn-verify-panel {
   #horizons {
     aspect-ratio: unset;
     min-height: 0;
-    padding-top: 91vw; /* 100vw * 1568/1720 ≈ portrait image height */
+    /* Same art as landscape (1024×512): full-width band height = width × 512/1024 */
+    padding-top: 50vw;
     padding-bottom: 0.5rem;
   }
   #horizons::before {
     background: url("../assets/horizons-bg-portrait.png") center / cover no-repeat;
-    height: 91vw;
+    height: 50vw;
     bottom: auto;
   }
   #horizons .container {
@@ -3119,7 +3120,7 @@ body.holdings-verified #btn-verify-panel {
   /* Keep arrow + mint button in the image area (above the full-width block); larger bottom = higher on image */
   .horizons__right {
     right: 1rem;
-    bottom: calc(100% - 91vw + 2rem);
+    bottom: calc(100% - 50vw + 2rem);
     width: 6rem; /* match button so arrow center aligns */
   }
   .horizons__right .horizons__cta {
