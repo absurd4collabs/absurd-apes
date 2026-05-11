@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "vercel-build": "node scripts/inject-og.js && node scripts/copy-static.js",
+    "build:solana-deps": "node scripts/build-solana-browser-deps.js",
+    "vercel-build": "node scripts/inject-og.js && node scripts/build-solana-browser-deps.js && node scripts/copy-static.js",
     "db:migrate": "node scripts/db-migrate.js",
     "db:migrate:merch-tier": "node scripts/apply-003-merch-tier.js",
     "db:migrate:merch-claim-details": "node scripts/apply-004-merch-claim-details.js",
@@ -15,6 +16,8 @@
   },
   "dependencies": {
     "@solana/web3.js": "^1.98.4",
+    "bn.js": "^5.2.1",
+    "buffer": "^6.0.3",
     "axios": "^1.6.0",
     "bs58": "^5.0.0",
     "cookie-parser": "^1.4.6",

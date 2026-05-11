@@ -30,98 +30,61 @@
 
   var SOLANA_RPC = window.location.origin + '/api/solana-rpc';
 
-  /** index.html Buffer polyfill is not node-buffer; web3’s u64 encoder throws Blob.encode[lamports]. Load real buffer + bn once. */
-  var merchSolanaDepsPromise = null;
-  function merchEnsureSolanaEncodeDeps() {
-    if (window.__merchSolanaEncodeDepsOk) return Promise.resolve();
-    if (!merchSolanaDepsPromise) {
-      merchSolanaDepsPromise = Promise.all([
-        import('https://cdn.jsdelivr.net/npm/buffer@6.0.3/+esm'),
-        import('https://cdn.jsdelivr.net/npm/bn.js@5.2.1/+esm'),
-      ])
-        .then(function (mods) {
-          var B = mods[0].Buffer || mods[0].default;
-          var BN = mods[1].default || mods[1].BN || mods[1];
-          if (!B || !BN) throw new Error('buffer/bn load incomplete');
-          window.Buffer = B;
-          window.BN = BN;
-          window.__merchSolanaEncodeDepsOk = true;
-        })
-        .catch(function () {
-          return Promise.all([
-            import('https://esm.sh/buffer@6.0.3'),
-            import('https://esm.sh/bn.js@5.2.1'),
-          ]).then(function (mods) {
-            var B = mods[0].Buffer || mods[0].default;
-            var BN = mods[1].default || mods[1].BN || mods[1];
-            if (!B || !BN) throw new Error('buffer/bn load incomplete');
-            window.Buffer = B;
-            window.BN = BN;
-            window.__merchSolanaEncodeDepsOk = true;
-          });
-        })
-        .catch(function (e) {
-          merchSolanaDepsPromise = null;
-          throw e || new Error('Could not load buffer/bn for Solana fee (network or CSP).');
-        });
-    }
-    return merchSolanaDepsPromise;
-  }
-
   function buildAndSendMerchPackFeePayment(lamportsStr, destination) {
     var provider = typeof window.getSolanaProvider === 'function' ? window.getSolanaProvider() : null;
     var wallet = typeof window.getWalletPublicKey === 'function' ? window.getWalletPublicKey() : null;
     if (!provider || !wallet) return Promise.reject(new Error('Wallet not connected'));
+    if (!window.Buffer || !window.BN) {
+      return Promise.reject(
+        new Error('Solana helpers missing. Hard refresh, or run: npm run build:solana-deps (loads /js/solana-tx-deps.iife.js before web3).')
+      );
+    }
     var solanaWeb3 = window.solanaWeb3;
     if (!solanaWeb3 || !solanaWeb3.Connection || !solanaWeb3.PublicKey || !solanaWeb3.Transaction || !solanaWeb3.SystemProgram) {
       return Promise.reject(new Error('Solana web3 not loaded. Refresh the page.'));
     }
     var lamportsRaw = String(lamportsStr || '').trim().replace(/\s/g, '');
     if (!/^\d+$/.test(lamportsRaw) || lamportsRaw.length > 20) return Promise.reject(new Error('Invalid fee amount'));
+    var lamportsBn = new window.BN(lamportsRaw, 10);
+    if (lamportsBn.isNeg() || lamportsBn.isZero()) return Promise.reject(new Error('Invalid fee amount'));
 
-    return merchEnsureSolanaEncodeDeps().then(function () {
-      var BN = window.BN;
-      var lamportsBn = new BN(lamportsRaw, 10);
-      if (lamportsBn.isNeg() || lamportsBn.isZero()) return Promise.reject(new Error('Invalid fee amount'));
-
-      var Connection = solanaWeb3.Connection;
-      var PublicKey = solanaWeb3.PublicKey;
-      var Transaction = solanaWeb3.Transaction;
-      var SystemProgram = solanaWeb3.SystemProgram;
-      var connection = new Connection(SOLANA_RPC, 'confirmed');
-      var ownerPk = new PublicKey(wallet);
-      var treasuryPk = new PublicKey(String(destination).trim());
-      var tx = new Transaction().add(
-        SystemProgram.transfer({
-          fromPubkey: ownerPk,
-          toPubkey: treasuryPk,
-          lamports: lamportsBn,
-        })
-      );
-      return connection.getLatestBlockhash('confirmed').then(function (bh) {
-        var blockhash = bh && bh.value && bh.value.blockhash ? bh.value.blockhash : bh && bh.blockhash;
-        if (!blockhash) return Promise.reject(new Error('Could not get blockhash'));
-        tx.recentBlockhash = blockhash;
-        tx.feePayer = ownerPk;
-        if (typeof provider.signAndSendTransaction === 'function') {
-          return Promise.resolve(provider.signAndSendTransaction(tx)).then(function (result) {
-            var sig = (result && (typeof result === 'string' ? result : result.signature || result.hash)) || null;
-            return sig ? sig : Promise.reject(new Error('No signature returned'));
-          });
-        }
-        var serialized = tx.serialize({ requireAllSignatures: false });
-        var rawBuf = serialized && serialized instanceof Uint8Array ? serialized : new Uint8Array(serialized);
-        var base64 =
-          typeof rawBuf.toString === 'function' && rawBuf.toString('base64')
-            ? rawBuf.toString('base64')
-            : btoa(String.fromCharCode.apply(null, rawBuf));
-        return provider
-          .request({ method: 'signAndSendTransaction', params: { transaction: base64 } })
-          .then(function (result) {
-            var sig = (result && (typeof result === 'string' ? result : result.signature || result.hash)) || null;
-            return sig ? sig : Promise.reject(new Error('No signature returned'));
-          });
-      });
+    var Connection = solanaWeb3.Connection;
+    var PublicKey = solanaWeb3.PublicKey;
+    var Transaction = solanaWeb3.Transaction;
+    var SystemProgram = solanaWeb3.SystemProgram;
+    var connection = new Connection(SOLANA_RPC, 'confirmed');
+    var ownerPk = new PublicKey(wallet);
+    var treasuryPk = new PublicKey(String(destination).trim());
+    var tx = new Transaction().add(
+      SystemProgram.transfer({
+        fromPubkey: ownerPk,
+        toPubkey: treasuryPk,
+        lamports: lamportsBn,
+      })
+    );
+    return connection.getLatestBlockhash('confirmed').then(function (bh) {
+      var blockhash = bh && bh.value && bh.value.blockhash ? bh.value.blockhash : bh && bh.blockhash;
+      if (!blockhash) return Promise.reject(new Error('Could not get blockhash'));
+      tx.recentBlockhash = blockhash;
+      tx.feePayer = ownerPk;
+      if (typeof provider.signAndSendTransaction === 'function') {
+        return Promise.resolve(provider.signAndSendTransaction(tx)).then(function (result) {
+          var sig = (result && (typeof result === 'string' ? result : result.signature || result.hash)) || null;
+          return sig ? sig : Promise.reject(new Error('No signature returned'));
+        });
+      }
+      var serialized = tx.serialize({ requireAllSignatures: false });
+      var rawBuf = serialized && serialized instanceof Uint8Array ? serialized : new Uint8Array(serialized);
+      var base64 =
+        typeof rawBuf.toString === 'function' && rawBuf.toString('base64')
+          ? rawBuf.toString('base64')
+          : btoa(String.fromCharCode.apply(null, rawBuf));
+      return provider
+        .request({ method: 'signAndSendTransaction', params: { transaction: base64 } })
+        .then(function (result) {
+          var sig = (result && (typeof result === 'string' ? result : result.signature || result.hash)) || null;
+          return sig ? sig : Promise.reject(new Error('No signature returned'));
+        });
     });
   }
 
