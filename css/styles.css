@@ -2927,6 +2927,17 @@ body.holdings-verified #btn-verify-panel {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   line-height: 1.6;
 }
+.horizons__alpha-list {
+  margin: -0.35rem 0 0.65rem;
+  padding-left: 1.15rem;
+  font-size: 0.8125rem;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  line-height: 1.65;
+}
+.horizons__alpha-list li {
+  margin-bottom: 0.25rem;
+}
 .horizons__alpha-read-more {
   margin-top: 0.35rem;
   padding: 0;
@@ -2987,6 +2998,9 @@ body.holdings-verified #btn-verify-panel {
   .horizons__alpha-cta {
     font-size: 0.8rem;
     margin-top: 0.35rem;
+  }
+  .horizons__alpha-list {
+    font-size: 0.7rem;
   }
   .horizons__alpha-read-more {
     display: none;
