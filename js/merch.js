@@ -28,6 +28,14 @@
     return origin + '/api/merch-proxy?path=' + encodeURIComponent(pathSegment);
   }
 
+  /** Same as raffles NFT flow: POST signed tx; avoids Phantom blocking signAndSend on some sites. */
+  function rafflesSendRawUrl() {
+    var origin = window.location.origin;
+    var isLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
+    if (isLocal) return origin + '/api/raffles/send-raw';
+    return origin + '/api/raffles-proxy?path=' + encodeURIComponent('send-raw');
+  }
+
   var SOLANA_RPC = window.location.origin + '/api/solana-rpc';
 
   function buildAndSendMerchPackFeePayment(lamportsStr, destination) {
@@ -68,24 +76,60 @@
       if (!blockhash) return Promise.reject(new Error('Could not get blockhash'));
       tx.recentBlockhash = blockhash;
       tx.feePayer = ownerPk;
-      if (typeof provider.signAndSendTransaction === 'function') {
-        return Promise.resolve(provider.signAndSendTransaction(tx)).then(function (result) {
-          var sig = (result && (typeof result === 'string' ? result : result.signature || result.hash)) || null;
-          return sig ? sig : Promise.reject(new Error('No signature returned'));
-        });
-      }
-      var serialized = tx.serialize({ requireAllSignatures: false });
-      var rawBuf = serialized && serialized instanceof Uint8Array ? serialized : new Uint8Array(serialized);
-      var base64 =
-        typeof rawBuf.toString === 'function' && rawBuf.toString('base64')
-          ? rawBuf.toString('base64')
-          : btoa(String.fromCharCode.apply(null, rawBuf));
-      return provider
-        .request({ method: 'signAndSendTransaction', params: { transaction: base64 } })
-        .then(function (result) {
-          var sig = (result && (typeof result === 'string' ? result : result.signature || result.hash)) || null;
-          return sig ? sig : Promise.reject(new Error('No signature returned'));
-        });
+      /* Match raffles.js transferNftToPrizeWallet: sign only, broadcast via /api/raffles/send-raw (Helius). */
+      var signPromise =
+        typeof provider.signTransaction === 'function'
+          ? Promise.resolve(provider.signTransaction(tx))
+          : Promise.resolve(tx).then(function (unsigned) {
+              var ser = unsigned.serialize({ requireAllSignatures: false });
+              var b64 = btoa(
+                String.fromCharCode.apply(null, ser instanceof Uint8Array ? ser : new Uint8Array(ser))
+              );
+              return provider.request({ method: 'signTransaction', params: { message: b64 } }).then(function (signedB64) {
+                if (!signedB64) return null;
+                var decoded =
+                  typeof atob !== 'undefined' ? atob(signedB64) : Buffer.from(signedB64, 'base64').toString('binary');
+                var arr = new Uint8Array(decoded.length);
+                for (var i = 0; i < decoded.length; i++) arr[i] = decoded.charCodeAt(i);
+                return { serialize: function () { return arr; } };
+              });
+            });
+      return signPromise.then(function (signedTx) {
+        if (!signedTx) return Promise.reject(new Error('Wallet did not return signed transaction'));
+        var serialized = signedTx.serialize
+          ? signedTx.serialize()
+          : signedTx instanceof Uint8Array
+            ? signedTx
+            : new Uint8Array(signedTx);
+        var raw = serialized instanceof Uint8Array ? serialized : new Uint8Array(serialized);
+        var base64 =
+          typeof raw.toString === 'function' && raw.toString('base64')
+            ? raw.toString('base64')
+            : btoa(String.fromCharCode.apply(null, raw));
+        return fetchWithCreds(rafflesSendRawUrl(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ signedTransaction: base64 }),
+        })
+          .then(function (r) {
+            return r.json().then(
+              function (data) {
+                return { ok: r.ok, data: data };
+              },
+              function () {
+                return { ok: false, data: null };
+              }
+            );
+          })
+          .then(function (result) {
+            if (result.ok && result.data && result.data.signature) return result.data.signature;
+            var errMsg =
+              result.data && (result.data.error || result.data.logs)
+                ? result.data.error || (Array.isArray(result.data.logs) ? result.data.logs.join('\n') : '')
+                : 'Send failed';
+            return Promise.reject(new Error(errMsg));
+          });
+      });
     });
   }
 
