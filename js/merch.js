@@ -39,12 +39,15 @@
     if (!solanaWeb3 || !solanaWeb3.Connection || !solanaWeb3.PublicKey || !solanaWeb3.Transaction || !solanaWeb3.SystemProgram) {
       return Promise.reject(new Error('Solana web3 not loaded. Refresh the page.'));
     }
-    var BN = solanaWeb3.BN;
-    if (!BN) return Promise.reject(new Error('Solana BN not available. Refresh the page.'));
     var lamportsRaw = String(lamportsStr || '').trim().replace(/\s/g, '');
     if (!/^\d+$/.test(lamportsRaw)) return Promise.reject(new Error('Invalid fee amount'));
-    var lamportsBn = new BN(lamportsRaw, 10);
-    if (lamportsBn.isNeg() || lamportsBn.isZero()) return Promise.reject(new Error('Invalid fee amount'));
+    var lamportsBI;
+    try {
+      lamportsBI = BigInt(lamportsRaw);
+    } catch (e) {
+      return Promise.reject(new Error('Invalid fee amount'));
+    }
+    if (lamportsBI <= 0n) return Promise.reject(new Error('Invalid fee amount'));
     var Connection = solanaWeb3.Connection;
     var PublicKey = solanaWeb3.PublicKey;
     var Transaction = solanaWeb3.Transaction;
@@ -56,7 +59,7 @@
       SystemProgram.transfer({
         fromPubkey: ownerPk,
         toPubkey: treasuryPk,
-        lamports: lamportsBn,
+        lamports: lamportsBI,
       })
     );
     return connection.getLatestBlockhash('confirmed').then(function (bh) {
