@@ -2874,7 +2874,7 @@ body.holdings-verified #btn-verify-panel {
   content: '';
   position: absolute;
   inset: 0;
-  background: url("../assets/horizons-bg.png") center / cover no-repeat;
+  background: url("../assets/horizons-bg.png?v=2") center / cover no-repeat;
   pointer-events: none;
   z-index: 0;
 }
@@ -3087,7 +3087,7 @@ body.holdings-verified #btn-verify-panel {
     padding-bottom: 0.5rem;
   }
   #horizons::before {
-    background: url("../assets/horizons-bg-portrait.png") center / cover no-repeat;
+    background: url("../assets/horizons-bg-portrait.png?v=2") center / cover no-repeat;
     height: 50vw;
     bottom: auto;
   }
