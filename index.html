@@ -24,7 +24,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/styles.css?v=31" />
+  <link rel="stylesheet" href="/css/styles.css?v=32" />
 </head>
 <body>
   <!-- Header: title (left) + social links (right) -->
@@ -545,7 +545,10 @@
         <div class="merch-packs-page__cta" id="merch-packs-cta">
           <div class="merch-packs-page__cta-row">
             <button type="button" class="btn merch-packs-page__waitlist-btn" id="merch-waitlist-join-btn" disabled>Join wait list</button>
-            <button type="button" class="btn btn--outline merch-packs-page__claim-btn" id="merch-claim-pack-btn">Claim merch pack</button>
+            <button type="button" class="btn merch-packs-page__claim-btn" id="merch-claim-pack-btn">
+              <svg class="merch-packs-page__claim-star" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+              Claim merch pack
+            </button>
           </div>
           <p class="merch-packs-page__claim-gate-hint" id="merch-claim-gate-hint" hidden></p>
           <p class="merch-packs-page__waitlist-hint" id="merch-waitlist-hint" hidden>Log in with Discord in the sidebar<br />to join the wait list.</p>
