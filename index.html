@@ -24,7 +24,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/styles.css?v=25" />
+  <link rel="stylesheet" href="/css/styles.css?v=26" />
 </head>
 <body>
   <!-- Header: title (left) + social links (right) -->
@@ -665,6 +665,9 @@
           <p class="merch-claim-review-intro">Thanks — double-check everything below. You can edit if something looks wrong.</p>
           <div id="merch-claim-review-summary" class="merch-claim-review-summary" aria-live="polite"></div>
           <p class="merch-waitlist-modal__err" id="merch-claim-review-err" hidden></p>
+          <p class="merch-claim-review-fee-notice">
+            To receive your merch there is a $20 (packaging and posting) fee payable in Solana. When you click confirm below, a transaction will open for you to sign. The order is not confirmed unless the transaction is approved and successful.
+          </p>
           <div class="merch-waitlist-modal__actions merch-claim-review-modal__actions">
             <button type="button" class="btn btn--outline" id="merch-claim-review-edit">Edit details</button>
             <button type="button" class="btn btn--primary" id="merch-claim-review-confirm">Confirm &amp; submit</button>
@@ -683,6 +686,9 @@
         </div>
         <div class="raffles-modal__body">
           <p class="merch-claim-success-modal__text">Your merch claim has been submitted. If you need to change anything, contact the team on Discord.</p>
+          <p class="merch-claim-success-tx-wrap" id="merch-claim-success-tx-wrap" hidden>
+            <a class="merch-claim-success-tx-link" id="merch-claim-success-tx-link" href="#" target="_blank" rel="noopener noreferrer">View payment on Solscan</a>
+          </p>
           <div class="merch-waitlist-modal__actions">
             <button type="button" class="btn btn--primary" id="merch-claim-success-done">Done</button>
           </div>
@@ -799,6 +805,6 @@
   <script src="/js/app.js?v=19"></script>
   <script src="/js/raffles.js?v=16"></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
-  <script src="/js/merch.js?v=22"></script>
+  <script src="/js/merch.js?v=23"></script>
 </body>
 </html>

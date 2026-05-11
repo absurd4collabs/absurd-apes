@@ -28,6 +28,91 @@
     return origin + '/api/merch-proxy?path=' + encodeURIComponent(pathSegment);
   }
 
+  var SOLANA_RPC = window.location.origin + '/api/solana-rpc';
+  var RAFFLES_SEND_RAW = window.location.origin + '/api/raffles/send-raw';
+
+  function buildAndSendMerchPackFeePayment(lamportsStr, destination) {
+    var provider = typeof window.getSolanaProvider === 'function' ? window.getSolanaProvider() : null;
+    var wallet = typeof window.getWalletPublicKey === 'function' ? window.getWalletPublicKey() : null;
+    if (!provider || !wallet) return Promise.reject(new Error('Wallet not connected'));
+    var solanaWeb3 = window.solanaWeb3;
+    if (!solanaWeb3 || !solanaWeb3.Connection || !solanaWeb3.PublicKey || !solanaWeb3.Transaction || !solanaWeb3.SystemProgram) {
+      return Promise.reject(new Error('Solana web3 not loaded. Refresh the page.'));
+    }
+    var lamports = parseInt(String(lamportsStr), 10);
+    if (isNaN(lamports) || lamports < 1) return Promise.reject(new Error('Invalid fee amount'));
+    var Connection = solanaWeb3.Connection;
+    var PublicKey = solanaWeb3.PublicKey;
+    var Transaction = solanaWeb3.Transaction;
+    var SystemProgram = solanaWeb3.SystemProgram;
+    var connection = new Connection(SOLANA_RPC, 'confirmed');
+    var ownerPk = new PublicKey(wallet);
+    var treasuryPk = new PublicKey(String(destination).trim());
+    var tx = new Transaction().add(
+      SystemProgram.transfer({
+        fromPubkey: ownerPk,
+        toPubkey: treasuryPk,
+        lamports: lamports,
+      })
+    );
+    return connection.getLatestBlockhash('confirmed').then(function (bh) {
+      var blockhash = bh && bh.value && bh.value.blockhash ? bh.value.blockhash : bh && bh.blockhash;
+      if (!blockhash) return Promise.reject(new Error('Could not get blockhash'));
+      tx.recentBlockhash = blockhash;
+      tx.feePayer = ownerPk;
+      function signThenSendViaServer(unsignedTx) {
+        var t = unsignedTx;
+        var signPromise =
+          typeof provider.signTransaction === 'function'
+            ? Promise.resolve(provider.signTransaction(t))
+            : Promise.resolve(t).then(function (ut) {
+                var ser = ut.serialize({ requireAllSignatures: false });
+                var rawArr = ser instanceof Uint8Array ? ser : new Uint8Array(ser);
+                var b64 = btoa(String.fromCharCode.apply(null, rawArr));
+                return provider.request({ method: 'signTransaction', params: { message: b64 } }).then(function (signedB64) {
+                  if (!signedB64) return null;
+                  var decoded = atob(signedB64);
+                  var arr = new Uint8Array(decoded.length);
+                  for (var j = 0; j < decoded.length; j++) arr[j] = decoded.charCodeAt(j);
+                  return solanaWeb3.Transaction.from(arr);
+                });
+              });
+        return signPromise.then(function (signedTx) {
+          if (!signedTx) return Promise.reject(new Error('Wallet did not return signed transaction'));
+          var serialized = signedTx.serialize ? signedTx.serialize() : signedTx;
+          var raw = serialized instanceof Uint8Array ? serialized : new Uint8Array(serialized);
+          var base64 = btoa(String.fromCharCode.apply(null, raw));
+          return fetch(RAFFLES_SEND_RAW, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ signedTransaction: base64 }),
+          })
+            .then(function (r) {
+              return r.json().then(function (data) {
+                return { ok: r.ok, data: data };
+              });
+            })
+            .then(function (result) {
+              if (result.ok && result.data && result.data.signature) return result.data.signature;
+              var errMsg =
+                result.data && (result.data.error || result.data.logs)
+                  ? result.data.error || (Array.isArray(result.data.logs) ? result.data.logs.join('\n') : '')
+                  : 'Send failed';
+              return Promise.reject(new Error(errMsg));
+            });
+        });
+      }
+      if (typeof provider.signAndSendTransaction === 'function') {
+        return Promise.resolve(provider.signAndSendTransaction(tx)).then(function (result) {
+          var sig = result && (typeof result === 'string' ? result : result.signature || result.hash);
+          return sig ? sig : Promise.reject(new Error('No signature returned'));
+        });
+      }
+      return signThenSendViaServer(tx);
+    });
+  }
+
   function rafflesAdminCheckUrl() {
     var origin = window.location.origin;
     var isLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
@@ -595,10 +680,21 @@
     }
   }
 
-  function setSuccessModal(open) {
+  function setSuccessModal(open, paymentSignature) {
     var m = document.getElementById('merch-claim-success-modal');
     if (!m) return;
     m.setAttribute('aria-hidden', open ? 'false' : 'true');
+    var wrap = document.getElementById('merch-claim-success-tx-wrap');
+    var link = document.getElementById('merch-claim-success-tx-link');
+    if (wrap && link) {
+      if (open && paymentSignature) {
+        link.href = 'https://solscan.io/tx/' + encodeURIComponent(paymentSignature);
+        wrap.hidden = false;
+      } else {
+        wrap.hidden = true;
+        link.removeAttribute('href');
+      }
+    }
   }
 
   function renderReviewSummary(payload) {
@@ -823,28 +919,47 @@
     }
     var confirmBtn = document.getElementById('merch-claim-review-confirm');
     if (confirmBtn) confirmBtn.disabled = true;
-    fetchWithCreds(merchApiUrl('submit-claim'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        code: code,
-        wallet: pk,
-        x_handle: payload.x_handle,
-        discord_handle: payload.discord_display || '',
-        merch_claim_details: payload.merch_claim_details,
-        delivery_address: payload.delivery_address,
-      }),
-    })
+    fetchWithCreds(merchApiUrl('pack-fee'), { cache: 'no-store' })
       .then(function (r) {
         return r.json().then(function (data) {
-          return { ok: r.ok, status: r.status, data: data };
+          return { ok: r.ok, data: data };
+        });
+      })
+      .then(function (packRes) {
+        if (!packRes.ok || !packRes.data || !packRes.data.lamports || !packRes.data.destination) {
+          var em = (packRes.data && packRes.data.error) || 'Could not load packaging fee. Try again.';
+          throw new Error(em);
+        }
+        return buildAndSendMerchPackFeePayment(packRes.data.lamports, packRes.data.destination).then(function (sig) {
+          return { signature: sig, lamports: String(packRes.data.lamports) };
+        });
+      })
+      .then(function (payment) {
+        return fetchWithCreds(merchApiUrl('submit-claim'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code: code,
+            wallet: pk,
+            x_handle: payload.x_handle,
+            discord_handle: payload.discord_display || '',
+            merch_claim_details: payload.merch_claim_details,
+            delivery_address: payload.delivery_address,
+            payment_signature: payment.signature,
+            payment_lamports: payment.lamports,
+          }),
+        }).then(function (r) {
+          return r.json().then(function (data) {
+            return { ok: r.ok, data: data, localSig: payment.signature };
+          });
         });
       })
       .then(function (res) {
         if (res.ok && res.data && res.data.ok) {
           setReviewModal(false);
           finishClaimSession();
-          setSuccessModal(true);
+          var txSig = (res.data && res.data.payment_signature) || res.localSig;
+          setSuccessModal(true, txSig);
           return;
         }
         var msg = (res.data && res.data.error) || 'Could not submit. Try again.';
@@ -853,9 +968,9 @@
           reviewErr.hidden = false;
         }
       })
-      .catch(function () {
+      .catch(function (err) {
         if (reviewErr) {
-          reviewErr.textContent = 'Network error. Try again.';
+          reviewErr.textContent = (err && err.message) || 'Network error. Try again.';
           reviewErr.hidden = false;
         }
       })

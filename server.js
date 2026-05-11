@@ -98,6 +98,18 @@ const RAFFLE_CLAIM_LIMIT = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+const MERCH_CLAIM_SUBMIT_LIMIT = rateLimit({
+  windowMs: 60 * 1000,
+  max: 15,
+  message: { error: 'Too many submit attempts. Try again in a minute.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/** SOL packaging fee for merch claims (USD); recipient wallet on mainnet. */
+const MERCH_PACK_PAYMENT_WALLET = (process.env.MERCH_PACK_PAYMENT_WALLET || 'Ffpwo7q7Gtv85w3ZfhDSSz3DnnqboRnPDAW56de3ZqAP').trim();
+const MERCH_PACK_FEE_USD = Number.parseFloat(String(process.env.MERCH_PACK_FEE_USD || '20'), 10);
+const MERCH_PACK_PAID_USD_MIN_RATIO = Number.parseFloat(String(process.env.MERCH_PACK_PAID_USD_MIN_RATIO || '0.94'), 10);
 
 /** Gravemint “Custom” webhook: POST JSON with wallet + claim code; Authorization: Bearer <secret>. */
 const GRAVEMINT_WEBHOOK_SECRET = (process.env.GRAVEMINT_WEBHOOK_SECRET || '').trim();
@@ -634,7 +646,7 @@ app.post('/api/merch/verify-code', express.json(), async function (req, res) {
   }
 });
 
-app.post('/api/merch/submit-claim', express.json(), async function (req, res) {
+app.post('/api/merch/submit-claim', MERCH_CLAIM_SUBMIT_LIMIT, express.json(), async function (req, res) {
   try {
     const code = req.body && req.body.code;
     let wallet = req.body && req.body.wallet;
@@ -642,6 +654,18 @@ app.post('/api/merch/submit-claim', express.json(), async function (req, res) {
     if (!wallet || !String(wallet).trim()) return res.status(400).json({ error: 'wallet required' });
     const addr = String(wallet).trim();
     if (addr.length < 32 || addr.length > 64) return res.status(400).json({ error: 'Invalid wallet address' });
+    const paymentSig = (req.body && req.body.payment_signature && String(req.body.payment_signature).trim()) || '';
+    const paymentLamports = (req.body && req.body.payment_lamports != null && String(req.body.payment_lamports).trim()) || '';
+    if (!paymentSig) {
+      return res.status(400).json({ error: 'Sign the packaging fee transaction in your wallet first.' });
+    }
+    if (!paymentLamports || !/^\d+$/.test(paymentLamports)) {
+      return res.status(400).json({ error: 'payment_lamports required (from pack fee quote).' });
+    }
+    const payOk = await verifyMerchPackPaymentSignature(paymentSig, addr, paymentLamports);
+    if (!payOk.ok) {
+      return res.status(400).json({ error: payOk.error || 'Payment verification failed' });
+    }
     if (!db.submitMerchPackClaim) return res.status(503).json({ error: 'Database not configured' });
     const u = req.session && req.session.discord;
     let discordDisplay = '';
@@ -654,7 +678,7 @@ app.post('/api/merch/submit-claim', express.json(), async function (req, res) {
     }
     const result = await db.submitMerchPackClaim(discordId, addr, code, req.body, discordDisplay);
     if (!result.ok) return res.status(400).json({ error: result.error || 'Could not submit claim' });
-    res.json({ ok: true });
+    res.json({ ok: true, payment_signature: paymentSig });
   } catch (e) {
     console.warn('[merch/submit-claim]', e.message);
     res.status(500).json({ error: 'Server error' });
@@ -1119,6 +1143,103 @@ async function verifyRafflePaymentTx(signature, paymentDestination, expectedAmou
     return { ok: false, error: e.message || 'Verification failed' };
   }
 }
+
+const JUPITER_SOL_MINT = 'So11111111111111111111111111111111111111112';
+
+async function fetchSolUsdFromJupiter() {
+  const urls = [
+    'https://api.jup.ag/price/v3?ids=' + encodeURIComponent(JUPITER_SOL_MINT),
+    'https://lite-api.jup.ag/price/v3?ids=' + encodeURIComponent(JUPITER_SOL_MINT),
+  ];
+  for (const url of urls) {
+    try {
+      const r = await axios.get(url, {
+        timeout: 8000,
+        validateStatus: () => true,
+        headers: { Accept: 'application/json' },
+      });
+      if (r.status === 200 && r.data) {
+        const d = typeof r.data.data === 'object' && r.data.data !== null ? r.data.data : r.data;
+        const sol = d[JUPITER_SOL_MINT];
+        const solP = sol?.price ?? sol?.usdPrice;
+        if (solP != null && Number(solP) > 0) return Number(solP);
+      }
+    } catch (e) {
+      console.warn('[merch/pack-fee] Jupiter SOL price failed', e.message);
+    }
+  }
+  return null;
+}
+
+async function verifyMerchPackPaymentSignature(signature, payerWallet, claimedLamportsStr) {
+  const dest = MERCH_PACK_PAYMENT_WALLET;
+  if (!dest || !isValidSolanaAddress(dest)) {
+    return { ok: false, error: 'Merch payment wallet not configured on server.' };
+  }
+  if (!HELIUS_API_KEY) return { ok: false, error: 'Payment verification unavailable.' };
+  const lamportsNeedle = String(claimedLamportsStr || '').trim();
+  if (!lamportsNeedle || !/^\d+$/.test(lamportsNeedle)) {
+    return { ok: false, error: 'Invalid payment lamports.' };
+  }
+  const exact = await verifyRafflePaymentTx(signature, dest, lamportsNeedle, true, null, payerWallet);
+  if (!exact.ok) return exact;
+  const feeUsd =
+    Number.isFinite(MERCH_PACK_FEE_USD) && MERCH_PACK_FEE_USD > 0 ? MERCH_PACK_FEE_USD : 20;
+  const minRatio =
+    Number.isFinite(MERCH_PACK_PAID_USD_MIN_RATIO) &&
+    MERCH_PACK_PAID_USD_MIN_RATIO > 0 &&
+    MERCH_PACK_PAID_USD_MIN_RATIO <= 1
+      ? MERCH_PACK_PAID_USD_MIN_RATIO
+      : 0.94;
+  const solUsd = await fetchSolUsdFromJupiter();
+  if (!solUsd || solUsd <= 0) {
+    return { ok: false, error: 'Could not verify SOL price. Try again shortly.' };
+  }
+  let lamportsBig;
+  try {
+    lamportsBig = BigInt(lamportsNeedle);
+  } catch (e) {
+    return { ok: false, error: 'Invalid payment lamports.' };
+  }
+  const paidUsd = (Number(lamportsBig) / LAMPORTS_PER_SOL) * solUsd;
+  const minUsd = feeUsd * minRatio;
+  if (paidUsd + 1e-12 < minUsd) {
+    return {
+      ok: false,
+      error:
+        'Payment is below the required packaging fee at current SOL prices. Refresh the page to get an updated quote and try again.',
+    };
+  }
+  return { ok: true };
+}
+
+app.get('/api/merch/pack-fee', async function (req, res) {
+  try {
+    if (!MERCH_PACK_PAYMENT_WALLET || !isValidSolanaAddress(MERCH_PACK_PAYMENT_WALLET)) {
+      return res.status(503).json({ error: 'Merch payment wallet not configured' });
+    }
+    const solUsd = await fetchSolUsdFromJupiter();
+    if (!solUsd || solUsd <= 0) {
+      return res.status(503).json({ error: 'Could not load SOL price. Try again shortly.' });
+    }
+    const feeUsd =
+      Number.isFinite(MERCH_PACK_FEE_USD) && MERCH_PACK_FEE_USD > 0 ? MERCH_PACK_FEE_USD : 20;
+    const lamports = Math.round((feeUsd / solUsd) * LAMPORTS_PER_SOL);
+    if (!lamports || lamports < 1) {
+      return res.status(503).json({ error: 'Invalid fee calculation' });
+    }
+    res.setHeader('Cache-Control', 'no-store');
+    return res.json({
+      lamports: String(lamports),
+      destination: MERCH_PACK_PAYMENT_WALLET,
+      feeUsd,
+      solUsd,
+    });
+  } catch (e) {
+    console.warn('[merch/pack-fee]', e.message);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
 
 app.post('/api/raffles/:id/buy', RAFFLE_BUY_LIMIT, express.json(), async function (req, res) {
   const id = parseInt(req.params.id, 10);
