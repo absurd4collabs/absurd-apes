@@ -852,9 +852,6 @@ body {
   text-transform: none;
 }
 
-.raffles-modal__box--merch-review {
-  max-width: min(460px, 96vw);
-}
 .merch-claim-review-intro {
   margin: 0 0 1rem;
   font-size: 0.95rem;
@@ -1203,6 +1200,10 @@ body.route-home .site-header__title {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+/* After generic .raffles-modal__box — higher specificity so merch review stays narrow */
+.raffles-modal__box.raffles-modal__box--merch-review {
+  max-width: min(460px, 96vw);
 }
 .raffles-modal__head {
   display: flex;
