@@ -106,8 +106,8 @@ const MERCH_CLAIM_SUBMIT_LIMIT = rateLimit({
   legacyHeaders: false,
 });
 
-/** SOL packaging fee for merch claims (USD); recipient wallet on mainnet. */
-const MERCH_PACK_PAYMENT_WALLET = (process.env.MERCH_PACK_PAYMENT_WALLET || 'Ffpwo7q7Gtv85w3ZfhDSSz3DnnqboRnPDAW56de3ZqAP').trim();
+/** SOL packaging fee for merch claims (USD); recipient on mainnet. Defaults to same wallet as raffle ticket SOL (treasury / prize) so Phantom sees the same recipient as working raffles. */
+const MERCH_PACK_PAYMENT_WALLET = (process.env.MERCH_PACK_PAYMENT_WALLET || RAFFLE_TREASURY_WALLET || PRIZE_WALLET || '').trim();
 const MERCH_PACK_FEE_USD = Number.parseFloat(String(process.env.MERCH_PACK_FEE_USD || '20'), 10);
 const MERCH_PACK_PAID_USD_MIN_RATIO = Number.parseFloat(String(process.env.MERCH_PACK_PAID_USD_MIN_RATIO || '0.94'), 10);
 
@@ -456,7 +456,7 @@ app.get('/merch-packs', function (req, res) {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 app.get('/merch-packs2', function (req, res) {
-  res.sendFile(path.join(__dirname, 'index.html'));
+  res.redirect(302, '/merch-packs');
 });
 
 // ——— Solana RPC proxy (for NFT transfer in browser; public RPC returns 403 from browser) ———

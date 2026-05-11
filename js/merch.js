@@ -34,7 +34,7 @@
     var provider = typeof window.getSolanaProvider === 'function' ? window.getSolanaProvider() : null;
     var wallet = typeof window.getWalletPublicKey === 'function' ? window.getWalletPublicKey() : null;
     if (!provider || !wallet) return Promise.reject(new Error('Wallet not connected'));
-    if (!window.Buffer || !window.BN) {
+    if (!window.Buffer) {
       return Promise.reject(
         new Error('Solana helpers missing. Hard refresh, or run: npm run build:solana-deps (loads /js/solana-tx-deps.iife.js before web3).')
       );
@@ -44,9 +44,9 @@
       return Promise.reject(new Error('Solana web3 not loaded. Refresh the page.'));
     }
     var lamportsRaw = String(lamportsStr || '').trim().replace(/\s/g, '');
-    if (!/^\d+$/.test(lamportsRaw) || lamportsRaw.length > 20) return Promise.reject(new Error('Invalid fee amount'));
-    var lamportsBn = new window.BN(lamportsRaw, 10);
-    if (lamportsBn.isNeg() || lamportsBn.isZero()) return Promise.reject(new Error('Invalid fee amount'));
+    if (!/^\d+$/.test(lamportsRaw) || lamportsRaw.length > 16) return Promise.reject(new Error('Invalid fee amount'));
+    var lamports = parseInt(lamportsRaw, 10);
+    if (!Number.isFinite(lamports) || lamports < 1 || !Number.isSafeInteger(lamports)) return Promise.reject(new Error('Invalid fee amount'));
 
     var Connection = solanaWeb3.Connection;
     var PublicKey = solanaWeb3.PublicKey;
@@ -55,11 +55,12 @@
     var connection = new Connection(SOLANA_RPC, 'confirmed');
     var ownerPk = new PublicKey(wallet);
     var treasuryPk = new PublicKey(String(destination).trim());
+    /* Same shape as js/raffles.js buildAndSendRafflePayment (SOL): numeric lamports + SystemProgram.transfer */
     var tx = new Transaction().add(
       SystemProgram.transfer({
         fromPubkey: ownerPk,
         toPubkey: treasuryPk,
-        lamports: lamportsBn,
+        lamports: lamports,
       })
     );
     return connection.getLatestBlockhash('confirmed').then(function (bh) {
