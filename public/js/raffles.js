@@ -1,0 +1,990 @@
+/**
+ * Raffles page: admin panel (create raffle + NFT picker), active raffle cards, entries modal.
+ * Depends: app.js (getWalletPublicKey, getSolanaProvider), config (tokenMint), optional solanaWeb3 for NFT transfer.
+ */
+(function () {
+  var TOKEN_PROGRAM_ID = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+  var TOKEN_2022_PROGRAM_ID = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
+  var ATA_PROGRAM_ID = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL';
+  var SOLANA_RPC = window.location.origin + '/api/solana-rpc';
+
+  function getWalletPublicKey() {
+    return typeof window.getWalletPublicKey === 'function' ? window.getWalletPublicKey() : null;
+  }
+  function getSolanaProvider() {
+    return typeof window.getSolanaProvider === 'function' ? window.getSolanaProvider() : null;
+  }
+
+  function fetchWithCreds(url, opts) {
+    var options = opts && typeof opts === 'object' ? opts : {};
+    options.credentials = options.credentials || 'include';
+    return fetch(url, options);
+  }
+
+  /** Raffle API URL: on localhost use direct path; on Vercel use proxy (no rewrite for /api/*). */
+  function rafflesApiUrl(pathSegment) {
+    var origin = window.location.origin;
+    var isLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
+    if (isLocal) {
+      return pathSegment ? origin + '/api/raffles/' + pathSegment : origin + '/api/raffles/';
+    }
+    var base = origin + '/api/raffles-proxy';
+    if (pathSegment) return base + '?path=' + encodeURIComponent(pathSegment);
+    return base;
+  }
+
+  var selectedNft = null;
+  var prizeWalletForCreate = null;
+  var tokenInfoCache = {};
+  var customTokenDecimals = 6;
+
+  function setMsg(text, isErr) {
+    var msgEl = document.getElementById('raffles-admin-msg');
+    if (!msgEl) return;
+    msgEl.textContent = text || '';
+    msgEl.hidden = !text;
+    msgEl.classList.toggle('raffles-admin__msg--err', !!isErr);
+    msgEl.classList.toggle('raffles-admin__msg--ok', !isErr);
+  }
+
+  function initRafflesPage() {
+    var adminEl = document.getElementById('raffles-admin');
+    var listGrid = document.getElementById('raffles-list-grid');
+    var listEmpty = document.getElementById('raffles-list-empty');
+    if (!adminEl || !listGrid) return;
+
+    fetchWithCreds(rafflesApiUrl('admin-check'))
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        adminEl.hidden = !data.admin;
+        prizeWalletForCreate = (data.prizeWallet && String(data.prizeWallet).trim()) || null;
+        if (data.admin) {
+          setMinEndTime();
+          bindAdminForm();
+        }
+      })
+      .catch(function () { adminEl.hidden = true; });
+
+    fetchWithCreds(rafflesApiUrl(), { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var raffles = data.raffles || [];
+        listEmpty.hidden = raffles.length > 0;
+        listGrid.innerHTML = '';
+        raffles.forEach(function (r) { listGrid.appendChild(renderRaffleCard(r)); });
+      })
+      .catch(function () {
+        listEmpty.hidden = false;
+        listGrid.innerHTML = '';
+      });
+  }
+
+  function setMinEndTime() {
+    var input = document.getElementById('raffles-ends-at');
+    if (!input) return;
+    var now = new Date();
+    now.setMinutes(now.getMinutes() + 5);
+    var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+    input.min = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()) + 'T' + pad(now.getHours()) + ':' + pad(now.getMinutes());
+  }
+
+  function bindAdminForm() {
+    var selectNftBtn = document.getElementById('raffles-select-nft');
+    var tokenType = document.getElementById('raffles-token-type');
+    var customWrap = document.getElementById('raffles-custom-token-wrap');
+    var customMint = document.getElementById('raffles-custom-mint');
+    var customInfo = document.getElementById('raffles-custom-token-info');
+    var startBtn = document.getElementById('raffles-start-btn');
+    var msgEl = document.getElementById('raffles-admin-msg');
+
+    if (selectNftBtn) selectNftBtn.addEventListener('click', openNftPicker);
+    var removeNftBtn = document.getElementById('raffles-nft-remove');
+    if (removeNftBtn) removeNftBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      selectedNft = null;
+      var preview = document.getElementById('raffles-nft-preview');
+      var previewImg = document.getElementById('raffles-nft-preview-img');
+      var previewName = document.getElementById('raffles-nft-preview-name');
+      if (preview) preview.hidden = true;
+      if (previewImg) previewImg.src = '';
+      if (previewName) previewName.textContent = '';
+    });
+    if (tokenType) tokenType.addEventListener('change', function () {
+      customWrap.hidden = tokenType.value !== 'custom';
+      customInfo.textContent = '';
+      customTokenDecimals = 6;
+    });
+    if (customMint) {
+      var debounce;
+      customMint.addEventListener('input', function () {
+        clearTimeout(debounce);
+        var mint = customMint.value.trim();
+        customInfo.textContent = mint ? 'Loading…' : '';
+        customTokenDecimals = 6;
+        if (!mint) return;
+        debounce = setTimeout(function () {
+          fetchWithCreds(window.location.origin + '/api/token-info?mint=' + encodeURIComponent(mint))
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+              customTokenDecimals = typeof d.decimals === 'number' ? d.decimals : 6;
+              customInfo.textContent = (d.symbol || d.name) ? (d.symbol + ' — ' + d.name) : 'Token found';
+            })
+            .catch(function () { customInfo.textContent = 'Could not load token'; });
+        }, 400);
+      });
+    }
+    var nftPreview = document.getElementById('raffles-nft-preview');
+    var nftPreviewImg = document.getElementById('raffles-nft-preview-img');
+    var nftPreviewName = document.getElementById('raffles-nft-preview-name');
+    var lastPreviewImageUrl = '';
+    function updateNftPreview() {
+      if (!nftPreview || !nftPreviewImg || !nftPreviewName) return;
+      if (selectedNft && selectedNft.id) {
+        nftPreview.hidden = false;
+        var rawImg = selectedNft.image || '';
+        if (rawImg && rawImg !== lastPreviewImageUrl) {
+          lastPreviewImageUrl = rawImg;
+          nftPreviewImg.src = proxyImageUrl(rawImg);
+        } else if (!rawImg) {
+          lastPreviewImageUrl = '';
+          nftPreviewImg.src = '';
+        }
+        nftPreviewImg.alt = selectedNft.name || '';
+        nftPreviewName.textContent = selectedNft.name || selectedNft.id || 'Selected';
+      } else {
+        lastPreviewImageUrl = '';
+        nftPreview.hidden = true;
+        nftPreviewImg.src = '';
+        nftPreviewName.textContent = '';
+      }
+    }
+    updateNftPreview();
+    setInterval(updateNftPreview, 500);
+  }
+
+  function openNftPicker() {
+    var modal = document.getElementById('raffles-nft-modal');
+    var hint = document.getElementById('raffles-nft-modal-hint');
+    var grid = document.getElementById('raffles-nft-modal-grid');
+    var wallet = getWalletPublicKey();
+    if (!wallet) {
+      hint.textContent = 'Connect your wallet first, then try again.';
+      grid.innerHTML = '';
+      if (modal) { modal.setAttribute('aria-hidden', 'false'); }
+      return;
+    }
+    hint.textContent = 'Loading NFTs…';
+    grid.innerHTML = '';
+    if (modal) modal.setAttribute('aria-hidden', 'false');
+
+    fetchWithCreds(window.location.origin + '/api/nfts?wallet=' + encodeURIComponent(wallet))
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var nfts = data.nfts || [];
+        hint.textContent = nfts.length === 0 ? 'No NFTs found in this wallet.' : 'Click an NFT to select as prize.';
+        nfts.forEach(function (nft) {
+          var item = document.createElement('button');
+          item.type = 'button';
+          item.className = 'raffles-modal__nft-item';
+          item.innerHTML = '<img src="' + (nft.image ? escapeHtml(proxyImageUrl(nft.image)) : '') + '" alt="" loading="lazy" onerror="this.style.display=\'none\'" /><span>' + escapeHtml(nft.name || nft.id) + '</span>';
+          item.addEventListener('click', function () {
+            selectedNft = { id: nft.id, name: nft.name, image: nft.image };
+            var preview = document.getElementById('raffles-nft-preview');
+            var previewImg = document.getElementById('raffles-nft-preview-img');
+            var previewName = document.getElementById('raffles-nft-preview-name');
+            if (preview) preview.hidden = false;
+            if (previewImg) previewImg.src = nft.image ? proxyImageUrl(nft.image) : '';
+            if (previewName) previewName.textContent = nft.name || nft.id || 'Selected';
+            closeNftModal();
+          });
+          grid.appendChild(item);
+        });
+      })
+      .catch(function () {
+        hint.textContent = 'Failed to load NFTs. Try again.';
+      });
+  }
+
+  function closeNftModal() {
+    var modal = document.getElementById('raffles-nft-modal');
+    if (modal) modal.setAttribute('aria-hidden', 'true');
+  }
+  function closeEntriesModal() {
+    var modal = document.getElementById('raffles-entries-modal');
+    if (modal) modal.setAttribute('aria-hidden', 'true');
+  }
+
+  var TX_EXPLORER_BASE = 'https://explorer.solana.com/tx/';
+  function showClaimSuccessModal(signature) {
+    var modal = document.getElementById('raffles-claim-success-modal');
+    var link = document.getElementById('raffles-claim-success-tx-link');
+    if (link && signature) link.href = TX_EXPLORER_BASE + signature;
+    if (modal) modal.setAttribute('aria-hidden', 'false');
+  }
+  function closeClaimSuccessModal() {
+    var modal = document.getElementById('raffles-claim-success-modal');
+    if (modal) modal.setAttribute('aria-hidden', 'true');
+    initRafflesPage();
+  }
+
+  function showTicketPurchaseSuccessModal(signature) {
+    var modal = document.getElementById('raffles-purchase-success-modal');
+    var link = document.getElementById('raffles-purchase-success-tx-link');
+    if (link && signature) link.href = TX_EXPLORER_BASE + signature;
+    if (modal) modal.setAttribute('aria-hidden', 'false');
+  }
+  function closeTicketPurchaseSuccessModal() {
+    var modal = document.getElementById('raffles-purchase-success-modal');
+    if (modal) modal.setAttribute('aria-hidden', 'true');
+    initRafflesPage();
+  }
+
+  document.getElementById('raffles-nft-modal-close')?.addEventListener('click', closeNftModal);
+  document.getElementById('raffles-nft-modal-backdrop')?.addEventListener('click', closeNftModal);
+  document.getElementById('raffles-entries-modal-close')?.addEventListener('click', closeEntriesModal);
+  document.getElementById('raffles-entries-modal-backdrop')?.addEventListener('click', closeEntriesModal);
+  document.getElementById('raffles-claim-success-close')?.addEventListener('click', closeClaimSuccessModal);
+  document.getElementById('raffles-claim-success-backdrop')?.addEventListener('click', closeClaimSuccessModal);
+  document.getElementById('raffles-claim-success-done')?.addEventListener('click', closeClaimSuccessModal);
+  document.getElementById('raffles-purchase-success-close')?.addEventListener('click', closeTicketPurchaseSuccessModal);
+  document.getElementById('raffles-purchase-success-backdrop')?.addEventListener('click', closeTicketPurchaseSuccessModal);
+  document.getElementById('raffles-purchase-success-done')?.addEventListener('click', closeTicketPurchaseSuccessModal);
+
+  function escapeHtml(s) {
+    if (!s) return '';
+    var div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
+  }
+
+  /** Use same-origin proxy for external image URLs to avoid cross-site cookies and CORS. */
+  function proxyImageUrl(url) {
+    if (!url || !url.trim()) return '';
+    var u = url.trim();
+    if (u.startsWith('/') && !u.startsWith('//')) return u;
+    try {
+      var origin = window.location.origin;
+      var parsed = new URL(u, origin);
+      if (parsed.origin === origin) return u;
+    } catch (e) { /* ignore */ }
+    return window.location.origin + '/api/proxy-image?url=' + encodeURIComponent(u);
+  }
+
+  function getTicketPriceTokenType() {
+    var tokenType = document.getElementById('raffles-token-type');
+    return tokenType ? tokenType.value : 'sol';
+  }
+  /** Get ticket price as whole units (e.g. 1.5 SOL) and convert to raw string for the API. */
+  function getTicketPriceRawFromWholeUnits() {
+    var input = document.getElementById('raffles-ticket-price');
+    var val = input ? input.value : '';
+    var num = parseFloat(String(val).replace(/,/g, '').trim());
+    if (isNaN(num) || num < 0) return null;
+    var type = getTicketPriceTokenType();
+    var decimals = 9;
+    if (type === 'sol') decimals = 9;
+    else if (type === 'aaa') decimals = 6;
+    else decimals = customTokenDecimals;
+    var raw = Math.round(num * Math.pow(10, decimals));
+    return String(raw);
+  }
+  function getTicketPriceTokenMint() {
+    var type = getTicketPriceTokenType();
+    if (type === 'aaa' && window.ABSURD_APES_CONFIG && window.ABSURD_APES_CONFIG.tokenMint) return window.ABSURD_APES_CONFIG.tokenMint;
+    if (type === 'custom') return document.getElementById('raffles-custom-mint')?.value?.trim() || null;
+    return null;
+  }
+  function getTicketPriceDecimals() {
+    var type = getTicketPriceTokenType();
+    if (type === 'sol') return 9;
+    if (type === 'aaa') return 6;
+    return customTokenDecimals;
+  }
+
+  function startRaffle() {
+    console.log('[Raffles] Start raffle clicked');
+    var msgEl = document.getElementById('raffles-admin-msg');
+    var startBtn = document.getElementById('raffles-start-btn');
+    if (msgEl) { msgEl.hidden = true; msgEl.className = 'raffles-admin__msg'; msgEl.textContent = ''; }
+
+    if (!selectedNft || !selectedNft.id) {
+      setMsg('Select a prize NFT first.', true);
+      return;
+    }
+    var ticketCountEl = document.getElementById('raffles-ticket-count');
+    var ticketCount = ticketCountEl ? parseInt(ticketCountEl.value, 10) : 0;
+    if (isNaN(ticketCount) || ticketCount < 1) {
+      setMsg('Set a valid number of tickets.', true);
+      return;
+    }
+    var priceRaw = getTicketPriceRawFromWholeUnits();
+    if (priceRaw === null || priceRaw === '0') {
+      setMsg('Set the ticket price (e.g. 1 for 1 SOL, 100 for 100 AAA).', true);
+      return;
+    }
+    var endsAtEl = document.getElementById('raffles-ends-at');
+    var endsAt = endsAtEl ? endsAtEl.value : '';
+    if (!endsAt) {
+      setMsg('Set the raffle end date and time.', true);
+      return;
+    }
+    var endsAtDate = new Date(endsAt);
+    if (isNaN(endsAtDate.getTime()) || endsAtDate <= new Date()) {
+      setMsg('End time must be in the future.', true);
+      return;
+    }
+
+    var tokenType = getTicketPriceTokenType();
+    var tokenMint = getTicketPriceTokenMint();
+    if (tokenType === 'custom' && !tokenMint) {
+      setMsg('Enter the custom token mint address.', true);
+      return;
+    }
+
+    if (!prizeWalletForCreate) {
+      setMsg('Prize wallet not configured. Refresh the page; if it persists, check server PRIZE_WALLET.', true);
+      return;
+    }
+
+    if (startBtn) { startBtn.disabled = true; startBtn.textContent = 'Send NFT…'; }
+    setMsg('Confirm in your wallet: send the prize NFT to the prize wallet.', false);
+
+    transferNftToPrizeWallet(selectedNft.id, prizeWalletForCreate)
+      .then(function (sig) {
+        if (!sig) throw new Error('No transaction signature');
+        if (startBtn) startBtn.textContent = 'Creating…';
+        setMsg('NFT sent. Creating raffle…', false);
+        var body = {
+          prizeNftMint: selectedNft.id,
+          prizeNftName: selectedNft.name || null,
+          prizeNftImage: selectedNft.image || null,
+          ticketCount: ticketCount,
+          ticketPriceTokenType: tokenType,
+          ticketPriceTokenMint: tokenMint || undefined,
+          ticketPriceRaw: String(priceRaw),
+          ticketPriceDecimals: getTicketPriceDecimals(),
+          endsAt: endsAtDate.toISOString(),
+          nftTransferSignature: sig,
+        };
+        var createUrl = rafflesApiUrl() + '?t=' + Date.now();
+        return fetchWithCreds(createUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          redirect: 'manual',
+        }).then(function (r) {
+        return r.text().then(function (text) {
+          if (r.type === 'opaqueredirect' || r.status === 302 || r.status === 301) {
+            throw new Error('Server redirected (session may have expired). Please refresh and connect Discord again, then try Start raffle.');
+          }
+          if (!r.ok) {
+            var j;
+            try { j = text ? JSON.parse(text) : {}; } catch (e) { j = {}; }
+            throw new Error(j.error || r.statusText || 'Request failed');
+          }
+          var raffle = null;
+          try { raffle = text ? JSON.parse(text) : null; } catch (e) { raffle = null; }
+          return { status: r.status, text: text, raffle: raffle };
+        });
+      }).then(function (result) {
+        var raffle = result.raffle;
+        var hasId = raffle != null && typeof raffle === 'object' && ('id' in raffle) && (raffle.id === 0 || raffle.id === '0' || (raffle.id !== undefined && raffle.id !== null && raffle.id !== ''));
+        if (!hasId) {
+          setMsg('Server error: invalid response after creating raffle.', true);
+          return;
+        }
+        setMsg('Raffle started.', false);
+        selectedNft = null;
+        var nftPreview = document.getElementById('raffles-nft-preview');
+        if (nftPreview) nftPreview.hidden = true;
+        initRafflesPage();
+      }).catch(function (err) {
+        setMsg(err && err.message ? err.message : 'Failed to create raffle.', true);
+      }).finally(function () {
+        if (startBtn) { startBtn.disabled = false; startBtn.textContent = 'Start raffle'; }
+      });
+    });
+  }
+
+  function transferNftToPrizeWallet(nftMint, prizeWallet) {
+    var provider = getSolanaProvider();
+    var wallet = getWalletPublicKey();
+    if (!provider || !wallet) return Promise.reject(new Error('Wallet not connected'));
+
+    var solanaWeb3 = window.solanaWeb3;
+    if (!solanaWeb3 || !solanaWeb3.Connection || !solanaWeb3.PublicKey || !solanaWeb3.Transaction || !solanaWeb3.TransactionInstruction) {
+      return Promise.reject(new Error('Solana web3 not loaded. Refresh the page.'));
+    }
+
+    var Connection = solanaWeb3.Connection;
+    var PublicKey = solanaWeb3.PublicKey;
+    var Transaction = solanaWeb3.Transaction;
+    var TransactionInstruction = solanaWeb3.TransactionInstruction;
+
+    var connection = new Connection(SOLANA_RPC, 'confirmed');
+    var mintPk = new PublicKey(nftMint);
+    var ownerPk = new PublicKey(wallet);
+    var destPk = new PublicKey(prizeWallet);
+    if (ownerPk.equals(destPk)) {
+      return Promise.reject(new Error('Prize wallet must be different from your connected wallet. Set PRIZE_WALLET to a different address in .env.'));
+    }
+    var tokenProgramId = new PublicKey(TOKEN_PROGRAM_ID);
+    var ataProgramId = new PublicKey(ATA_PROGRAM_ID);
+
+    function findAta(owner, mint, tokenProgram) {
+      var tp = tokenProgram || tokenProgramId;
+      var seeds = [owner.toBuffer(), tp.toBuffer(), mint.toBuffer()];
+      var out = PublicKey.findProgramAddressSync(seeds, ataProgramId);
+      return out[0];
+    }
+
+    function buildAndSendTx() {
+      var instructions = [];
+      var sysProgramId = new PublicKey('11111111111111111111111111111111');
+      var rentId = new PublicKey('SysvarRent111111111111111111111111111111111');
+
+      return connection.getAccountInfo(mintPk).then(function (mintInfo) {
+        if (!mintInfo || !mintInfo.owner || !mintInfo.data) return Promise.reject(new Error('Could not load NFT mint.'));
+        var actualTokenProgram = new PublicKey(mintInfo.owner);
+        var mintData = mintInfo.data;
+        var decimals = mintData.length > 44 ? mintData[44] : 0;
+        var sourceAta = findAta(ownerPk, mintPk, actualTokenProgram);
+        var destAta = findAta(destPk, mintPk, actualTokenProgram);
+        return connection.getAccountInfo(sourceAta).then(function (sourceInfo) {
+          if (!sourceInfo || !sourceInfo.data) {
+            return Promise.reject(new Error(
+              'You don’t own this NFT in the connected wallet. Use the same wallet you used when selecting the NFT, or re-open the picker and choose an NFT from the current wallet. Compressed NFTs are not supported as prizes.'
+            ));
+          }
+          var data = sourceInfo.data;
+          if (data.length < 72) return Promise.reject(new Error('Invalid token account data.'));
+          var amountView = new DataView(data.buffer || data, data.byteOffset + 64, 8);
+          var amount = amountView.getBigUint64(0, true);
+          if (amount < 1) {
+            return Promise.reject(new Error(
+              'You don’t own this NFT in the connected wallet. Use the same wallet you used when selecting the NFT, or re-open the picker and choose an NFT from the current wallet.'
+            ));
+          }
+          return { actualTokenProgram: actualTokenProgram, sourceAta: sourceAta, destAta: destAta, decimals: decimals, mintData: mintData };
+        });
+      }).then(function (opts) {
+        var actualTokenProgram = opts.actualTokenProgram;
+        var sourceAta = opts.sourceAta;
+        var destAta = opts.destAta;
+        var decimals = opts.decimals != null ? opts.decimals : 0;
+        var mintData = opts.mintData;
+        return connection.getAccountInfo(destAta).then(function (info) {
+          var needCreate = !info;
+          if (needCreate) {
+            var createIx = new TransactionInstruction({
+              keys: [
+                { pubkey: ownerPk, isSigner: true, isWritable: true },
+                { pubkey: destAta, isSigner: false, isWritable: true },
+                { pubkey: destPk, isSigner: false, isWritable: false },
+                { pubkey: mintPk, isSigner: false, isWritable: false },
+                { pubkey: sysProgramId, isSigner: false, isWritable: false },
+                { pubkey: actualTokenProgram, isSigner: false, isWritable: false },
+                { pubkey: ataProgramId, isSigner: false, isWritable: false },
+                { pubkey: rentId, isSigner: false, isWritable: false },
+              ],
+              programId: ataProgramId,
+              data: new Uint8Array([1]),
+            });
+            instructions.push(createIx);
+          }
+
+          var transferKeys = [
+            { pubkey: sourceAta, isSigner: false, isWritable: true },
+            { pubkey: mintPk, isSigner: false, isWritable: false },
+            { pubkey: destAta, isSigner: false, isWritable: true },
+            { pubkey: ownerPk, isSigner: true, isWritable: false },
+          ];
+
+          function addTransferAndContinue() {
+            var transferData = new Uint8Array(10);
+            transferData[0] = 12; /* SPL Token TransferChecked */
+            new DataView(transferData.buffer, transferData.byteOffset, transferData.byteLength).setBigUint64(1, BigInt(1), true);
+            transferData[9] = decimals;
+            instructions.push(new TransactionInstruction({ keys: transferKeys, programId: actualTokenProgram, data: transferData }));
+            var tx = new Transaction();
+            instructions.forEach(function (ix) { tx.add(ix); });
+            return connection.getLatestBlockhash('confirmed').then(function (bh) {
+          var blockhash = (bh && bh.value && bh.value.blockhash) ? bh.value.blockhash : (bh && bh.blockhash) ? bh.blockhash : null;
+          if (!blockhash) return Promise.reject(new Error('Could not get blockhash'));
+          tx.recentBlockhash = blockhash;
+          tx.feePayer = ownerPk;
+
+          function signThenSendViaServer(txToSign) {
+            var t = txToSign || tx;
+            var signPromise = typeof provider.signTransaction === 'function'
+              ? Promise.resolve(provider.signTransaction(t))
+              : Promise.resolve(t).then(function (unsigned) {
+                  var ser = unsigned.serialize({ requireAllSignatures: false });
+                  var b64 = btoa(String.fromCharCode.apply(null, (ser instanceof Uint8Array ? ser : new Uint8Array(ser))));
+                  return provider.request({ method: 'signTransaction', params: { message: b64 } }).then(function (signedB64) {
+                    if (!signedB64) return null;
+                    var decoded = typeof atob !== 'undefined' ? atob(signedB64) : Buffer.from(signedB64, 'base64').toString('binary');
+                    var arr = new Uint8Array(decoded.length);
+                    for (var i = 0; i < decoded.length; i++) arr[i] = decoded.charCodeAt(i);
+                    return { serialize: function () { return arr; } };
+                  });
+                });
+            return signPromise.then(function (signedTx) {
+              if (!signedTx) return Promise.reject(new Error('Wallet did not return signed transaction'));
+              var serialized = signedTx.serialize ? signedTx.serialize() : (signedTx instanceof Uint8Array ? signedTx : new Uint8Array(signedTx));
+              var raw = serialized instanceof Uint8Array ? serialized : new Uint8Array(serialized);
+              var base64 = typeof raw.toString === 'function' && raw.toString('base64') ? raw.toString('base64') : btoa(String.fromCharCode.apply(null, raw));
+              return fetch(rafflesApiUrl('send-raw'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ signedTransaction: base64 }),
+              }).then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }, function () { return { ok: false, data: null }; }); }).then(function (result) {
+                if (result.ok && result.data && result.data.signature) return result.data.signature;
+                var errMsg = (result.data && (result.data.error || result.data.logs)) ? (result.data.error || (Array.isArray(result.data.logs) ? result.data.logs.join('\n') : '')) : 'Send failed';
+                return Promise.reject(new Error(errMsg));
+              });
+            });
+          }
+
+          return signThenSendViaServer(tx);
+        });
+        }
+          return addTransferAndContinue();
+        });
+  });
+    }
+
+    return buildAndSendTx();
+  }
+
+  /** Build, sign and send payment for raffle tickets. Returns { signature, paymentDestination }. */
+  function buildAndSendRafflePayment(raffle, count) {
+    var provider = getSolanaProvider();
+    var wallet = getWalletPublicKey();
+    if (!provider || !wallet) return Promise.reject(new Error('Wallet not connected'));
+    var treasury = (raffle.treasury || '').trim();
+    if (!treasury) return Promise.reject(new Error('Raffle treasury not configured. Cannot pay for tickets.'));
+    var raw = String(raffle.ticketPriceRaw || '0').trim();
+    var type = (raffle.ticketPriceTokenType || 'sol').toLowerCase();
+    var solanaWeb3 = window.solanaWeb3;
+    if (!solanaWeb3 || !solanaWeb3.Connection || !solanaWeb3.PublicKey || !solanaWeb3.Transaction || !solanaWeb3.TransactionInstruction) {
+      return Promise.reject(new Error('Solana web3 not loaded. Refresh the page.'));
+    }
+    var Connection = solanaWeb3.Connection;
+    var PublicKey = solanaWeb3.PublicKey;
+    var Transaction = solanaWeb3.Transaction;
+    var TransactionInstruction = solanaWeb3.TransactionInstruction;
+    var SystemProgram = solanaWeb3.SystemProgram;
+    var connection = new Connection(SOLANA_RPC, 'confirmed');
+    var ownerPk = new PublicKey(wallet);
+    var treasuryPk = new PublicKey(treasury);
+
+    if (type === 'sol') {
+      var lamports = parseInt(raw, 10) * count;
+      if (isNaN(lamports) || lamports < 1) return Promise.reject(new Error('Invalid ticket price'));
+      var tx = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: ownerPk,
+          toPubkey: treasuryPk,
+          lamports: lamports,
+        })
+      );
+      return connection.getLatestBlockhash('confirmed').then(function (bh) {
+        var blockhash = (bh && bh.value && bh.value.blockhash) ? bh.value.blockhash : (bh && bh.blockhash) || null;
+        if (!blockhash) return Promise.reject(new Error('Could not get blockhash'));
+        tx.recentBlockhash = blockhash;
+        tx.feePayer = ownerPk;
+        if (typeof provider.signAndSendTransaction === 'function') {
+          return Promise.resolve(provider.signAndSendTransaction(tx)).then(function (result) {
+            var sig = (result && (typeof result === 'string' ? result : result.signature || result.hash)) || null;
+            return sig ? { signature: sig, paymentDestination: treasury } : Promise.reject(new Error('No signature returned'));
+          });
+        }
+        var serialized = tx.serialize({ requireAllSignatures: false });
+        var rawBuf = serialized && serialized instanceof Uint8Array ? serialized : new Uint8Array(serialized);
+        var base64 = typeof rawBuf.toString === 'function' && rawBuf.toString('base64') ? rawBuf.toString('base64') : btoa(String.fromCharCode.apply(null, rawBuf));
+        return provider.request({ method: 'signAndSendTransaction', params: { transaction: base64 } }).then(function (result) {
+          var sig = (result && (typeof result === 'string' ? result : result.signature || result.hash)) || null;
+          return sig ? { signature: sig, paymentDestination: treasury } : Promise.reject(new Error('No signature returned'));
+        });
+      });
+    }
+
+    var mintStr = (type === 'aaa' && window.ABSURD_APES_CONFIG && window.ABSURD_APES_CONFIG.tokenMint) ? window.ABSURD_APES_CONFIG.tokenMint : (raffle.ticketPriceTokenMint || '').trim();
+    if (!mintStr) return Promise.reject(new Error('Token mint not configured for this raffle'));
+    var mintPk = new PublicKey(mintStr);
+    var tokenProgramId = new PublicKey(TOKEN_PROGRAM_ID);
+    var ataProgramId = new PublicKey(ATA_PROGRAM_ID);
+    function findAta(owner, mint, tokenProgram) {
+      var tp = tokenProgram || tokenProgramId;
+      var seeds = [owner.toBuffer(), tp.toBuffer(), mint.toBuffer()];
+      var out = PublicKey.findProgramAddressSync(seeds, ataProgramId);
+      return out[0];
+    }
+    var storedDecimals = raffle.ticketPriceDecimals != null ? Number(raffle.ticketPriceDecimals) : 6;
+    var decimals = type === 'aaa' ? 6 : customTokenDecimals;
+    return connection.getAccountInfo(mintPk).then(function (mintInfo) {
+      if (mintInfo && mintInfo.owner) {
+        var actualTokenProgram = new PublicKey(mintInfo.owner);
+        if (mintInfo.data && mintInfo.data.length > 44) decimals = mintInfo.data[44];
+        return { actualTokenProgram: actualTokenProgram, decimals: decimals };
+      }
+      return { actualTokenProgram: tokenProgramId, decimals: decimals };
+    }).then(function (opts) {
+      var actualTokenProgram = opts.actualTokenProgram;
+      var actualDecimals = opts.decimals != null ? opts.decimals : 6;
+      var humanPrice = Number(raw) / Math.pow(10, storedDecimals);
+      var amountRaw = BigInt(Math.round(humanPrice * Math.pow(10, actualDecimals) * count));
+      if (amountRaw < 1) return Promise.reject(new Error('Invalid ticket price or count'));
+      var decimals = actualDecimals;
+      var sourceAta = findAta(ownerPk, mintPk, actualTokenProgram);
+      var destAta = findAta(treasuryPk, mintPk, actualTokenProgram);
+      var sysProgramId = new PublicKey('11111111111111111111111111111111');
+      var rentId = new PublicKey('SysvarRent111111111111111111111111111111111');
+      var instructions = [];
+      return connection.getAccountInfo(destAta).then(function (info) {
+        if (!info) {
+          instructions.push(new TransactionInstruction({
+            keys: [
+              { pubkey: ownerPk, isSigner: true, isWritable: true },
+              { pubkey: destAta, isSigner: false, isWritable: true },
+              { pubkey: treasuryPk, isSigner: false, isWritable: false },
+              { pubkey: mintPk, isSigner: false, isWritable: false },
+              { pubkey: sysProgramId, isSigner: false, isWritable: false },
+              { pubkey: actualTokenProgram, isSigner: false, isWritable: false },
+              { pubkey: ataProgramId, isSigner: false, isWritable: false },
+              { pubkey: rentId, isSigner: false, isWritable: false },
+            ],
+            programId: ataProgramId,
+            data: new Uint8Array([1]),
+          }));
+        }
+        return null;
+      }).then(function () {
+        var transferData = new Uint8Array(10);
+        transferData[0] = 12; /* SPL Token TransferChecked */
+        var dv = new DataView(transferData.buffer, transferData.byteOffset, transferData.byteLength);
+        var amt = amountRaw > BigInt('0xffffffffffffffff') ? BigInt('0xffffffffffffffff') : amountRaw;
+        dv.setBigUint64(1, amt, true);
+        transferData[9] = decimals;
+        instructions.push(new TransactionInstruction({
+          keys: [
+            { pubkey: sourceAta, isSigner: false, isWritable: true },
+            { pubkey: mintPk, isSigner: false, isWritable: false },
+            { pubkey: destAta, isSigner: false, isWritable: true },
+            { pubkey: ownerPk, isSigner: true, isWritable: false },
+          ],
+          programId: actualTokenProgram,
+          data: transferData,
+        }));
+        var tx = new Transaction();
+        instructions.forEach(function (ix) { tx.add(ix); });
+        return connection.getLatestBlockhash('confirmed').then(function (bh) {
+          var blockhash = (bh && bh.value && bh.value.blockhash) ? bh.value.blockhash : (bh && bh.blockhash) || null;
+          if (!blockhash) return Promise.reject(new Error('Could not get blockhash'));
+          tx.recentBlockhash = blockhash;
+          tx.feePayer = ownerPk;
+          if (typeof provider.signAndSendTransaction === 'function') {
+            return Promise.resolve(provider.signAndSendTransaction(tx)).then(function (result) {
+              var sig = (result && (typeof result === 'string' ? result : result.signature || result.hash)) || null;
+              return sig ? { signature: sig, paymentDestination: destAta.toString() } : Promise.reject(new Error('No signature returned'));
+            });
+          }
+          var serialized = tx.serialize({ requireAllSignatures: false });
+          var rawBuf = serialized && serialized instanceof Uint8Array ? serialized : new Uint8Array(serialized);
+          var base64 = typeof rawBuf.toString === 'function' && rawBuf.toString('base64') ? rawBuf.toString('base64') : btoa(String.fromCharCode.apply(null, rawBuf));
+          return provider.request({ method: 'signAndSendTransaction', params: { transaction: base64 } }).then(function (result) {
+            var sig = (result && (typeof result === 'string' ? result : result.signature || result.hash)) || null;
+            return sig ? { signature: sig, paymentDestination: destAta.toString() } : Promise.reject(new Error('No signature returned'));
+          });
+        });
+      });
+    });
+  }
+
+  function renderRaffleCard(r) {
+    var card = document.createElement('article');
+    card.className = 'raffle-card';
+    var sold = r.ticketsSold != null ? r.ticketsSold : 0;
+    var total = r.ticketCount || 0;
+    var price = formatPrice(r);
+    var priceHtml = (price.imageUrl ? '<img class="raffle-card__token-icon" src="' + escapeHtml(price.imageUrl) + '" alt="" aria-hidden="true" />' : '') +
+      '<span class="raffle-card__price-amount">' + escapeHtml(price.amountStr) + '</span> <span class="raffle-card__price-symbol">' + escapeHtml(price.symbol) + '</span>';
+    var endsAt = r.endsAt ? new Date(r.endsAt) : null;
+    var isEnded = endsAt && endsAt <= new Date();
+    var maxPerWallet = Math.max(0, Math.floor(total * 0.2));
+    var remaining = Math.max(0, total - sold);
+    var winnerWallet = (r.winnerWallet || '').toLowerCase();
+    var winnerDisplay = r.winnerDisplay || '';
+    var winnerLabel = winnerDisplay ? escapeHtml(winnerDisplay) : (winnerWallet ? (winnerWallet.slice(0, 4) + '…' + winnerWallet.slice(-4)) : '');
+    var myWallet = (getWalletPublicKey() || '').toLowerCase();
+    var prizeClaimed = !!(r.claimTxSignature && r.claimTxSignature.trim());
+    var showClaim = isEnded && winnerWallet && myWallet && winnerWallet === myWallet && !prizeClaimed;
+    var showBuy = !isEnded && remaining >= 1;
+    var txExplorerUrl = 'https://explorer.solana.com/tx/';
+    var claimStatusHtml = prizeClaimed
+      ? '<span class="raffle-card__claimed">Prize claimed</span>' +
+        (r.claimTxSignature
+          ? ' <a class="raffle-card__tx-link" href="' + escapeHtml(txExplorerUrl + r.claimTxSignature) + '" target="_blank" rel="noopener noreferrer">View transaction</a>'
+          : '')
+      : (showClaim ? '<button type="button" class="btn btn--primary raffle-card__btn raffle-claim-btn" data-id="' + r.id + '">Claim</button>' : '');
+    card.innerHTML =
+      '<div class="raffle-card__image-wrap">' +
+        '<img class="raffle-card__image" src="' + escapeHtml(r.prizeNftImage ? proxyImageUrl(r.prizeNftImage) : '') + '" alt="" loading="lazy" onerror="this.style.display=\'none\'" />' +
+      '</div>' +
+      '<div class="raffle-card__body">' +
+        '<h3 class="raffle-card__name">' + escapeHtml(r.prizeNftName || 'Prize NFT') + '</h3>' +
+        '<p class="raffle-card__meta">Ticket: <span class="raffle-card__price" data-token-mint="' + (price.mint ? escapeHtml(price.mint) : '') + '">' + priceHtml + '</span></p>' +
+        '<div class="raffle-card__row">' +
+          '<span class="raffle-card__meta">Tickets</span>' +
+          '<span class="raffle-card__meta">' + sold + ' / ' + total + '</span>' +
+        '</div>' +
+        '<div class="raffle-card__row">' +
+          '<span class="raffle-card__meta">Ends</span>' +
+          '<span class="raffle-card__meta raffle-card__time" data-ends="' + (r.endsAt || '') + '">' + (endsAt ? formatTimeLeft(endsAt) : '—') + '</span>' +
+        '</div>' +
+        (isEnded && winnerWallet
+          ? '<div class="raffle-card__row raffle-card__winner">' +
+              '<span class="raffle-card__meta">Winner</span>' +
+              '<span class="raffle-card__meta raffle-card__winner-address" title="' + escapeHtml(r.winnerWallet || '') + '">' + winnerLabel + '</span>' +
+            '</div>'
+          : '') +
+        (showBuy
+          ? '<div class="raffle-card__buy">' +
+              '<label class="raffle-card__buy-label"><span class="raffle-card__meta">Number of tickets</span></label>' +
+              '<input type="number" class="raffle-card__buy-input" min="1" max="' + Math.min(maxPerWallet, remaining) + '" value="1" data-raffle-id="' + r.id + '" data-max="' + maxPerWallet + '" data-remaining="' + remaining + '" />' +
+              '<button type="button" class="btn btn--primary raffle-card__btn raffle-buy-btn" data-id="' + r.id + '">Buy tickets</button>' +
+            '</div>'
+          : '') +
+        '<div class="raffle-card__actions">' +
+          '<button type="button" class="btn btn--outline raffle-card__btn raffle-entries-btn" data-id="' + r.id + '">Entries</button>' +
+          claimStatusHtml +
+        '</div>' +
+      '</div>';
+    var entriesBtn = card.querySelector('.raffle-entries-btn');
+    if (entriesBtn) entriesBtn.addEventListener('click', function () { openEntriesModal(r.id); });
+    var claimBtn = card.querySelector('.raffle-claim-btn');
+    if (claimBtn) claimBtn.addEventListener('click', function () {
+      var wallet = getWalletPublicKey();
+      if (!wallet) {
+        setMsg('Connect your wallet to claim.', true);
+        return;
+      }
+      claimBtn.disabled = true;
+      claimBtn.textContent = 'Claiming…';
+      fetchWithCreds(rafflesApiUrl(r.id + '/claim'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wallet: wallet }),
+      })
+        .then(function (res) { return res.json().then(function (body) { return { status: res.status, body: body }; }); })
+        .then(function (x) {
+          if (x.status === 200 && x.body.signature) {
+            showClaimSuccessModal(x.body.signature);
+            initRafflesPage();
+          } else {
+            setMsg(x.body.error || 'Claim failed.', true);
+            claimBtn.disabled = false;
+            claimBtn.textContent = 'Claim';
+          }
+        })
+        .catch(function (err) {
+          setMsg(err && err.message ? err.message : 'Claim failed.', true);
+          claimBtn.disabled = false;
+          claimBtn.textContent = 'Claim';
+        });
+    });
+    var buyBtn = card.querySelector('.raffle-buy-btn');
+    var buyInput = card.querySelector('.raffle-card__buy-input');
+    if (buyBtn && buyInput) {
+      buyBtn.addEventListener('click', function () {
+        var count = parseInt(buyInput.value, 10);
+        var wallet = getWalletPublicKey();
+        if (!wallet) {
+          setMsg('Connect your wallet to buy tickets.', true);
+          return;
+        }
+        if (!Number.isInteger(count) || count < 1) {
+          setMsg('Enter a valid number of tickets.', true);
+          return;
+        }
+        if (count > maxPerWallet) {
+          setMsg('Maximum ' + maxPerWallet + ' tickets per wallet for this raffle.', true);
+          return;
+        }
+        if (remaining < 1 || count > remaining) {
+          setMsg('Not enough tickets left.', true);
+          return;
+        }
+        buyBtn.disabled = true;
+        buyBtn.textContent = 'Buying…';
+        fetchWithCreds(rafflesApiUrl(r.id + '/my-tickets') + '?wallet=' + encodeURIComponent(wallet))
+          .then(function (res) { return res.json(); })
+          .then(function (data) {
+            var current = (data && typeof data.ticketCount === 'number') ? data.ticketCount : 0;
+            if (current >= maxPerWallet) {
+              buyBtn.disabled = false;
+              buyBtn.textContent = 'Buy tickets';
+              setMsg('Maximum ' + maxPerWallet + ' tickets per wallet for this raffle. You already have ' + current + '.', true);
+              return null;
+            }
+            if (current + count > maxPerWallet) {
+              buyBtn.disabled = false;
+              buyBtn.textContent = 'Buy tickets';
+              setMsg('You have ' + current + ' tickets. Maximum ' + maxPerWallet + ' per wallet — you can buy up to ' + (maxPerWallet - current) + ' more.', true);
+              return null;
+            }
+            return buildAndSendRafflePayment(r, count);
+          })
+          .then(function (pay) {
+            if (!pay) return;
+            return fetchWithCreds(rafflesApiUrl(r.id + '/buy'), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                wallet: wallet,
+                count: count,
+                signature: pay.signature,
+                paymentDestination: pay.paymentDestination,
+              }),
+            }).then(function (res) {
+              return res.json().then(function (j) {
+                return { status: res.status, body: j, signature: pay.signature };
+              });
+            });
+          })
+          .then(function (x) {
+            if (x.status !== 200) throw new Error(x.body && x.body.error ? x.body.error : 'Purchase failed');
+            showTicketPurchaseSuccessModal(x.signature);
+            initRafflesPage();
+          })
+          .catch(function (err) {
+            setMsg(err && err.message ? err.message : 'Purchase failed.', true);
+          })
+          .finally(function () {
+            buyBtn.disabled = false;
+            buyBtn.textContent = 'Buy tickets';
+          });
+      });
+    }
+    if (price.mint) {
+      fetchWithCreds(window.location.origin + '/api/token-info?mint=' + encodeURIComponent(price.mint))
+        .then(function (res) { return res.ok ? res.json() : null; })
+        .then(function (info) {
+          if (!info || !card.parentNode) return;
+          var raw = r.ticketPriceRaw || '0';
+          var dec = typeof info.decimals === 'number' ? info.decimals : 6;
+          var num = parseInt(raw, 10);
+          var amountStr = isNaN(num) ? raw : trimTrailingZeros((num / Math.pow(10, dec)).toFixed(dec));
+          var symbol = info.symbol || info.name || 'tokens';
+          var wrap = card.querySelector('.raffle-card__price');
+          if (wrap) {
+            wrap.innerHTML = (info.imageUrl ? '<img class="raffle-card__token-icon" src="' + escapeHtml(info.imageUrl) + '" alt="" aria-hidden="true" />' : '') +
+              '<span class="raffle-card__price-amount">' + escapeHtml(amountStr) + '</span> <span class="raffle-card__price-symbol">' + escapeHtml(symbol) + '</span>';
+          }
+        })
+        .catch(function () {});
+    }
+    return card;
+  }
+
+  function trimTrailingZeros(s) {
+    if (typeof s !== 'string') s = String(s);
+    return s.replace(/\.?0+$/, '') || '0';
+  }
+
+  function formatPrice(r) {
+    var type = (r.ticketPriceTokenType || 'sol').toLowerCase();
+    var raw = r.ticketPriceRaw || '0';
+    var solLogoUrl = (window.ABSURD_APES_CONFIG && window.ABSURD_APES_CONFIG.hero && window.ABSURD_APES_CONFIG.hero.solanaLogoUrl) || '/assets/solana-logo.svg';
+    if (type === 'sol') {
+      var lamports = parseInt(raw, 10);
+      if (isNaN(lamports)) return { amountStr: raw, symbol: 'SOL', imageUrl: solLogoUrl };
+      var solAmount = lamports / 1e9;
+      var amountStr = trimTrailingZeros(solAmount.toFixed(Math.min(9, 4)));
+      return { amountStr: amountStr, symbol: 'SOL', imageUrl: solLogoUrl };
+    }
+    if (type === 'aaa') {
+      var aaaRaw = parseInt(raw, 10);
+      var aaaDecimals = 6;
+      var aaaAmount = isNaN(aaaRaw) ? raw : (aaaRaw / Math.pow(10, aaaDecimals));
+      return { amountStr: trimTrailingZeros(Number(aaaAmount).toFixed(aaaDecimals)), symbol: 'AAA', imageUrl: '' };
+    }
+    if (type === 'custom' && r.ticketPriceTokenMint) {
+      return { amountStr: raw, symbol: 'tokens', imageUrl: '', mint: r.ticketPriceTokenMint };
+    }
+    return { amountStr: raw, symbol: 'tokens', imageUrl: '' };
+  }
+
+  function formatTimeLeft(endsAt) {
+    var now = new Date();
+    if (endsAt <= now) return 'Ended';
+    var s = Math.floor((endsAt - now) / 1000);
+    var m = Math.floor(s / 60);
+    var h = Math.floor(m / 60);
+    var d = Math.floor(h / 24);
+    if (d > 0) return d + 'd ' + (h % 24) + 'h left';
+    if (h > 0) return h + 'h ' + (m % 60) + 'm left';
+    if (m > 0) return m + 'm left';
+    return s + 's left';
+  }
+
+  function openEntriesModal(raffleId) {
+    var modal = document.getElementById('raffles-entries-modal');
+    var list = document.getElementById('raffles-entries-list');
+    if (!modal || !list) return;
+    list.innerHTML = '<p class="raffles-modal__hint">Loading…</p>';
+    modal.setAttribute('aria-hidden', 'false');
+
+    fetchWithCreds(rafflesApiUrl(raffleId + '/entries'))
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var entries = data.entries || [];
+        list.innerHTML = '';
+        if (entries.length === 0) {
+          list.innerHTML = '<p class="raffles-modal__hint">No entries yet.</p>';
+          return;
+        }
+        entries.forEach(function (e) {
+          var row = document.createElement('div');
+          row.className = 'raffles-entries-list__row';
+          row.innerHTML = '<span class="raffles-entries-list__wallet">' + escapeHtml(e.walletAddress) + '</span><span class="raffles-entries-list__count">' + e.ticketCount + '</span>';
+          list.appendChild(row);
+        });
+      })
+      .catch(function () {
+        list.innerHTML = '<p class="raffles-modal__hint">Failed to load entries.</p>';
+      });
+  }
+
+  var rafflesRefetchAfterEndThrottle = 0;
+  setInterval(function () {
+    var main = document.getElementById('main-raffles');
+    if (!main || main.hidden) return;
+    var now = Date.now();
+    var shouldRefetch = false;
+    document.querySelectorAll('.raffle-card__time[data-ends]').forEach(function (el) {
+      var ends = el.getAttribute('data-ends');
+      if (!ends) return;
+      var endsAt = new Date(ends);
+      el.textContent = formatTimeLeft(endsAt);
+      if (endsAt <= new Date()) shouldRefetch = true;
+    });
+    if (shouldRefetch && now > rafflesRefetchAfterEndThrottle) {
+      rafflesRefetchAfterEndThrottle = now + 15000;
+      initRafflesPage();
+    }
+  }, 5000);
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target && (e.target.id === 'raffles-start-btn' ? e.target : e.target.closest && e.target.closest('#raffles-start-btn'));
+    if (btn && !btn.disabled) startRaffle();
+  });
+
+  window.initRafflesPage = initRafflesPage;
+
+  // Load raffles list on initial page load when URL is /raffles (app.js runs before this, so showView('raffles') may have run before initRafflesPage existed)
+  var path = (window.location.pathname || '/').replace(/\/$/, '') || '/';
+  if (path === '/raffles') initRafflesPage();
+})();

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Invite Raffle Bot — Absurd Apes</title>
+  <meta name="description" content="Add the Absurd Apes Raffle Bot to your Discord server to receive new raffle and winner announcements." />
+  <meta property="og:title" content="Invite Raffle Bot — Absurd Apes" />
+  <meta property="og:description" content="Add the Raffle Bot to your Discord server to receive new raffle and winner announcements in your #raffles channel." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="/assets/logo.png" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Invite Raffle Bot — Absurd Apes" />
+  <meta name="twitter:description" content="Add the Raffle Bot to your Discord server for raffle and winner announcements." />
+  <link rel="icon" href="/assets/logo.png" type="image/png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0f0f12;
+      --card: #1a1a1f;
+      --border: #2a2a32;
+      --text: #e8e8ec;
+      --muted: #8888a0;
+      --accent: #5865f2;
+      --accent-hover: #4752c4;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: 'Space Grotesk', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+    .card {
+      max-width: 420px;
+      width: 100%;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    }
+    .card__logo {
+      width: 72px;
+      height: 72px;
+      margin: 0 auto 1.25rem;
+      border-radius: 16px;
+      object-fit: cover;
+    }
+    .card__title {
+      margin: 0 0 0.5rem;
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+    .card__subtitle {
+      margin: 0 0 1.5rem;
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+    .card__list {
+      text-align: left;
+      margin: 0 0 1.75rem;
+      padding: 0;
+      list-style: none;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.7;
+    }
+    .card__list li {
+      padding-left: 1.5rem;
+      position: relative;
+    }
+    .card__list li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0.5rem;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+    .card__btn {
+      display: inline-block;
+      padding: 0.875rem 1.75rem;
+      background: var(--accent);
+      color: #fff;
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 600;
+      text-decoration: none;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .card__btn:hover {
+      background: var(--accent-hover);
+    }
+    .card__hint {
+      margin-top: 1.25rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .card__error {
+      padding: 1rem;
+      background: rgba(220, 60, 60, 0.15);
+      border: 1px solid rgba(220, 60, 60, 0.4);
+      border-radius: 8px;
+      color: #e88;
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+      text-align: left;
+    }
+    .card__error code {
+      background: rgba(0,0,0,0.3);
+      padding: 0.15em 0.4em;
+      border-radius: 4px;
+      font-size: 0.85em;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <img class="card__logo" src="/assets/logo.png" alt="" width="72" height="72" />
+    <h1 class="card__title">Invite Raffle Bot</h1>
+    <p class="card__subtitle">Add the bot to your Discord server to post new raffles and winner announcements in your #raffles channel.</p>
+    <div id="card-body">
+      <div id="invite-block">
+        <ul class="card__list">
+          <li>View Channels · Send Messages · Embed Links</li>
+          <li>New raffle embeds with prize image, tickets, and price</li>
+          <li>Winner announcements (wallet or Discord username)</li>
+        </ul>
+        <a id="invite-btn" class="card__btn" href="#" target="_blank" rel="noopener">Invite to server</a>
+        <p class="card__hint">You need <strong>Manage Server</strong> or <strong>Administrator</strong> to add the bot.</p>
+      </div>
+      <div id="error-block" style="display: none;">
+        <div class="card__error">
+          <strong>Missing Application ID</strong><br />
+          Use this URL with your Discord app’s Application ID:<br />
+          <code id="error-url"></code>
+        </div>
+        <p class="card__hint">Get the ID from <a href="https://discord.com/developers/applications" target="_blank" rel="noopener" style="color: var(--accent);">Discord Developer Portal</a> → your app → General.</p>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      var clientId = (params.get('client_id') || '').trim();
+      var permissions = '2416167936'; // View Channels, Send Messages, Embed Links, Read Message History, Use Slash Commands, etc.
+      var scope = 'bot%20applications.commands';
+      var inviteBlock = document.getElementById('invite-block');
+      var errorBlock = document.getElementById('error-block');
+      var inviteBtn = document.getElementById('invite-btn');
+      var errorUrl = document.getElementById('error-url');
+
+      if (clientId && /^\d+$/.test(clientId)) {
+        var inviteUrl = 'https://discord.com/api/oauth2/authorize?client_id=' + encodeURIComponent(clientId) + '&permissions=' + permissions + '&scope=' + scope;
+        inviteBtn.href = inviteUrl;
+        inviteBlock.style.display = '';
+        errorBlock.style.display = 'none';
+      } else {
+        var base = window.location.origin + window.location.pathname;
+        errorUrl.textContent = base + '?client_id=YOUR_APPLICATION_ID';
+        inviteBlock.style.display = 'none';
+        errorBlock.style.display = '';
+      }
+    })();
+  </script>
+</body>
+</html>

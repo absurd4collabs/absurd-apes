@@ -2861,61 +2861,43 @@ body.holdings-verified #btn-verify-panel {
   z-index: 1;
 }
 
-/* Horizons: grid stacks hero + in-flow overlay so expanded mint copy grows section (no overflow clip) */
+/* Horizons section: full-bleed background image */
 .section--horizons,
 #horizons {
   position: relative;
-  overflow: visible;
-  min-height: 0;
+  overflow: hidden;
+  min-height: 0; /* allow aspect-ratio to set height */
+  aspect-ratio: 1024 / 680; /* match horizons-bg.png (1024×680) */
   --horizons-scroll: 0; /* arrow at top until JS runs (avoids production flash) */
-  background: #141218; /* fills below hero band when overlay is taller than image */
 }
-#horizons .horizons__main {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  position: relative;
-}
-.horizons__hero-bg {
-  grid-column: 1;
-  grid-row: 1;
-  align-self: start;
-  width: 100%;
-  aspect-ratio: 1024 / 512;
-  min-height: 0;
-  position: relative;
-  z-index: 0;
-  background: url("../assets/horizons-bg.png?v=2") center / cover no-repeat;
+#horizons::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url("../assets/horizons-bg.png") center / cover no-repeat;
   pointer-events: none;
+  z-index: 0;
 }
-#horizons .horizons__overlay {
-  grid-column: 1;
-  grid-row: 1;
-  align-self: start;
-  width: 100%;
-  max-width: none;
+#horizons .container {
   position: relative;
   z-index: 1;
-  box-sizing: border-box;
-  padding: 1.25rem 10rem 1.25rem 1.25rem;
-  pointer-events: none;
 }
 #horizons .section__title {
   text-shadow: 0 0 0.5rem rgba(0, 0, 0, 0.6), 0 1px 2px rgba(0, 0, 0, 0.8);
   visibility: hidden;
 }
-/* Mint progress: supply from Magic Eden; in document flow so expanded height extends the section */
+/* Mint progress: supply from Magic Eden, 4,444 total; alpha promo text inside same box */
 .horizons__mint-progress {
-  position: relative;
-  top: auto;
-  left: auto;
-  right: auto;
+  position: absolute;
+  top: 1.25rem;
+  left: 1.25rem;
+  right: 10rem;
   max-width: 22rem;
   z-index: 2;
   padding: 0.75rem 1rem;
   background: var(--bg-card);
   border-radius: var(--radius);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
-  pointer-events: auto;
 }
 .horizons__alpha {
   margin-top: 0.75rem;
@@ -2944,17 +2926,6 @@ body.holdings-verified #btn-verify-panel {
   color: #fff;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   line-height: 1.6;
-}
-.horizons__alpha-list {
-  margin: -0.35rem 0 0.65rem;
-  padding-left: 1.15rem;
-  font-size: 0.8125rem;
-  color: #fff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  line-height: 1.65;
-}
-.horizons__alpha-list li {
-  margin-bottom: 0.25rem;
 }
 .horizons__alpha-read-more {
   margin-top: 0.35rem;
@@ -2991,38 +2962,11 @@ body.holdings-verified #btn-verify-panel {
   transition: width 0.4s ease;
 }
 @media (orientation: portrait) and (max-width: 899px) {
-  /* Stack hero band then full-width mint card (no grid overlap) */
-  #horizons .horizons__main {
-    display: flex;
-    flex-direction: column;
-  }
-  .horizons__hero-bg {
-    grid-column: auto;
-    grid-row: auto;
-    aspect-ratio: unset;
-    width: 100%;
-    height: 50vw;
-    flex: 0 0 auto;
-    background: url("../assets/horizons-bg-portrait.png?v=2") center / cover no-repeat;
-  }
-  #horizons .horizons__overlay {
-    grid-column: auto;
-    grid-row: auto;
-    padding: 1rem;
-    pointer-events: auto;
-    width: 100%;
-    max-width: none;
-  }
-  #horizons .section__title {
-    margin: 0;
-    height: 0;
-    overflow: hidden;
-  }
   .horizons__mint-progress {
-    width: 100%;
-    max-width: none;
-    margin: 0;
-    border-radius: var(--radius);
+    top: 1rem;
+    left: 1rem;
+    right: 5rem;
+    max-width: 16rem;
   }
   .horizons__mint-label {
     font-size: var(--text-xs);
@@ -3044,34 +2988,8 @@ body.holdings-verified #btn-verify-panel {
     font-size: 0.8rem;
     margin-top: 0.35rem;
   }
-  .horizons__alpha-list {
-    font-size: 0.7rem;
-  }
   .horizons__alpha-read-more {
     display: none;
-  }
-  .horizons__right {
-    right: 1rem;
-    bottom: 2rem;
-    width: 6rem;
-    top: auto;
-  }
-  .horizons__right .horizons__cta {
-    left: auto;
-    right: 0;
-    transform: none;
-  }
-  .horizons__arrow {
-    width: 2rem;
-    height: 2rem;
-    left: 50%;
-    top: calc(22% + var(--horizons-scroll, 0) * 56%);
-  }
-  .horizons__mint {
-    padding: 0.4rem 0.75rem;
-    font-size: 0.875rem;
-    min-width: 5rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   }
 }
 @media (min-width: 900px) {
@@ -3080,6 +2998,13 @@ body.holdings-verified #btn-verify-panel {
   }
   .horizons__alpha.horizons__alpha--expanded .horizons__alpha-more {
     display: block;
+  }
+}
+@media (min-width: 768px) {
+  .horizons__mint-progress {
+    top: 2rem;
+    left: 2rem;
+    max-width: 22rem;
   }
 }
 /* Right column: arrow + mint button, both centered; arrow moves with scroll */
@@ -3138,10 +3063,70 @@ body.holdings-verified #btn-verify-panel {
   white-space: nowrap;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
-@media (min-width: 768px) {
-  #horizons .horizons__overlay {
-    padding: 2rem 12rem 2rem 2rem;
+@media (orientation: portrait) and (max-width: 899px) {
+  /* Image at top only; mint progress container below, full width */
+  #horizons {
+    aspect-ratio: unset;
+    min-height: 0;
+    padding-top: 91vw; /* 100vw * 1568/1720 ≈ portrait image height */
+    padding-bottom: 0.5rem;
   }
+  #horizons::before {
+    background: url("../assets/horizons-bg-portrait.png") center / cover no-repeat;
+    height: 91vw;
+    bottom: auto;
+  }
+  #horizons .container {
+    position: static;
+    width: 100%;
+    max-width: none;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-top: 1rem;
+    padding-bottom: 0.5rem;
+    margin-top: 0;
+  }
+  #horizons .section__title {
+    margin: 0;
+    height: 0;
+    overflow: hidden;
+  }
+  .horizons__mint-progress {
+    position: static;
+    top: auto;
+    left: auto;
+    right: auto;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    border-radius: var(--radius);
+    background: var(--bg-card);
+  }
+  /* Keep arrow + mint button in the image area (above the full-width block); larger bottom = higher on image */
+  .horizons__right {
+    right: 1rem;
+    bottom: calc(100% - 91vw + 2rem);
+    width: 6rem; /* match button so arrow center aligns */
+  }
+  .horizons__right .horizons__cta {
+    left: auto;
+    right: 0;
+    transform: none;
+  }
+  .horizons__arrow {
+    width: 2rem;
+    height: 2rem;
+    left: 50%; /* 50% of 6rem = center above button */
+    top: calc(22% + var(--horizons-scroll, 0) * 56%);
+  }
+  .horizons__mint {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.875rem;
+    min-width: 5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  }
+}
+@media (min-width: 768px) {
   .horizons__right {
     right: 3rem;
     bottom: 3rem;
