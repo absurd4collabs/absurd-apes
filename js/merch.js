@@ -29,53 +29,32 @@
   }
 
   var SOLANA_RPC = window.location.origin + '/api/solana-rpc';
-  var RAFFLES_SEND_RAW = window.location.origin + '/api/raffles/send-raw';
 
   function buildAndSendMerchPackFeePayment(lamportsStr, destination) {
     var provider = typeof window.getSolanaProvider === 'function' ? window.getSolanaProvider() : null;
     var wallet = typeof window.getWalletPublicKey === 'function' ? window.getWalletPublicKey() : null;
     if (!provider || !wallet) return Promise.reject(new Error('Wallet not connected'));
     var solanaWeb3 = window.solanaWeb3;
-    if (
-      !solanaWeb3 ||
-      !solanaWeb3.Connection ||
-      !solanaWeb3.PublicKey ||
-      !solanaWeb3.Transaction ||
-      !solanaWeb3.TransactionInstruction ||
-      !solanaWeb3.SystemProgram
-    ) {
+    if (!solanaWeb3 || !solanaWeb3.Connection || !solanaWeb3.PublicKey || !solanaWeb3.Transaction || !solanaWeb3.SystemProgram) {
       return Promise.reject(new Error('Solana web3 not loaded. Refresh the page.'));
     }
+    /* Same path as raffles SOL pay: SystemProgram.transfer + integer lamports. Custom raw ix triggered Phantom “malicious dApp” heuristics. */
     var lamportsRaw = String(lamportsStr || '').trim().replace(/\s/g, '');
-    if (!/^\d+$/.test(lamportsRaw)) return Promise.reject(new Error('Invalid fee amount'));
-    var lamportsBI;
-    try {
-      lamportsBI = BigInt(lamportsRaw);
-    } catch (e) {
-      return Promise.reject(new Error('Invalid fee amount'));
-    }
-    if (lamportsBI <= 0n) return Promise.reject(new Error('Invalid fee amount'));
+    if (!/^\d+$/.test(lamportsRaw) || lamportsRaw.length > 15) return Promise.reject(new Error('Invalid fee amount'));
+    var lamports = parseInt(lamportsRaw, 10);
+    if (isNaN(lamports) || lamports < 1 || lamports > Number.MAX_SAFE_INTEGER) return Promise.reject(new Error('Invalid fee amount'));
     var Connection = solanaWeb3.Connection;
     var PublicKey = solanaWeb3.PublicKey;
     var Transaction = solanaWeb3.Transaction;
-    var TransactionInstruction = solanaWeb3.TransactionInstruction;
     var SystemProgram = solanaWeb3.SystemProgram;
     var connection = new Connection(SOLANA_RPC, 'confirmed');
     var ownerPk = new PublicKey(wallet);
     var treasuryPk = new PublicKey(String(destination).trim());
-    /* Raw System Program transfer (u32 Transfer=2 + u64 lamports LE). Avoids Blob.encode bugs in some web3 IIFE builds. */
-    var ixData = new Uint8Array(12);
-    var dv = new DataView(ixData.buffer, ixData.byteOffset, 12);
-    dv.setUint32(0, 2, true);
-    dv.setBigUint64(4, lamportsBI, true);
     var tx = new Transaction().add(
-      new TransactionInstruction({
-        keys: [
-          { pubkey: ownerPk, isSigner: true, isWritable: true },
-          { pubkey: treasuryPk, isSigner: false, isWritable: true },
-        ],
-        programId: SystemProgram.programId,
-        data: ixData,
+      SystemProgram.transfer({
+        fromPubkey: ownerPk,
+        toPubkey: treasuryPk,
+        lamports: lamports,
       })
     );
     return connection.getLatestBlockhash('confirmed').then(function (bh) {
@@ -83,56 +62,25 @@
       if (!blockhash) return Promise.reject(new Error('Could not get blockhash'));
       tx.recentBlockhash = blockhash;
       tx.feePayer = ownerPk;
-      function signThenSendViaServer(unsignedTx) {
-        var t = unsignedTx;
-        var signPromise =
-          typeof provider.signTransaction === 'function'
-            ? Promise.resolve(provider.signTransaction(t))
-            : Promise.resolve(t).then(function (ut) {
-                var ser = ut.serialize({ requireAllSignatures: false });
-                var rawArr = ser instanceof Uint8Array ? ser : new Uint8Array(ser);
-                var b64 = btoa(String.fromCharCode.apply(null, rawArr));
-                return provider.request({ method: 'signTransaction', params: { message: b64 } }).then(function (signedB64) {
-                  if (!signedB64) return null;
-                  var decoded = atob(signedB64);
-                  var arr = new Uint8Array(decoded.length);
-                  for (var j = 0; j < decoded.length; j++) arr[j] = decoded.charCodeAt(j);
-                  return solanaWeb3.Transaction.from(arr);
-                });
-              });
-        return signPromise.then(function (signedTx) {
-          if (!signedTx) return Promise.reject(new Error('Wallet did not return signed transaction'));
-          var serialized = signedTx.serialize ? signedTx.serialize() : signedTx;
-          var raw = serialized instanceof Uint8Array ? serialized : new Uint8Array(serialized);
-          var base64 = btoa(String.fromCharCode.apply(null, raw));
-          return fetch(RAFFLES_SEND_RAW, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ signedTransaction: base64 }),
-          })
-            .then(function (r) {
-              return r.json().then(function (data) {
-                return { ok: r.ok, data: data };
-              });
-            })
-            .then(function (result) {
-              if (result.ok && result.data && result.data.signature) return result.data.signature;
-              var errMsg =
-                result.data && (result.data.error || result.data.logs)
-                  ? result.data.error || (Array.isArray(result.data.logs) ? result.data.logs.join('\n') : '')
-                  : 'Send failed';
-              return Promise.reject(new Error(errMsg));
-            });
-        });
-      }
+      /* Match raffles SOL path: signAndSend only (same tx shape Phantom already trusts for ticket buys). */
       if (typeof provider.signAndSendTransaction === 'function') {
         return Promise.resolve(provider.signAndSendTransaction(tx)).then(function (result) {
-          var sig = result && (typeof result === 'string' ? result : result.signature || result.hash);
+          var sig = (result && (typeof result === 'string' ? result : result.signature || result.hash)) || null;
           return sig ? sig : Promise.reject(new Error('No signature returned'));
         });
       }
-      return signThenSendViaServer(tx);
+      var serialized = tx.serialize({ requireAllSignatures: false });
+      var rawBuf = serialized && serialized instanceof Uint8Array ? serialized : new Uint8Array(serialized);
+      var base64 =
+        typeof rawBuf.toString === 'function' && rawBuf.toString('base64')
+          ? rawBuf.toString('base64')
+          : btoa(String.fromCharCode.apply(null, rawBuf));
+      return provider
+        .request({ method: 'signAndSendTransaction', params: { transaction: base64 } })
+        .then(function (result) {
+          var sig = (result && (typeof result === 'string' ? result : result.signature || result.hash)) || null;
+          return sig ? sig : Promise.reject(new Error('No signature returned'));
+        });
     });
   }
 
