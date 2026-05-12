@@ -552,6 +552,42 @@
     return null;
   }
 
+  /** Provider that currently has an active connection (for disconnect). */
+  function getConnectedSolanaProvider() {
+    var wallets = getDetectedWallets();
+    for (var i = 0; i < wallets.length; i++) {
+      if (wallets[i].provider && wallets[i].provider.publicKey) return wallets[i].provider;
+    }
+    return null;
+  }
+
+  function updateWalletSessionDisconnectVisibility() {
+    var show = !!getWalletPublicKey();
+    ['btn-disconnect-wallet', 'btn-disconnect-wallet-mobile', 'verify-modal-btn-disconnect-wallet'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.hidden = !show;
+    });
+  }
+
+  /** End in-wallet session only (does not unlink from Discord). */
+  function disconnectWalletSession() {
+    var p = getConnectedSolanaProvider();
+    function finish() {
+      setWalletConnected(false);
+      hideHoldings();
+      updateWalletSessionDisconnectVisibility();
+    }
+    if (p && typeof p.disconnect === 'function') {
+      return Promise.resolve(p.disconnect())
+        .catch(function (e) {
+          console.warn('Wallet disconnect', e);
+        })
+        .finally(finish);
+    }
+    finish();
+    return Promise.resolve();
+  }
+
   function getWalletPublicKey() {
     var provider = getSolanaProvider();
     return provider && provider.publicKey ? provider.publicKey.toString() : null;
@@ -574,6 +610,7 @@
   function setWalletConnected(connected) {
     document.body.classList.toggle('wallet-connected', connected);
     updateConnectWalletButtonLabel();
+    updateWalletSessionDisconnectVisibility();
     if (typeof syncVerifyModalState === 'function') syncVerifyModalState();
     if (connected && window.checkAlreadyVerified) window.checkAlreadyVerified();
     if (connected && document.getElementById('main-raffles') && !document.getElementById('main-raffles').hidden && typeof window.initRafflesPage === 'function') window.initRafflesPage();
@@ -685,10 +722,26 @@
       }
     });
     if (getWalletPublicKey()) setWalletConnected(true);
+    else updateWalletSessionDisconnectVisibility();
   })();
 
   document.getElementById('btn-connect-wallet')?.addEventListener('click', connectWallet);
   document.getElementById('btn-connect-wallet-mobile')?.addEventListener('click', connectWallet);
+  document.getElementById('btn-disconnect-wallet')?.addEventListener('click', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    disconnectWalletSession();
+  });
+  document.getElementById('btn-disconnect-wallet-mobile')?.addEventListener('click', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    disconnectWalletSession();
+  });
+  document.getElementById('verify-modal-btn-disconnect-wallet')?.addEventListener('click', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    disconnectWalletSession();
+  });
   walletPickerBackdrop?.addEventListener('click', closeWalletPicker);
   walletPickerClose?.addEventListener('click', closeWalletPicker);
 
