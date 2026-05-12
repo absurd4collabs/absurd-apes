@@ -117,6 +117,57 @@ body {
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
 }
 
+/* ——— Header right: social row + MINT LIVE pill (fixed header = stays on scroll) ——— */
+.site-header__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.45rem;
+  flex-shrink: 0;
+}
+.mint-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.7rem 0.3rem 0.55rem;
+  border-radius: 9999px;
+  background: rgba(16, 85, 48, 0.55);
+  border: 1px solid #34d399;
+  color: #4ade80;
+  font-family: var(--font-sans);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+  line-height: 1.2;
+  box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.15);
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+.mint-live-badge:hover {
+  background: rgba(16, 85, 48, 0.72);
+  border-color: #6ee7b7;
+  color: #86efac;
+}
+.mint-live-badge:focus-visible {
+  outline: 2px solid #34d399;
+  outline-offset: 2px;
+}
+.mint-live-badge__dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: #4ade80;
+  flex-shrink: 0;
+  box-shadow: 0 0 8px rgba(74, 222, 128, 0.95);
+}
+.mint-live-badge__text {
+  position: relative;
+  top: 0.02em;
+}
+
 /* ——— Sticky social (Discord + X, inside header) ——— */
 .social-sticky {
   display: flex;
@@ -154,6 +205,11 @@ body {
   }
   .site-header__title {
     font-size: clamp(1.1rem, 4.5vw, 1.5rem);
+  }
+  .mint-live-badge {
+    font-size: 0.58rem;
+    padding: 0.25rem 0.55rem 0.25rem 0.45rem;
+    gap: 0.3rem;
   }
   .social-sticky {
     gap: 0.35rem;
@@ -1481,16 +1537,32 @@ body.route-home .site-header__title {
 .dashboard__verify .btn + .btn {
   margin-top: 0.5rem;
 }
-.dashboard__wallet-row {
+/* One visual control: connect / address + optional disconnect (session only) */
+.dashboard__wallet-pill {
   display: flex;
   align-items: stretch;
-  gap: 0.35rem;
+  width: 100%;
   margin-top: 0.5rem;
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  overflow: hidden;
+  box-sizing: border-box;
 }
-.panel__actions .dashboard__wallet-row {
+.panel__actions .dashboard__wallet-pill {
   width: 100%;
 }
-.wallet-session-disconnect {
+.dashboard__wallet-pill__connect.btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  justify-content: flex-start;
+}
+.wallet-session-disconnect--in-pill {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
@@ -1498,32 +1570,26 @@ body.route-home .site-header__title {
   width: 2.75rem;
   min-height: 44px;
   padding: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.06);
+  margin: 0;
+  border: none;
+  border-left: 1px solid var(--border);
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.05);
   color: var(--text-muted);
   cursor: pointer;
-  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  transition: color 0.15s, background 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
-.wallet-session-disconnect:hover:not(:disabled) {
+.wallet-session-disconnect--in-pill:hover:not(:disabled) {
   color: var(--text);
   background: var(--bg-hover);
-  border-color: var(--text-muted);
 }
-.wallet-session-disconnect:focus-visible {
+.wallet-session-disconnect--in-pill:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
-.wallet-session-disconnect--compact {
-  width: 2.5rem;
-  min-height: 2.5rem;
-}
-.verify-modal__wallet-trailing {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  flex-shrink: 0;
+.wallet-session-disconnect--in-pill[hidden] {
+  display: none !important;
 }
 body.holdings-verified #btn-verify,
 body.holdings-verified #btn-verify-panel {
@@ -1958,8 +2024,7 @@ body.holdings-verified #btn-verify-panel {
   font-weight: 600;
   color: var(--text-muted);
 }
-.verify-modal__discord-connected,
-.verify-modal__wallet-connected {
+.verify-modal__discord-connected {
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -1968,8 +2033,18 @@ body.holdings-verified #btn-verify-panel {
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
 }
+.verify-modal__wallet-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
 .verify-modal__discord-connected[hidden],
-.verify-modal__wallet-connected[hidden] {
+.verify-modal__wallet-pill[hidden] {
   display: none;
 }
 .verify-modal__avatar {
@@ -1986,6 +2061,14 @@ body.holdings-verified #btn-verify-panel {
   font-size: 1.0625rem;
   word-break: break-all;
   color: var(--text-muted);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.verify-modal__wallet-pill__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
 }
 .verify-modal__success[hidden] {
   display: none;
@@ -2002,11 +2085,6 @@ body.holdings-verified #btn-verify-panel {
   font-size: 1.125rem;
   font-weight: 600;
   color: var(--accent);
-}
-.verify-modal__wallet-connected--row {
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 0.5rem;
 }
 .verify-modal__step--linked-only[hidden] {
   display: none;
@@ -2254,6 +2332,38 @@ body.holdings-verified #btn-verify-panel {
   color: #0a0a0a;
   border: none;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Claim merch — same pill shape as wait list button, blue + star */
+.merch-packs-page__claim-btn.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border-radius: 9999px;
+  padding: 0.65rem 1.75rem;
+  font-weight: 600;
+  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+  color: #fff;
+  border: none;
+  box-shadow: 0 1px 4px rgba(37, 99, 235, 0.45);
+}
+.merch-packs-page__claim-btn.btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 100%);
+  color: #fff;
+}
+.merch-packs-page__claim-btn.btn:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+.merch-packs-page__claim-btn.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.merch-packs-page__claim-star {
+  flex-shrink: 0;
+  width: 1.125rem;
+  height: 1.125rem;
 }
 
 /* After .btn--outline so copy icon button keeps a surface (outline alone is transparent + can hide SVG fill) */
@@ -2905,43 +3015,61 @@ body.holdings-verified #btn-verify-panel {
   z-index: 1;
 }
 
-/* Horizons section: full-bleed background image */
+/* Horizons: grid stacks hero + in-flow overlay so expanded mint copy grows section (no overflow clip) */
 .section--horizons,
 #horizons {
   position: relative;
-  overflow: hidden;
-  min-height: 0; /* allow aspect-ratio to set height */
-  aspect-ratio: 1024 / 680; /* match horizons-bg.png (1024×680) */
+  overflow: visible;
+  min-height: 0;
   --horizons-scroll: 0; /* arrow at top until JS runs (avoids production flash) */
+  background: #141218; /* fills below hero band when overlay is taller than image */
 }
-#horizons::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: url("../assets/horizons-bg.png") center / cover no-repeat;
-  pointer-events: none;
+#horizons .horizons__main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  position: relative;
+}
+.horizons__hero-bg {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: start;
+  width: 100%;
+  aspect-ratio: 1024 / 512;
+  min-height: 0;
+  position: relative;
   z-index: 0;
+  background: url("../assets/horizons-bg.png?v=2") center / cover no-repeat;
+  pointer-events: none;
 }
-#horizons .container {
+#horizons .horizons__overlay {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: start;
+  width: 100%;
+  max-width: none;
   position: relative;
   z-index: 1;
+  box-sizing: border-box;
+  padding: 1.25rem 10rem 1.25rem 1.25rem;
+  pointer-events: none;
 }
 #horizons .section__title {
   text-shadow: 0 0 0.5rem rgba(0, 0, 0, 0.6), 0 1px 2px rgba(0, 0, 0, 0.8);
   visibility: hidden;
 }
-/* Mint progress: supply from Magic Eden, 4,444 total; alpha promo text inside same box */
+/* Mint progress: supply from Magic Eden; in document flow so expanded height extends the section */
 .horizons__mint-progress {
-  position: absolute;
-  top: 1.25rem;
-  left: 1.25rem;
-  right: 10rem;
+  position: relative;
+  top: auto;
+  left: auto;
+  right: auto;
   max-width: 22rem;
   z-index: 2;
   padding: 0.75rem 1rem;
   background: var(--bg-card);
   border-radius: var(--radius);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
 }
 .horizons__alpha {
   margin-top: 0.75rem;
@@ -2970,6 +3098,17 @@ body.holdings-verified #btn-verify-panel {
   color: #fff;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   line-height: 1.6;
+}
+.horizons__alpha-list {
+  margin: -0.35rem 0 0.65rem;
+  padding-left: 1.15rem;
+  font-size: 0.8125rem;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  line-height: 1.65;
+}
+.horizons__alpha-list li {
+  margin-bottom: 0.25rem;
 }
 .horizons__alpha-read-more {
   margin-top: 0.35rem;
@@ -3006,11 +3145,38 @@ body.holdings-verified #btn-verify-panel {
   transition: width 0.4s ease;
 }
 @media (orientation: portrait) and (max-width: 899px) {
+  /* Stack hero band then full-width mint card (no grid overlap) */
+  #horizons .horizons__main {
+    display: flex;
+    flex-direction: column;
+  }
+  .horizons__hero-bg {
+    grid-column: auto;
+    grid-row: auto;
+    aspect-ratio: unset;
+    width: 100%;
+    height: 50vw;
+    flex: 0 0 auto;
+    background: url("../assets/horizons-bg-portrait.png?v=2") center / cover no-repeat;
+  }
+  #horizons .horizons__overlay {
+    grid-column: auto;
+    grid-row: auto;
+    padding: 1rem;
+    pointer-events: auto;
+    width: 100%;
+    max-width: none;
+  }
+  #horizons .section__title {
+    margin: 0;
+    height: 0;
+    overflow: hidden;
+  }
   .horizons__mint-progress {
-    top: 1rem;
-    left: 1rem;
-    right: 5rem;
-    max-width: 16rem;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    border-radius: var(--radius);
   }
   .horizons__mint-label {
     font-size: var(--text-xs);
@@ -3032,8 +3198,34 @@ body.holdings-verified #btn-verify-panel {
     font-size: 0.8rem;
     margin-top: 0.35rem;
   }
+  .horizons__alpha-list {
+    font-size: 0.7rem;
+  }
   .horizons__alpha-read-more {
     display: none;
+  }
+  .horizons__right {
+    right: 1rem;
+    bottom: 2rem;
+    width: 6rem;
+    top: auto;
+  }
+  .horizons__right .horizons__cta {
+    left: auto;
+    right: 0;
+    transform: none;
+  }
+  .horizons__arrow {
+    width: 2rem;
+    height: 2rem;
+    left: 50%;
+    top: calc(22% + var(--horizons-scroll, 0) * 56%);
+  }
+  .horizons__mint {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.875rem;
+    min-width: 5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   }
 }
 @media (min-width: 900px) {
@@ -3042,13 +3234,6 @@ body.holdings-verified #btn-verify-panel {
   }
   .horizons__alpha.horizons__alpha--expanded .horizons__alpha-more {
     display: block;
-  }
-}
-@media (min-width: 768px) {
-  .horizons__mint-progress {
-    top: 2rem;
-    left: 2rem;
-    max-width: 22rem;
   }
 }
 /* Right column: arrow + mint button, both centered; arrow moves with scroll */
@@ -3107,70 +3292,10 @@ body.holdings-verified #btn-verify-panel {
   white-space: nowrap;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
-@media (orientation: portrait) and (max-width: 899px) {
-  /* Image at top only; mint progress container below, full width */
-  #horizons {
-    aspect-ratio: unset;
-    min-height: 0;
-    padding-top: 91vw; /* 100vw * 1568/1720 ≈ portrait image height */
-    padding-bottom: 0.5rem;
-  }
-  #horizons::before {
-    background: url("../assets/horizons-bg-portrait.png") center / cover no-repeat;
-    height: 91vw;
-    bottom: auto;
-  }
-  #horizons .container {
-    position: static;
-    width: 100%;
-    max-width: none;
-    padding-left: 1rem;
-    padding-right: 1rem;
-    padding-top: 1rem;
-    padding-bottom: 0.5rem;
-    margin-top: 0;
-  }
-  #horizons .section__title {
-    margin: 0;
-    height: 0;
-    overflow: hidden;
-  }
-  .horizons__mint-progress {
-    position: static;
-    top: auto;
-    left: auto;
-    right: auto;
-    width: 100%;
-    max-width: none;
-    margin: 0;
-    border-radius: var(--radius);
-    background: var(--bg-card);
-  }
-  /* Keep arrow + mint button in the image area (above the full-width block); larger bottom = higher on image */
-  .horizons__right {
-    right: 1rem;
-    bottom: calc(100% - 91vw + 2rem);
-    width: 6rem; /* match button so arrow center aligns */
-  }
-  .horizons__right .horizons__cta {
-    left: auto;
-    right: 0;
-    transform: none;
-  }
-  .horizons__arrow {
-    width: 2rem;
-    height: 2rem;
-    left: 50%; /* 50% of 6rem = center above button */
-    top: calc(22% + var(--horizons-scroll, 0) * 56%);
-  }
-  .horizons__mint {
-    padding: 0.4rem 0.75rem;
-    font-size: 0.875rem;
-    min-width: 5rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-  }
-}
 @media (min-width: 768px) {
+  #horizons .horizons__overlay {
+    padding: 2rem 12rem 2rem 2rem;
+  }
   .horizons__right {
     right: 3rem;
     bottom: 3rem;
